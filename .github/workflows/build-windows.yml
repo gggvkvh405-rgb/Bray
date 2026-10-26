@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -23,10 +23,25 @@ jobs:
         run: npm ci
       - name: Build portable executable
         run: npm run dist:win
-      - name: Upload executable
+      - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
           name: ByAzen-Windows-x64
           path: release/ByAzen.exe
           if-no-files-found: error
           retention-days: 30
+      - name: Publish direct download
+        if: github.event_name == 'push' && github.ref == 'refs/heads/arena/f944c286-bray'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.0.1 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.1 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          else
+            gh release create v1.0.1 release/ByAzen.exe \
+              --title 'ByAzen 1.0.1 — исправление белого экрана' \
+              --notes 'Portable Windows x64 build with the startup blank-screen fix.' \
+              --prerelease \
+              --repo gggvkvh405-rgb/Bray
+          fi
