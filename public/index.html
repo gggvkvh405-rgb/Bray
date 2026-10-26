@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ByAzen</title>
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Inter+Tight:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#09090B; --bg-2:#0E0E11; --panel:#101013; --panel-2:#151519;
+  --border:rgba(255,255,255,.07); --border-2:rgba(255,255,255,.11);
+  --text:#FAFAFA; --text-2:#A1A1AA; --text-3:#63636B;
+  --hover:rgba(255,255,255,.05); --active:rgba(255,255,255,.075);
+  --accent:#FAFAFA; --danger:#F87171;
+  --r:10px; --ease:cubic-bezier(.32,.72,.24,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13px;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input{font:inherit;color:inherit;background:none;border:none;outline:none}
+::selection{background:rgba(255,255,255,.85);color:#09090B}
+svg{display:block;flex:none}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22);background-clip:padding-box;border:2px solid transparent}
+::-webkit-scrollbar-track{background:transparent}
+
+#app{display:flex;height:100vh;opacity:0;transform:scale(.996);transition:opacity .55s ease,transform .55s var(--ease);animation:appFallback .5s ease 4.2s both}
+body.ready #app{opacity:1;transform:none}
+@keyframes appFallback{to{opacity:1;transform:none}}
+
+/* ================= SPLASH ================= */
+#splash{position:fixed;inset:0;z-index:999;background:radial-gradient(720px 480px at 32% 16%,rgba(255,255,255,.055),transparent 60%),#060607;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;cursor:pointer;transition:opacity .5s var(--ease),visibility .5s}
+#splash.hide{opacity:0;visibility:hidden;pointer-events:none}
+.splash-stage{position:relative}
+.splash-stage::before{content:'';position:absolute;inset:-52px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 65%);opacity:0;animation:glowIn 1.15s ease .25s both;pointer-events:none}
+.splash-icon{position:relative;width:118px;height:118px;border-radius:28px;overflow:hidden;background:#0B0B0D;box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.07);animation:splashIn .85s cubic-bezier(.22,1,.36,1) both,splashFloat 3.4s ease-in-out .95s infinite}
+.splash-icon img{width:100%;height:100%;display:block;object-fit:cover}
+.splash-icon::after{content:'';position:absolute;top:-25%;bottom:-25%;left:0;width:42%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(-240%) skewX(-18deg);animation:shineSweep 1.05s ease .8s both;mix-blend-mode:screen;pointer-events:none}
+@keyframes splashIn{from{opacity:0;transform:scale(.8) translateY(16px);filter:blur(10px)}55%{filter:blur(0)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes splashFloat{0%,100%{transform:scale(1) translateY(0)}50%{transform:scale(1) translateY(-4px)}}
+@keyframes shineSweep{to{transform:translateX(360%) skewX(-18deg)}}
+@keyframes glowIn{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}
+.splash-text{text-align:center}
+.splash-name{display:flex;justify-content:center;font-size:22px;font-weight:680;letter-spacing:-.015em;color:#FAFAFA;line-height:1.15}
+.splash-name span{opacity:0;transform:translateY(10px);animation:letterIn .55s cubic-bezier(.22,1,.36,1) both}
+.splash-name span:nth-child(1){animation-delay:.38s}.splash-name span:nth-child(2){animation-delay:.45s}.splash-name span:nth-child(3){animation-delay:.52s}.splash-name span:nth-child(4){animation-delay:.59s}.splash-name span:nth-child(5){animation-delay:.66s}.splash-name span:nth-child(6){animation-delay:.73s}
+@keyframes letterIn{to{opacity:1;transform:none}}
+.splash-sub{margin-top:6px;font-size:9.5px;font-weight:600;letter-spacing:.36em;text-transform:uppercase;color:var(--text-3);opacity:0;animation:letterIn .7s ease .85s both}
+.splash-line{width:134px;height:2px;border-radius:2px;background:rgba(255,255,255,.09);overflow:hidden}
+.splash-line i{display:block;height:100%;background:#FAFAFA;border-radius:2px;transform:scaleX(0);transform-origin:left;animation:loadLine 1.3s cubic-bezier(.65,0,.35,1) .4s both}
+@keyframes loadLine{to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important}}
+
+/* Desktop (Electron) title bar */
+#titlebar{display:none}
+body.electron #titlebar{display:flex;align-items:center;justify-content:center;height:34px;background:var(--bg);color:var(--text-3);font-size:10.5px;font-weight:650;letter-spacing:.18em;text-transform:uppercase;-webkit-app-region:drag;user-select:none}
+body.electron #app{height:calc(100vh - 34px)}
+body.electron .traffic{display:none}
+body.electron .window-row{justify-content:flex-end}
+
+/* ================= SIDEBAR ================= */
+#sidebar{width:272px;flex:none;display:flex;flex-direction:column;padding:14px 12px 12px;gap:14px;background:var(--bg);transition:width .28s var(--ease);position:relative;z-index:30}
+#sidebar.collapsed{width:62px;padding:14px 10px 12px}
+#sidebar.collapsed .hide-collapsed{display:none!important}
+#sidebar.collapsed .brand-text,#sidebar.collapsed .tab-title,#sidebar.collapsed .tab-close{display:none}
+#sidebar.collapsed .tab{justify-content:center;padding:8px 0}
+#sidebar.collapsed .new-tab-btn{justify-content:center}
+#sidebar.collapsed .profile-row{justify-content:center}
+
+.window-row{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+.traffic{display:flex;gap:8px}
+.traffic span{width:12px;height:12px;border-radius:50%}
+.traffic .r{background:#3A3A3F}.traffic .y{background:#3A3A3F}.traffic .g{background:#3A3A3F}
+.traffic:hover .r{background:#FF5F57}.traffic:hover .y{background:#FEBC2E}.traffic:hover .g{background:#28C840}
+.icon-btn{width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:var(--text-2);transition:all .15s}
+.icon-btn:hover{background:var(--hover);color:var(--text)}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn:disabled{opacity:.28;pointer-events:none}
+.icon-btn svg{width:17px;height:17px}
+
+.brand{display:flex;align-items:center;gap:11px;padding:2px 4px}
+.logo{width:34px;height:34px;flex:none;border-radius:9px;overflow:hidden;position:relative;background:#0B0B0D;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.logo img{width:100%;height:100%;display:block;object-fit:cover}
+.logo::after{content:'';position:absolute;right:4px;bottom:4px;width:5px;height:5px;border-radius:50%;background:var(--accent);border:1.5px solid #09090B;display:none}
+.brand-name{font-size:15px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.brand-sub{font-size:9.5px;letter-spacing:.14em;color:var(--text-3);font-weight:600;text-transform:uppercase;margin-top:1px}
+
+.nav-row{display:flex;gap:2px;align-items:center}
+.nav-row .spacer{flex:1}
+.reload-spin svg{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Omnibox */
+.omnibox-wrap{position:relative}
+.omnibox{display:flex;align-items:center;gap:8px;height:39px;padding:0 6px 0 11px;background:rgba(255,255,255,.045);border:1px solid var(--border);border-radius:11px;transition:all .18s}
+.omnibox:focus-within{background:rgba(255,255,255,.07);border-color:var(--border-2);box-shadow:0 0 0 3px rgba(255,255,255,.045)}
+.omnibox .lead{color:var(--text-3);display:grid;place-items:center}
+.omnibox .lead svg{width:14px;height:14px}
+.omnibox input{flex:1;min-width:0;font-size:12.5px;color:var(--text)}
+.omnibox input::placeholder{color:var(--text-3)}
+.omni-btn{width:27px;height:27px;display:grid;place-items:center;border-radius:7px;color:var(--text-3);transition:all .15s;flex:none}
+.omni-btn:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.omni-btn svg{width:14.5px;height:14.5px}
+.omni-btn.on{color:var(--accent)}
+.omni-btn.on svg{fill:currentColor}
+
+.dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#17171B;border:1px solid var(--border-2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.55),0 4px 14px rgba(0,0,0,.4);padding:5px;z-index:80;display:none;overflow:hidden}
+.dropdown.show{display:block;animation:pop .14s var(--ease)}
+@keyframes pop{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.suggest-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 9px;border-radius:8px;font-size:12.5px;color:var(--text-2)}
+.suggest-item svg{width:14px;height:14px;color:var(--text-3)}
+.suggest-item.sel,.suggest-item:hover{background:rgba(255,255,255,.07);color:var(--text)}
+.suggest-item .hint{margin-left:auto;font-size:10.5px;color:var(--text-3)}
+
+.new-tab-btn{display:flex;align-items:center;gap:9px;width:100%;height:37px;padding:0 11px;border:1px dashed rgba(255,255,255,.13);border-radius:11px;color:var(--text-2);font-size:12.5px;font-weight:500;transition:all .16s}
+.new-tab-btn:hover{border-color:rgba(255,255,255,.28);color:var(--text);background:var(--hover)}
+.new-tab-btn svg{width:15px;height:15px}
+.new-tab-btn kbd{margin-left:auto}
+kbd{font-family:'Inter';font-size:10px;color:var(--text-3);background:rgba(255,255,255,.06);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1.5px 5px}
+
+.section-label{display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+.section-label .count{background:rgba(255,255,255,.07);border-radius:99px;padding:1px 7px;letter-spacing:0;font-size:10px}
+
+/* Tabs */
+#pinned{display:flex;gap:6px;flex-wrap:wrap}
+#pinned:empty{display:none}
+.pin-btn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.04);border:1px solid transparent;transition:all .15s}
+.pin-btn:hover{background:var(--active)}
+.pin-btn.active{background:var(--active);border-color:var(--border)}
+.pin-btn img{width:17px;height:17px;border-radius:4px}
+
+#tabs{display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1;min-height:60px;padding-right:1px}
+.tab{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px;cursor:pointer;border:1px solid transparent;transition:background .14s;position:relative;user-select:none}
+.tab:hover{background:var(--hover)}
+.tab.active{background:var(--active);border-color:var(--border)}
+.tab.active::before{content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:3px;height:18px;border-radius:3px;background:var(--accent)}
+.tab-fav{width:28px;height:28px;flex:none;border-radius:8px;background:rgba(255,255,255,.05);display:grid;place-items:center;overflow:hidden}
+.tab-fav img{width:15px;height:15px;border-radius:3px}
+.tab-fav svg{width:14px;height:14px;color:var(--text-2)}
+.tab-title{flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab.active .tab-title{color:var(--text)}
+.tab-close{width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:6px;color:var(--text-3);opacity:0;transition:all .14s}
+.tab:hover .tab-close,.tab.active .tab-close{opacity:1}
+.tab-close:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.tab-close svg{width:11px;height:11px}
+.tab.drag-over{box-shadow:0 -2px 0 var(--accent)}
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.18);border-top-color:#FAFAFA;animation:spin .65s linear infinite}
+
+/* Side bottom */
+.side-bottom{border-top:1px solid var(--border);padding-top:11px;display:flex;flex-direction:column;gap:11px}
+.quick-row{display:flex;gap:2px;justify-content:space-between}
+.quick-btn{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;padding:7px 0 5px;border-radius:9px;color:var(--text-3);font-size:9.5px;font-weight:550;transition:all .15s}
+.quick-btn:hover{background:var(--hover);color:var(--text)}
+.quick-btn svg{width:16.5px;height:16.5px}
+.profile-row{display:flex;align-items:center;gap:10px;padding:4px;border-radius:11px;transition:background .15s;width:100%;text-align:left}
+.profile-row:hover{background:var(--hover)}
+.avatar{width:30px;height:30px;flex:none;border-radius:50%;background:#27272C;border:1px solid var(--border-2);display:grid;place-items:center;font-size:12px;font-weight:650;color:var(--text)}
+.profile-name{font-size:12.5px;font-weight:550;line-height:1.2}
+.profile-sub{font-size:10.5px;color:var(--text-3)}
+
+/* ================= MAIN ================= */
+#main{flex:1;min-width:0;padding:10px 10px 10px 0;display:flex}
+#viewport{flex:1;position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#FFFFFF;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+#progress{position:absolute;top:0;left:0;height:2.5px;background:var(--accent);width:0;z-index:40;opacity:0;border-radius:0 3px 3px 0;transition:width .25s var(--ease),opacity .3s}
+#progress.loading{opacity:1;animation:load 8s cubic-bezier(.1,.6,.3,1) forwards}
+@keyframes load{0%{width:0}18%{width:42%}55%{width:71%}100%{width:92%}}
+#progress.done{width:100%!important;opacity:0}
+#frames,#frames iframe{position:absolute;inset:0;width:100%;height:100%}
+#frames iframe{border:none;background:#fff;display:none}
+#frames iframe.visible{display:block}
+
+/* ================= NEW TAB ================= */
+#newtab{position:absolute;inset:0;overflow-y:auto;background:radial-gradient(1100px 520px at 50% -12%,rgba(255,255,255,.055),transparent 62%),#0A0A0C;display:none}
+#newtab.visible{display:block}
+.nt-inner{max-width:700px;margin:0 auto;padding:12vh 28px 48px;display:flex;flex-direction:column;align-items:center;animation:ntIn .45s var(--ease)}
+@keyframes ntIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.nt-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:16px 20px}
+.nt-tag{font-size:11px;color:var(--text-3);font-weight:550;letter-spacing:.06em;text-transform:uppercase}
+.weather{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);background:rgba(255,255,255,.045);border:1px solid var(--border);padding:6px 12px;border-radius:99px}
+.weather b{color:var(--text);font-weight:600}
+.clock{font-family:'Inter Tight';font-size:clamp(64px,9vw,92px);font-weight:300;letter-spacing:-.045em;line-height:1;color:var(--text)}
+.clock .sec{font-size:.32em;color:var(--text-3);font-weight:400;letter-spacing:0;margin-left:4px}
+.greeting{margin-top:13px;font-size:14.5px;color:var(--text-2);font-weight:450;text-align:center}
+.greeting b{color:var(--text);font-weight:600}
+
+.big-search-wrap{position:relative;width:100%;max-width:620px;margin-top:34px}
+.big-search{display:flex;align-items:center;gap:11px;height:55px;padding:0 8px 0 19px;background:rgba(255,255,255,.05);border:1px solid var(--border-2);border-radius:99px;transition:all .18s;box-shadow:0 8px 32px rgba(0,0,0,.28)}
+.big-search:focus-within{background:rgba(255,255,255,.075);border-color:rgba(255,255,255,.2);box-shadow:0 0 0 4px rgba(255,255,255,.045),0 8px 32px rgba(0,0,0,.28)}
+.big-search>svg{width:18px;height:18px;color:var(--text-3)}
+.big-search input{flex:1;min-width:0;font-size:15px;color:var(--text)}
+.big-search input::placeholder{color:var(--text-3)}
+.engine-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:99px;padding:8px 13px;font-size:12px;font-weight:550;color:var(--text-2);transition:all .15s;flex:none}
+.engine-btn:hover{color:var(--text);background:rgba(255,255,255,.11)}
+.engine-btn svg{width:12px;height:12px}
+.engine-menu{position:absolute;right:0;top:calc(100% + 8px);width:200px;background:#17171B;border:1px solid var(--border-2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:5px;z-index:60;display:none}
+.engine-menu.show{display:block;animation:pop .14s var(--ease)}
+.engine-menu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:9px 10px;border-radius:8px;font-size:13px;color:var(--text-2)}
+.engine-menu button:hover{background:rgba(255,255,255,.07);color:var(--text)}
+.engine-menu button .check{margin-left:auto;opacity:0}
+.engine-menu button.sel{color:var(--text)}
+.engine-menu button.sel .check{opacity:1}
+.engine-menu button svg{width:14px;height:14px}
+
+.shortcuts{display:grid;grid-template-columns:repeat(5,1fr);gap:10px 14px;margin-top:38px;width:100%;max-width:620px}
+.shortcut{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 2px;border-radius:14px;transition:all .16s;position:relative}
+.shortcut .tile{width:52px;height:52px;border-radius:15px;background:rgba(255,255,255,.05);border:1px solid var(--border);display:grid;place-items:center;transition:all .18s var(--ease)}
+.shortcut .tile img{width:24px;height:24px;border-radius:5px}
+.shortcut .tile svg{width:20px;height:20px;color:var(--text-2)}
+.shortcut:hover .tile{background:rgba(255,255,255,.09);transform:translateY(-2px);border-color:var(--border-2)}
+.shortcut .name{font-size:11px;color:var(--text-2);font-weight:500;max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shortcut .rm{position:absolute;top:0;right:8px;width:17px;height:17px;border-radius:50%;background:#2A2A30;color:#fff;display:none;place-items:center;font-size:10px;line-height:1}
+.shortcut:hover .rm{display:grid}
+
+.nt-section{width:100%;max-width:620px;margin-top:36px}
+.nt-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px}
+.nt-section-head h3{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3)}
+.nt-section-head button{font-size:12px;color:var(--text-3)}
+.nt-section-head button:hover{color:var(--text)}
+.recent-list{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:15px;padding:5px}
+.recent-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:9px 10px;border-radius:10px;transition:background .14s}
+.recent-item:hover{background:rgba(255,255,255,.055)}
+.recent-item img{width:16px;height:16px;border-radius:4px;flex:none}
+.recent-item .t{flex:1;min-width:0}
+.recent-item .ttl{display:block;font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-item .dom{display:block;font-size:11px;color:var(--text-3)}
+.recent-item time{font-size:11px;color:var(--text-3);flex:none}
+
+.nt-hints{margin-top:44px;display:flex;gap:18px;flex-wrap:wrap;justify-content:center;color:var(--text-3);font-size:11.5px}
+.nt-hints span{display:flex;align-items:center;gap:6px}
+
+/* ================= SEARCH PAGE ================= */
+#searchpage{position:absolute;inset:0;overflow-y:auto;background:radial-gradient(1100px 460px at 50% -12%,rgba(255,255,255,.045),transparent 60%),#0A0A0C;display:none}
+#searchpage.visible{display:block}
+.sp-inner{max-width:780px;margin:0 auto;padding:34px 30px 70px;animation:ntIn .35s var(--ease)}
+.sp-head{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.sp-head .logo{width:28px;height:28px;font-size:15px;border-radius:8px}
+.sp-head b{font-size:14px;font-weight:650;letter-spacing:-.01em}
+.sp-head span{color:var(--text-3);font-size:12px}
+.sp-search-wrap{position:relative}
+.sp-search{display:flex;align-items:center;gap:11px;height:50px;padding:0 18px;background:rgba(255,255,255,.05);border:1px solid var(--border-2);border-radius:99px;transition:all .18s}
+.sp-search:focus-within{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2);box-shadow:0 0 0 4px rgba(255,255,255,.04)}
+.sp-search>svg{width:17px;height:17px;color:var(--text-3)}
+.sp-search input{flex:1;min-width:0;font-size:14.5px;color:var(--text)}
+.sp-chips{display:flex;gap:7px;flex-wrap:wrap;margin:16px 0 6px;align-items:center}
+.sp-chips .lbl{font-size:11.5px;color:var(--text-3);margin-right:2px}
+.chip{font-size:11.5px;font-weight:550;color:var(--text-2);background:rgba(255,255,255,.045);border:1px solid var(--border);border-radius:99px;padding:6px 12px;transition:all .14s}
+.chip:hover{color:var(--text);background:rgba(255,255,255,.09)}
+.chip.on{background:#FAFAFA;color:#09090B;border-color:transparent}
+.sp-meta{font-size:12px;color:var(--text-3);margin:14px 2px 8px}
+.answer{margin:16px 0 10px;background:rgba(255,255,255,.04);border:1px solid var(--border-2);border-radius:16px;padding:18px 20px}
+.answer .albl{font-size:10.5px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px}
+.answer h3{font-size:16px;font-weight:650;margin-bottom:6px}
+.answer p{font-size:13.5px;line-height:1.68;color:var(--text-2)}
+.answer a{display:inline-block;margin-top:10px;font-size:12.5px;color:var(--text);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.3);cursor:pointer}
+.sr{display:block;width:100%;text-align:left;padding:15px 16px;border:1px solid transparent;border-radius:14px;transition:all .14s;cursor:pointer}
+.sr:hover{background:rgba(255,255,255,.04);border-color:var(--border)}
+.sr-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.sr-head img{width:16px;height:16px;border-radius:4px}
+.sr-head .dom{font-size:12px;color:var(--text-2);font-weight:500}
+.sr-head .path{font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-title{font-size:16.5px;font-weight:580;color:#E8EDF7;letter-spacing:-.01em;line-height:1.35}
+.sr:hover .sr-title{text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.4)}
+.sr-snip{margin-top:4px;font-size:12.8px;line-height:1.62;color:var(--text-2)}
+.skl{padding:16px}
+.skl i{display:block;height:12px;border-radius:6px;background:rgba(255,255,255,.07);margin-bottom:10px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+.sp-state{text-align:center;padding:64px 30px;color:var(--text-3)}
+.sp-state b{display:block;color:var(--text-2);font-size:15px;margin-bottom:6px}
+.sp-state p{font-size:13px;line-height:1.65}
+
+/* ================= PANEL ================= */
+#panelOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);z-index:90;opacity:0;pointer-events:none;transition:opacity .22s}
+#panelOverlay.show{opacity:1;pointer-events:auto}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(372px,92vw);background:#111114;border-left:1px solid var(--border-2);z-index:95;transform:translateX(102%);transition:transform .3s var(--ease);display:flex;flex-direction:column;box-shadow:-20px 0 60px rgba(0,0,0,.5)}
+#panel.show{transform:none}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:18px 18px 12px}
+.panel-head h2{font-size:16px;font-weight:650;letter-spacing:-.01em}
+.panel-search{margin:0 16px 12px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;height:36px;padding:0 11px}
+.panel-search svg{width:14px;height:14px;color:var(--text-3)}
+.panel-search input{flex:1;font-size:12.5px}
+.panel-search input::placeholder{color:var(--text-3)}
+.panel-body{flex:1;overflow-y:auto;padding:2px 10px 16px}
+.panel-item{display:flex;align-items:center;gap:11px;padding:9px 9px;border-radius:10px;cursor:pointer;transition:background .14s}
+.panel-item:hover{background:var(--hover)}
+.panel-item img{width:17px;height:17px;border-radius:4px;flex:none}
+.panel-item .t{flex:1;min-width:0}
+.panel-item .ttl{display:block;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel-item .dom{display:block;font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel-item time{font-size:10.5px;color:var(--text-3);flex:none}
+.panel-del{width:26px;height:26px;flex:none;display:grid;place-items:center;border-radius:7px;color:var(--text-3);opacity:0}
+.panel-item:hover .panel-del{opacity:1}
+.panel-del:hover{background:rgba(248,113,113,.14);color:var(--danger)}
+.panel-del svg{width:13px;height:13px}
+.empty{text-align:center;padding:52px 28px;color:var(--text-3)}
+.empty svg{width:34px;height:34px;margin:0 auto 13px;stroke-width:1.3}
+.empty p{font-size:13px;line-height:1.65}
+.empty b{color:var(--text-2);display:block;font-size:14px;margin-bottom:3px}
+.panel-foot{padding:12px 16px;border-top:1px solid var(--border)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 16px;border-radius:10px;font-size:12.5px;font-weight:550;transition:all .15s;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text)}
+.btn:hover{background:rgba(255,255,255,.08)}
+.btn.block{width:100%}
+.btn.primary{background:#FAFAFA;color:#09090B;border-color:transparent}
+.btn.primary:hover{background:#E4E4E7}
+.btn.danger{color:var(--danger)}
+.btn.danger:hover{background:rgba(248,113,113,.12)}
+
+/* ================= MODALS ================= */
+.modal-overlay{position:fixed;inset:0;background:rgba(4,4,6,.62);backdrop-filter:blur(4px);z-index:110;display:none;place-items:center;padding:20px}
+.modal-overlay.show{display:grid}
+.modal{width:100%;max-width:540px;max-height:86vh;overflow-y:auto;background:#131317;border:1px solid var(--border-2);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:modalIn .22s var(--ease)}
+@keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 6px}
+.modal-head h2{font-size:17px;font-weight:650;letter-spacing:-.01em}
+.modal-body{padding:14px 22px 22px;display:flex;flex-direction:column;gap:22px}
+.set-group>h4{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+.seg{display:flex;background:rgba(255,255,255,.045);border:1px solid var(--border);border-radius:11px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{flex:1;padding:8px 6px;border-radius:8px;font-size:12.5px;font-weight:550;color:var(--text-2);transition:all .15s;white-space:nowrap}
+.seg button.sel{background:#FAFAFA;color:#09090B}
+.swatches{display:flex;gap:10px}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;outline:2px solid transparent;outline-offset:2.5px;transition:all .15s;cursor:pointer}
+.swatch.sel{outline-color:currentColor}
+.set-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.set-row:last-child{border-bottom:none}
+.set-row .tx{flex:1}
+.set-row .tx b{font-size:13px;font-weight:550;display:block}
+.set-row .tx span{font-size:11.5px;color:var(--text-3);line-height:1.45}
+.switch{width:42px;height:24px;flex:none;border-radius:99px;background:rgba(255,255,255,.13);position:relative;transition:background .18s;cursor:pointer}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#FAFAFA;transition:transform .18s var(--ease)}
+.switch.on{background:#FAFAFA}
+.switch.on::after{transform:translateX(18px);background:#09090B}
+.field{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;height:39px;padding:0 12px;font-size:13px;color:var(--text)}
+.field:focus{border-color:var(--border-2)}
+.field::placeholder{color:var(--text-3)}
+label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;margin:0 0 6px 1px}
+.about{display:flex;gap:13px;align-items:center;background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:13px;padding:14px}
+.about p{font-size:11.5px;color:var(--text-3);line-height:1.55;margin-top:2px}
+
+/* Command palette */
+#cmdk .modal{max-width:600px}
+#cmdk{align-items:start;padding-top:14vh}
+.cmdk-input{display:flex;align-items:center;gap:12px;padding:17px 19px;border-bottom:1px solid var(--border)}
+.cmdk-input svg{width:18px;height:18px;color:var(--text-3)}
+.cmdk-input input{flex:1;font-size:15.5px}
+.cmdk-input input::placeholder{color:var(--text-3)}
+.cmdk-list{padding:7px;max-height:46vh;overflow-y:auto}
+.cmdk-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 11px;border-radius:9px;font-size:13.5px;color:var(--text-2)}
+.cmdk-item svg,.cmdk-item img{width:16px;height:16px;border-radius:4px;color:var(--text-3)}
+.cmdk-item.sel{background:rgba(255,255,255,.075);color:var(--text)}
+.cmdk-item .tag{margin-left:auto;font-size:10.5px;color:var(--text-3);background:rgba(255,255,255,.06);padding:2px 7px;border-radius:99px}
+.cmdk-empty{padding:26px;text-align:center;color:var(--text-3);font-size:13px}
+
+/* Context menu / toast */
+#ctx{position:fixed;z-index:200;width:214px;background:#1A1A1F;border:1px solid var(--border-2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);padding:5px;display:none}
+#ctx.show{display:block;animation:pop .13s var(--ease)}
+#ctx button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8.5px 10px;border-radius:8px;font-size:12.5px;color:var(--text-2)}
+#ctx button:hover{background:rgba(255,255,255,.07);color:var(--text)}
+#ctx button.danger{color:var(--danger)}
+#ctx button svg{width:14px;height:14px}
+#ctx hr{border:none;border-top:1px solid var(--border);margin:4px 6px}
+#toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,16px);background:#FAFAFA;color:#09090B;font-size:13px;font-weight:550;padding:11px 19px;border-radius:99px;box-shadow:0 14px 40px rgba(0,0,0,.5);z-index:300;opacity:0;pointer-events:none;transition:all .28s var(--ease);display:flex;gap:8px;align-items:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:760px){#sidebar{width:62px;padding:14px 10px}#sidebar .hide-collapsed,#sidebar .brand-text,#sidebar .tab-title,#sidebar .tab-close{display:none}#sidebar .tab{justify-content:center}.shortcuts{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- ===== SVG ICON SPRITE (stroke icons, Lucide-style) ===== -->
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+<symbol id="i-fwd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+<symbol id="i-reload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+<symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+<symbol id="i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-cmd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></symbol>
+<symbol id="i-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></symbol>
+<symbol id="i-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+</defs>
+</svg>
+
+<!-- ============ SPLASH ============ -->
+<div id="splash" title="Пропустить">
+  <div class="splash-stage"><div class="splash-icon"><img src="/icon.png" alt="ByAzen"></div></div>
+  <div class="splash-text">
+    <div class="splash-name"><span>B</span><span>y</span><span>A</span><span>z</span><span>e</span><span>n</span></div>
+    <div class="splash-sub">Browser</div>
+  </div>
+  <div class="splash-line"><i></i></div>
+</div>
+
+<div id="titlebar">ByAzen</div>
+<div id="app">
+  <!-- ============ SIDEBAR ============ -->
+  <aside id="sidebar">
+    <div class="window-row">
+      <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <button class="icon-btn" id="collapseBtn" title="Свернуть панель (Ctrl+B)"><svg><use href="#i-panel"/></svg></button>
+    </div>
+
+    <div class="brand">
+      <div class="logo"><img src="/icon.png" alt="ByAzen"></div>
+      <div class="brand-text">
+        <div class="brand-name">ByAzen</div>
+        <div class="brand-sub">Browser</div>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="icon-btn" id="backBtn" title="Назад"><svg><use href="#i-back"/></svg></button>
+      <button class="icon-btn" id="fwdBtn" title="Вперёд"><svg><use href="#i-fwd"/></svg></button>
+      <button class="icon-btn" id="reloadBtn" title="Обновить"><svg><use href="#i-reload"/></svg></button>
+      <button class="icon-btn" id="homeBtn" title="Главная"><svg><use href="#i-home"/></svg></button>
+      <div class="spacer"></div>
+      <button class="icon-btn hide-collapsed" id="extBtn" title="Открыть сайт в системном браузере"><svg><use href="#i-ext"/></svg></button>
+    </div>
+
+    <div class="omnibox-wrap hide-collapsed">
+      <div class="omnibox">
+        <span class="lead" id="omniLead"><svg><use href="#i-search"/></svg></span>
+        <input id="urlInput" placeholder="Поиск или адрес сайта" spellcheck="false" autocomplete="off">
+        <button class="omni-btn" id="shieldBtn" title="Прокси-режим: сайты открываются внутри ByAzen"><svg><use href="#i-shield"/></svg></button>
+        <button class="omni-btn" id="starBtn" title="В закладки"><svg><use href="#i-star"/></svg></button>
+      </div>
+      <div class="dropdown" id="omniDrop"></div>
+    </div>
+
+    <button class="new-tab-btn" id="newTabBtn">
+      <svg><use href="#i-plus"/></svg><span class="hide-collapsed">Новая вкладка</span><kbd class="hide-collapsed">Alt T</kbd>
+    </button>
+
+    <div>
+      <div class="section-label hide-collapsed" style="margin-bottom:8px">Вкладки <span class="count" id="tabCount">1</span></div>
+      <div id="pinned"></div>
+    </div>
+    <nav id="tabs"></nav>
+
+    <div class="side-bottom">
+      <div class="quick-row">
+        <button class="quick-btn" id="bmBtn"><svg><use href="#i-bookmark"/></svg><span class="hide-collapsed">Закладки</span></button>
+        <button class="quick-btn" id="histBtn"><svg><use href="#i-history"/></svg><span class="hide-collapsed">История</span></button>
+        <button class="quick-btn" id="cmdBtn"><svg><use href="#i-cmd"/></svg><span class="hide-collapsed">Команды</span></button>
+        <button class="quick-btn" id="setBtn"><svg><use href="#i-gear"/></svg><span class="hide-collapsed" style="white-space:nowrap">Настройки</span></button>
+      </div>
+      <button class="profile-row" id="profileBtn">
+        <span class="avatar">A</span>
+        <span class="hide-collapsed"><span class="profile-name">Мой профиль</span><br><span class="profile-sub">Локально · без аккаунта</span></span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main id="main">
+    <div id="viewport">
+      <div id="progress"></div>
+      <div id="frames"></div>
+
+      <!-- NEW TAB PAGE -->
+      <section id="newtab">
+        <div class="nt-top">
+          <span class="nt-tag">ByAzen · Старт</span>
+          <span class="weather" id="weather" style="display:none"></span>
+        </div>
+        <div class="nt-inner">
+          <div class="clock" id="clock">00:00</div>
+          <div class="greeting" id="greeting"></div>
+
+          <div class="big-search-wrap">
+            <div class="big-search">
+              <svg><use href="#i-search"/></svg>
+              <input id="ntSearch" placeholder="Поиск в интернете или адрес сайта" spellcheck="false" autocomplete="off">
+              <button class="engine-btn" id="engineBtn"><span id="engineName">DuckDuckGo</span><svg><use href="#i-chev"/></svg></button>
+            </div>
+            <div class="engine-menu" id="engineMenu"></div>
+            <div class="dropdown" id="ntDrop" style="border-radius:16px"></div>
+          </div>
+
+          <div class="shortcuts" id="shortcuts"></div>
+
+          <div class="nt-section" id="recentSection" style="display:none">
+            <div class="nt-section-head"><h3>Недавние</h3><button id="openHistory">Вся история →</button></div>
+            <div class="recent-list" id="recentList"></div>
+          </div>
+
+          <div class="nt-hints">
+            <span><kbd>Alt</kbd>+<kbd>T</kbd> новая вкладка</span>
+            <span><kbd>Ctrl</kbd>+<kbd>K</kbd> команды</span>
+            <span><kbd>Alt</kbd>+<kbd>L</kbd> адресная строка</span>
+            <span><kbd>Ctrl</kbd>+<kbd>B</kbd> панель</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEARCH PAGE -->
+      <section id="searchpage">
+        <div class="sp-inner">
+          <div class="sp-head"><div class="logo"><img src="/icon.png" alt="ByAzen"></div><b>Поиск ByAzen</b><span>· на базе DuckDuckGo</span></div>
+          <div class="sp-search-wrap">
+            <div class="sp-search">
+              <svg><use href="#i-search"/></svg>
+              <input id="spSearch" placeholder="Поиск..." spellcheck="false" autocomplete="off">
+            </div>
+            <div class="dropdown" id="spDrop" style="border-radius:16px"></div>
+          </div>
+          <div class="sp-chips" id="spChips"></div>
+          <div class="sp-meta" id="spMeta"></div>
+          <div id="spAnswer"></div>
+          <div id="spResults"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ SIDE PANEL ============ -->
+<div id="panelOverlay"></div>
+<aside id="panel">
+  <div class="panel-head"><h2 id="panelTitle">Закладки</h2><button class="icon-btn" id="panelClose"><svg><use href="#i-x"/></svg></button></div>
+  <div class="panel-search"><svg><use href="#i-search"/></svg><input id="panelSearch" placeholder="Фильтр..."></div>
+  <div class="panel-body" id="panelBody"></div>
+  <div class="panel-foot" id="panelFoot"></div>
+</aside>
+
+<!-- ============ SETTINGS ============ -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head"><h2>Настройки</h2><button class="icon-btn" data-close="settingsModal"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <div class="set-group">
+        <h4>Поисковая система</h4>
+        <div class="seg" id="engineSeg"></div>
+      </div>
+      <div class="set-group">
+        <h4>Акцентный цвет</h4>
+        <div class="swatches" id="swatches"></div>
+      </div>
+      <div class="set-group">
+        <h4>Браузер</h4>
+        <div class="set-row"><div class="tx"><b>Прокси-режим</b><span>Открывает внутри ByAzen даже сайты, которые запрещают встраивание</span></div><button class="switch" id="swProxy"></button></div>
+        <div class="set-row"><div class="tx"><b>Недавние на стартовой</b><span>Показывать последние посещённые сайты на новой вкладке</span></div><button class="switch" id="swRecent"></button></div>
+      </div>
+      <div class="set-group">
+        <h4>Данные</h4>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn danger" id="clearHist">Очистить историю</button>
+          <button class="btn danger" id="clearBm">Очистить закладки</button>
+        </div>
+      </div>
+      <div class="about">
+        <div class="logo"><img src="/icon.png" alt="ByAzen"></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD SHORTCUT ============ -->
+<div class="modal-overlay" id="shortcutModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head"><h2>Добавить ярлык</h2><button class="icon-btn" data-close="shortcutModal"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <div><label class="fl">Название</label><input class="field" id="scName" placeholder="Например, Кинопоиск"></div>
+      <div><label class="fl">Адрес</label><input class="field" id="scUrl" placeholder="kinopoisk.ru"></div>
+      <button class="btn primary block" id="scSave">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ COMMAND PALETTE ============ -->
+<div class="modal-overlay" id="cmdk">
+  <div class="modal" style="overflow:hidden">
+    <div class="cmdk-input"><svg><use href="#i-cmd"/></svg><input id="cmdkInput" placeholder="Команда, вкладка, сайт или поиск..."><kbd>esc</kbd></div>
+    <div class="cmdk-list" id="cmdkList"></div>
+  </div>
+</div>
+
+<div id="ctx"></div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   ByAzen 1.0 — core
+============================================================ */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('byazen:'+k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('byazen:'+k, JSON.stringify(v)); }catch{} }
+};
+
+const ENGINES = {
+  duck:   { name:'DuckDuckGo', url:q => 'https://html.duckduckgo.com/html/?q='+encodeURIComponent(q)+'&kl=ru-ru' },
+  google: { name:'Google',     url:q => 'https://www.google.com/search?q='+encodeURIComponent(q)+'&hl=ru' },
+  yandex: { name:'Яндекс',     url:q => 'https://yandex.ru/search/?text='+encodeURIComponent(q) },
+  bing:   { name:'Bing',       url:q => 'https://www.bing.com/search?q='+encodeURIComponent(q) }
+};
+const DEFAULT_SHORTCUTS = [
+  {name:'YouTube', url:'https://www.youtube.com'},
+  {name:'Telegram', url:'https://web.telegram.org'},
+  {name:'VK', url:'https://vk.com'},
+  {name:'GitHub', url:'https://github.com'},
+  {name:'Яндекс', url:'https://ya.ru'},
+  {name:'Википедия', url:'https://ru.wikipedia.org'},
+  {name:'Twitch', url:'https://www.twitch.tv'},
+  {name:'Google', url:'https://www.google.com'},
+  {name:'Кинопоиск', url:'https://www.kinopoisk.ru'},
+  {name:'Habr', url:'https://habr.com'}
+];
+const ACCENTS = ['#FAFAFA','#FF6B4A','#F5C044','#7BD88F','#4CC3FF','#B79CFF'];
+
+let settings  = Object.assign({engine:'duck', accent:'#FAFAFA', proxy:true, showRecent:true}, store.get('settings',{}));
+let bookmarks = store.get('bookmarks', []);
+let historyLog= store.get('history', []);
+let shortcuts = store.get('shortcuts', DEFAULT_SHORTCUTS);
+
+let tabs = [], activeId = null, tabSeq = 0;
+const framesEl = $('#frames'), tabsEl = $('#tabs'), pinnedEl = $('#pinned');
+const urlInput = $('#urlInput');
+
+/* ---------- helpers ---------- */
+const isNewTab = u => !u || u === 'byazen://newtab';
+const isSearch = u => !!u && u.startsWith('byazen://search');
+const isInternal = u => isNewTab(u) || isSearch(u);
+function searchQueryOf(u){ try{ return new URL(u).searchParams.get('q') || ''; }catch{ return ''; } }
+function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch{ return ''; } }
+function faviconOf(u){ const h = hostOf(u); return h ? `https://www.google.com/s2/favicons?domain=${h}&sz=64` : ''; }
+function prettyUrl(u){
+  if (isNewTab(u)) return '';
+  if (isSearch(u)) return searchQueryOf(u);
+  return u.replace(/^https?:\/\//,'').replace(/\/$/,'');
+}
+function timeAgo(t){
+  const s = (Date.now()-t)/1000;
+  if (s < 60) return 'только что';
+  if (s < 3600) return Math.floor(s/60)+' мин назад';
+  if (s < 86400) return Math.floor(s/3600)+' ч назад';
+  return new Date(t).toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+}
+function resolveInput(raw){
+  const s = (raw||'').trim();
+  if (!s) return null;
+  if (s.startsWith('byazen://')) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (!/\s/.test(s) && (/^[^\s]+\.[a-z]{2,}([/?#].*)?$/i.test(s) || /^localhost(:\d+)?/.test(s))) return 'https://'+s;
+  // DuckDuckGo → фирменная страница поиска ByAzen (реальная выдача, без капч)
+  if (settings.engine === 'duck') return 'byazen://search?q=' + encodeURIComponent(s);
+  return ENGINES[settings.engine].url(s);
+}
+let toastTimer;
+function toast(msg){
+  const el = $('#toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>el.classList.remove('show'), 2300);
+}
+function saveSettings(){ store.set('settings', settings); document.documentElement.style.setProperty('--accent', settings.accent); }
+
+/* ---------- tabs ---------- */
+function titleFor(url){
+  if (isNewTab(url)) return 'Новая вкладка';
+  if (isSearch(url)) return searchQueryOf(url) + ' — поиск';
+  return hostOf(url) || url;
+}
+function createTab(url='byazen://newtab', opts={}){
+  const tab = { id:++tabSeq, url, title:opts.title || titleFor(url),
+                loading:false, pinned:!!opts.pinned, hist: isNewTab(url)?[]:[url], hi: isNewTab(url)?-1:0, frame:null };
+  if (!isInternal(url)){
+    const f = document.createElement('iframe');
+    f.setAttribute('allow','autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; picture-in-picture');
+    f.addEventListener('load', ()=>{ if(tab.loading){ tab.loading=false; renderTabs(); syncChrome(); } });
+    tab.frame = f; framesEl.appendChild(f);
+    loadFrame(tab, url);
+  }
+  tabs.push(tab);
+  if (opts.activate !== false) activateTab(tab.id); else renderTabs();
+  return tab;
+}
+function ensureFrame(tab){
+  if (tab.frame) return tab.frame;
+  const f = document.createElement('iframe');
+  f.setAttribute('allow','autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; picture-in-picture');
+  f.addEventListener('load', ()=>{ if(tab.loading){ tab.loading=false; renderTabs(); syncChrome(); } });
+  tab.frame = f; framesEl.appendChild(f);
+  return f;
+}
+function updateView(){
+  const tab = activeTab(); if(!tab) return;
+  tabs.forEach(t=>{ if(t.frame) t.frame.classList.toggle('visible', t.id===tab.id && !isInternal(t.url)); });
+  $('#newtab').classList.toggle('visible', isNewTab(tab.url));
+  $('#searchpage').classList.toggle('visible', isSearch(tab.url));
+  if (isSearch(tab.url)) runSearch(searchQueryOf(tab.url));
+}
+function loadFrame(tab, url){
+  tab.loading = true;
+  const f = ensureFrame(tab);
+  f.src = settings.proxy ? '/proxy?url='+encodeURIComponent(url) : url;
+  updateView(); syncChrome();
+}
+function navigateTab(tab, url, pushHist=true){
+  if (isInternal(url)){
+    tab.url = url; tab.title = titleFor(url); tab.loading = false;
+    if (pushHist && !isNewTab(url)){ tab.hist = tab.hist.slice(0, tab.hi+1); tab.hist.push(url); tab.hi = tab.hist.length-1; }
+    if (tab.id !== activeId){ activateTab(tab.id); } else { updateView(); renderTabs(); syncChrome(); document.title = isNewTab(url) ? 'ByAzen' : tab.title + ' — ByAzen'; }
+    return;
+  }
+  tab.url = url;
+  if (pushHist){ tab.hist = tab.hist.slice(0, tab.hi+1); tab.hist.push(url); tab.hi = tab.hist.length-1; tab.title = hostOf(url) || url; }
+  $('#ntSearch').value = ''; $('#ntDrop').classList.remove('show'); $('#omniDrop').classList.remove('show');
+  addHistory(url, hostOf(url));
+  loadFrame(tab, url); renderTabs(); syncChrome(); updateView();
+}
+function navigateActive(raw){
+  const url = resolveInput(raw); if(!url) return;
+  const tab = activeTab(); if(!tab){ createTab(url); return; }
+  navigateTab(tab, url);
+}
+function activeTab(){ return tabs.find(t=>t.id===activeId); }
+function activateTab(id){
+  activeId = id;
+  const tab = activeTab();
+  updateView();
+  document.title = tab ? (isNewTab(tab.url) ? 'ByAzen' : tab.title + ' — ByAzen') : 'ByAzen';
+  renderTabs(); syncChrome(); renderRecent();
+  if (tab && isNewTab(tab.url)) setTimeout(()=> $('#ntSearch').focus(), 60);
+}
+function closeTab(id){
+  const i = tabs.findIndex(t=>t.id===id); if(i<0) return;
+  const [tab] = tabs.splice(i,1);
+  if (tab.frame) tab.frame.remove();
+  if (!tabs.length){ createTab(); return; }
+  if (activeId === id) activateTab(tabs[Math.max(0,i-1)].id); else renderTabs();
+}
+function tabFavHTML(tab){
+  if (tab.loading) return '<span class="spinner"></span>';
+  if (isNewTab(tab.url)) return '<svg><use href="#i-spark"/></svg>';
+  if (isSearch(tab.url)) return '<svg><use href="#i-search"/></svg>';
+  return `<img src="${faviconOf(tab.url)}" alt="" onerror="this.outerHTML='<svg><use href=&quot;#i-globe&quot;/></svg>'">`;
+}
+function renderTabs(){
+  $('#tabCount').textContent = tabs.length;
+  pinnedEl.innerHTML = tabs.filter(t=>t.pinned).map(t=>
+    `<button class="pin-btn ${t.id===activeId?'active':''}" data-id="${t.id}" title="${escapeHtml(t.title)}">${tabFavHTML(t)}</button>`).join('');
+  tabsEl.innerHTML = tabs.filter(t=>!t.pinned).map(t=>`
+    <div class="tab ${t.id===activeId?'active':''}" data-id="${t.id}" draggable="true" title="${escapeHtml(t.title)}">
+      <span class="tab-fav">${tabFavHTML(t)}</span>
+      <span class="tab-title">${escapeHtml(t.title)}</span>
+      <button class="tab-close" data-close="${t.id}" title="Закрыть"><svg><use href="#i-x"/></svg></button>
+    </div>`).join('');
+  // events
+  $$('#tabs .tab, #pinned .pin-btn').forEach(el=>{
+    const id = +el.dataset.id;
+    el.addEventListener('click', e=>{ if(!e.target.closest('[data-close]')) activateTab(id); });
+    el.addEventListener('auxclick', e=>{ if(e.button===1) closeTab(id); });
+    el.addEventListener('contextmenu', e=>{ e.preventDefault(); openCtx(e.clientX, e.clientY, id); });
+    el.addEventListener('dragstart', e=> e.dataTransfer.setData('text/plain', id));
+    el.addEventListener('dragover', e=>{ e.preventDefault(); el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', ()=> el.classList.remove('drag-over'));
+    el.addEventListener('drop', e=>{
+      e.preventDefault(); el.classList.remove('drag-over');
+      const from = tabs.findIndex(t=>t.id===+e.dataTransfer.getData('text/plain'));
+      const to = tabs.findIndex(t=>t.id===id);
+      if(from>=0 && to>=0 && from!==to){ const [m]=tabs.splice(from,1); tabs.splice(to,0,m); renderTabs(); }
+    });
+  });
+  $$('#tabs [data-close]').forEach(b=> b.addEventListener('click', e=>{ e.stopPropagation(); closeTab(+b.dataset.close); }));
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- chrome sync ---------- */
+function syncChrome(){
+  const tab = activeTab(); if(!tab) return;
+  if (document.activeElement !== urlInput) urlInput.value = prettyUrl(tab.url);
+  $('#backBtn').disabled = tab.hi <= 0;
+  $('#fwdBtn').disabled  = tab.hi >= tab.hist.length-1;
+  $('#reloadBtn').classList.toggle('reload-spin', tab.loading);
+  const p = $('#progress');
+  if (tab.loading){ p.className=''; void p.offsetWidth; p.classList.add('loading'); }
+  else if (p.classList.contains('loading')){ p.classList.remove('loading'); p.classList.add('done'); setTimeout(()=>p.className='',350); }
+  $('#omniLead').innerHTML = isInternal(tab.url) ? '<svg><use href="#i-search"/></svg>' : '<svg><use href="#i-lock"/></svg>';
+  const bm = bookmarks.some(b=>b.url===tab.url);
+  $('#starBtn').classList.toggle('on', bm && !isInternal(tab.url));
+  $('#starBtn').style.opacity = isInternal(tab.url) ? .35 : 1;
+  $('#shieldBtn').classList.toggle('on', settings.proxy);
+  $('#shieldBtn').style.opacity = settings.proxy ? 1 : .45;
+  $('#extBtn').style.opacity = isInternal(tab.url) ? .3 : 1;
+}
+
+/* ---------- history / bookmarks ---------- */
+function normUrl(u){ try{ return decodeURI(u); }catch{ return u; } }
+function addHistory(url, title){
+  if (isInternal(url)) return;
+  const prev = historyLog.find(h=> normUrl(h.url) === normUrl(url));
+  historyLog = historyLog.filter(h=> normUrl(h.url) !== normUrl(url));
+  historyLog.unshift({url, title: (title && title!==hostOf(url)) ? title : (prev && prev.title!==hostOf(url) ? prev.title : (title||hostOf(url))), time: Date.now()});
+  historyLog = historyLog.slice(0, 300); store.set('history', historyLog);
+}
+function renderRecent(){
+  const show = settings.showRecent && historyLog.length;
+  $('#recentSection').style.display = show ? 'block' : 'none';
+  if (!show) return;
+  const seen = new Set(), items = [];
+  for (const h of historyLog){ if(!seen.has(h.url)){ seen.add(h.url); items.push(h); } if(items.length>=5) break; }
+  $('#recentList').innerHTML = items.map(h=>`
+    <button class="recent-item" data-url="${escapeHtml(h.url)}">
+      <img src="${faviconOf(h.url)}" onerror="this.style.display='none'">
+      <span class="t"><span class="ttl">${escapeHtml(h.title)}</span><br><span class="dom">${escapeHtml(hostOf(h.url))}</span></span>
+      <time>${timeAgo(h.time)}</time>
+    </button>`).join('');
+  $$('#recentList .recent-item').forEach(b=> b.onclick = ()=> navigateActive(b.dataset.url));
+}
+
+/* ---------- navigation from iframe (proxy postMessage) ---------- */
+window.addEventListener('message', e=>{
+  if (!e.data || e.data.type !== 'byazen-nav') return;
+  const tab = tabs.find(t=> t.frame && t.frame.contentWindow === e.source); if(!tab) return;
+  const url = e.data.url, title = (e.data.title||'').trim();
+  if (url && url !== tab.url){
+    tab.url = url;
+    if (tab.hist[tab.hi] !== url){ tab.hist = tab.hist.slice(0, tab.hi+1); tab.hist.push(url); tab.hi = tab.hist.length-1; }
+  }
+  if (title) tab.title = title;
+  addHistory(tab.url, tab.title);
+  renderTabs(); if (tab.id===activeId){ syncChrome(); document.title = tab.title + ' — ByAzen'; }
+});
+
+/* ---------- suggestions ---------- */
+function attachSuggest(input, drop, onPick){
+  let timer, sel = -1, items = [];
+  function close(){ drop.classList.remove('show'); sel=-1; }
+  function render(){
+    if(!items.length){ close(); return; }
+    drop.innerHTML = items.map((s,i)=>`<button class="suggest-item ${i===sel?'sel':''}" data-i="${i}"><svg><use href="#i-search"/></svg><span>${escapeHtml(s)}</span>${i===sel?'<span class="hint">↵</span>':''}</button>`).join('');
+    drop.classList.add('show');
+    drop.querySelectorAll('.suggest-item').forEach(el=> el.onmousedown = ev=>{ ev.preventDefault(); close(); onPick(items[+el.dataset.i]); });
+  }
+  input.addEventListener('input', ()=>{
+    clearTimeout(timer); const q = input.value.trim();
+    if (q.length < 2 || /^https?:|^[\w-]+(\.[\w-]+)+/.test(q)){ items=[]; close(); return; }
+    timer = setTimeout(async ()=>{
+      try{ const r = await fetch('/api/suggest?q='+encodeURIComponent(q)); items = await r.json(); sel=-1; render(); }catch{}
+    }, 160);
+  });
+  input.addEventListener('keydown', e=>{
+    if (e.key==='ArrowDown' || e.key==='ArrowUp'){ e.preventDefault(); if(!items.length) return; sel = (sel + (e.key==='ArrowDown'?1:-1) + items.length) % items.length; render(); }
+    else if (e.key==='Enter'){ e.preventDefault(); clearTimeout(timer); const v = sel>=0 ? items[sel] : input.value; items=[]; close(); onPick(v); }
+    else if (e.key==='Escape') close();
+  });
+  input.addEventListener('blur', ()=> setTimeout(close, 120));
+}
+attachSuggest(urlInput, $('#omniDrop'), v=>{ navigateActive(v); urlInput.blur(); });
+attachSuggest($('#ntSearch'), $('#ntDrop'), v=> navigateActive(v));
+attachSuggest($('#spSearch'), $('#spDrop'), v=> navigateActive(v));
+
+/* ---------- ByAzen Search page ---------- */
+let lastSearchQ = '', searchToken = 0;
+async function runSearch(q){
+  if (!q || q === lastSearchQ) return;
+  lastSearchQ = q;
+  const token = ++searchToken;
+  $('#spSearch').value = q;
+  $('#searchpage').scrollTop = 0;
+  $('#spChips').innerHTML = '<span class="lbl">Источник:</span><button class="chip on">ByAzen</button>' +
+    Object.entries(ENGINES).map(([k,e])=>`<button class="chip" data-eng="${k}">${e.name}</button>`).join('');
+  $$('#spChips [data-eng]').forEach(b=> b.onclick = ()=>{ const t=activeTab(); if(t) navigateTab(t, ENGINES[b.dataset.eng].url(q)); });
+  $('#spMeta').textContent = 'Выполняется поиск...';
+  $('#spAnswer').innerHTML = '';
+  $('#spResults').innerHTML = Array(5).fill('<div class="skl"><i style="width:34%"></i><i style="width:78%;height:16px"></i><i style="width:92%"></i><i style="width:64%"></i></div>').join('');
+  const t0 = performance.now();
+  try {
+    const data = await (await fetch('/api/search?q=' + encodeURIComponent(q))).json();
+    if (token !== searchToken) return;
+    const secs = ((performance.now() - t0) / 1000).toFixed(2).replace('.', ',');
+    if (!data.results || !data.results.length){
+      $('#spMeta').textContent = '';
+      $('#spResults').innerHTML = `<div class="sp-state"><b>Ничего не нашлось</b><p>По запросу «${escapeHtml(q)}» результатов нет.<br>Проверьте запрос или попробуйте другой источник выше.</p></div>`;
+      return;
+    }
+    $('#spMeta').textContent = `${data.results.length} результатов · ${secs} сек`;
+    if (data.answer){
+      $('#spAnswer').innerHTML = `<div class="answer"><div class="albl">Быстрый ответ${data.answer.source ? ' · ' + escapeHtml(data.answer.source) : ''}</div>
+        ${data.answer.heading ? `<h3>${escapeHtml(data.answer.heading)}</h3>` : ''}<p>${escapeHtml(data.answer.text)}</p>
+        ${data.answer.url ? `<a data-go="${escapeHtml(data.answer.url)}">Читать полностью →</a>` : ''}</div>`;
+      const a = $('#spAnswer a[data-go]'); if (a) a.onclick = ()=> navigateActive(a.dataset.go);
+    }
+    $('#spResults').innerHTML = data.results.map(r=>{
+      let path = ''; try{ const u = new URL(r.url); path = u.pathname.length > 1 ? decodeURI(u.pathname) : ''; }catch{}
+      return `<button class="sr" data-url="${escapeHtml(r.url)}">
+        <span class="sr-head"><img src="${faviconOf(r.url)}" onerror="this.style.display='none'"><span class="dom">${escapeHtml(hostOf(r.url))}</span><span class="path">${escapeHtml(path)}</span></span>
+        <span class="sr-title">${escapeHtml(r.title)}</span>
+        ${r.snippet ? `<span class="sr-snip" style="display:block">${escapeHtml(r.snippet)}</span>` : ''}
+      </button>`;
+    }).join('');
+    $$('#spResults .sr').forEach(el=> el.onclick = ()=> navigateActive(el.dataset.url));
+  } catch {
+    if (token !== searchToken) return;
+    $('#spMeta').textContent = '';
+    $('#spResults').innerHTML = `<div class="sp-state"><b>Поиск временно недоступен</b><p>Проверьте соединение и попробуйте ещё раз,<br>или выберите другой источник выше.</p></div>`;
+  }
+}
+urlInput.addEventListener('focus', ()=> urlInput.select());
+
+/* ---------- chrome buttons ---------- */
+$('#newTabBtn').onclick = ()=> createTab();
+$('#homeBtn').onclick = ()=>{ const t=activeTab(); if(t) navigateTab(t,'byazen://newtab'); };
+function goHist(tab, dir){
+  const ni = tab.hi + dir;
+  if (ni < 0 || ni >= tab.hist.length) return;
+  tab.hi = ni; tab.url = tab.hist[ni]; tab.title = isInternal(tab.url) ? titleFor(tab.url) : (hostOf(tab.url)||tab.title);
+  lastSearchQ = '__reset__';
+  if (isInternal(tab.url)){ tab.loading=false; updateView(); } else loadFrame(tab, tab.url);
+  renderTabs(); syncChrome();
+}
+$('#reloadBtn').onclick = ()=>{ const t=activeTab(); if(!t) return; if(isSearch(t.url)){ lastSearchQ='__reset__'; runSearch(searchQueryOf(t.url)); } else if(!isInternal(t.url)){ loadFrame(t, t.url); renderTabs(); } };
+$('#backBtn').onclick = ()=>{ const t=activeTab(); if(t) goHist(t,-1); };
+$('#fwdBtn').onclick = ()=>{ const t=activeTab(); if(t) goHist(t, 1); };
+$('#extBtn').onclick = ()=>{ const t=activeTab(); if(t && !isInternal(t.url)) window.open(t.url,'_blank','noopener'); };
+$('#collapseBtn').onclick = ()=> $('#sidebar').classList.toggle('collapsed');
+$('#starBtn').onclick = ()=>{
+  const t = activeTab(); if(!t || isInternal(t.url)) return;
+  const i = bookmarks.findIndex(b=>b.url===t.url);
+  if (i>=0){ bookmarks.splice(i,1); toast('Удалено из закладок'); }
+  else { bookmarks.unshift({url:t.url, title:t.title, time:Date.now()}); toast('Добавлено в закладки'); }
+  store.set('bookmarks', bookmarks); syncChrome();
+};
+$('#shieldBtn').onclick = ()=>{
+  settings.proxy = !settings.proxy; saveSettings(); syncChrome(); renderSettings();
+  toast(settings.proxy ? 'Прокси-режим включён' : 'Прокси-режим выключен — сайты открываются напрямую');
+  const t = activeTab(); if(t && !isInternal(t.url)) loadFrame(t, t.url);
+};
+
+/* ---------- shortcuts ---------- */
+function renderShortcuts(){
+  $('#shortcuts').innerHTML = shortcuts.map((s,i)=>`
+    <button class="shortcut" data-i="${i}">
+      <span class="tile"><img src="${faviconOf(s.url)}" onerror="this.outerHTML='<svg><use href=&quot;#i-globe&quot;/></svg>'"></span>
+      <span class="name">${escapeHtml(s.name)}</span>
+      <span class="rm" data-rm="${i}" title="Удалить">×</span>
+    </button>`).join('') + `
+    <button class="shortcut" id="addShortcut">
+      <span class="tile" style="border-style:dashed"><svg><use href="#i-plus"/></svg></span>
+      <span class="name">Добавить</span>
+    </button>`;
+  $$('#shortcuts .shortcut[data-i]').forEach(el=> el.onclick = e=>{
+    if (e.target.closest('[data-rm]')){ shortcuts.splice(+el.dataset.i,1); store.set('shortcuts',shortcuts); renderShortcuts(); return; }
+    navigateActive(shortcuts[+el.dataset.i].url);
+  });
+  $('#addShortcut').onclick = ()=>{ $('#scName').value=''; $('#scUrl').value=''; openModal('shortcutModal'); setTimeout(()=>$('#scName').focus(),80); };
+}
+$('#scSave').onclick = ()=>{
+  const name = $('#scName').value.trim(), raw = $('#scUrl').value.trim();
+  if(!name || !raw){ toast('Заполните название и адрес'); return; }
+  const url = /^https?:\/\//.test(raw) ? raw : 'https://'+raw;
+  shortcuts.push({name, url}); store.set('shortcuts',shortcuts); renderShortcuts(); closeModal('shortcutModal'); toast('Ярлык добавлен');
+};
+
+/* ---------- engines ---------- */
+function renderEngines(){
+  $('#engineName').textContent = ENGINES[settings.engine].name;
+  $('#engineMenu').innerHTML = Object.entries(ENGINES).map(([k,e])=>
+    `<button data-engine="${k}" class="${k===settings.engine?'sel':''}"><svg><use href="#i-search"/></svg>${e.name}<svg class="check"><use href="#i-check"/></svg></button>`).join('');
+  $$('#engineMenu button').forEach(b=> b.onclick = ()=>{ settings.engine=b.dataset.engine; saveSettings(); renderEngines(); renderSettings(); $('#engineMenu').classList.remove('show'); toast('Поиск: '+ENGINES[settings.engine].name); });
+  $('#engineSeg').innerHTML = Object.entries(ENGINES).map(([k,e])=>`<button data-engine="${k}" class="${k===settings.engine?'sel':''}">${e.name}</button>`).join('');
+  $$('#engineSeg button').forEach(b=> b.onclick = ()=>{ settings.engine=b.dataset.engine; saveSettings(); renderEngines(); });
+}
+$('#engineBtn').onclick = e=>{ e.stopPropagation(); $('#engineMenu').classList.toggle('show'); };
+document.addEventListener('click', ()=> $('#engineMenu').classList.remove('show'));
+
+/* ---------- panels ---------- */
+let panelMode = 'bookmarks';
+function openPanel(mode){
+  panelMode = mode;
+  $('#panelTitle').textContent = mode==='bookmarks' ? 'Закладки' : 'История';
+  $('#panelSearch').value = '';
+  renderPanel('');
+  $('#panel').classList.add('show'); $('#panelOverlay').classList.add('show');
+}
+function closePanel(){ $('#panel').classList.remove('show'); $('#panelOverlay').classList.remove('show'); }
+function renderPanel(filter){
+  const src = panelMode==='bookmarks' ? bookmarks : historyLog;
+  const list = src.filter(x=> !filter || (x.title+' '+x.url).toLowerCase().includes(filter.toLowerCase()));
+  if (!list.length){
+    $('#panelBody').innerHTML = `<div class="empty"><svg><use href="#i-${panelMode==='bookmarks'?'bookmark':'history'}"/></svg>
+      <b>${filter ? 'Ничего не найдено' : (panelMode==='bookmarks' ? 'Закладок пока нет' : 'История пуста')}</b>
+      <p>${panelMode==='bookmarks' ? 'Откройте сайт и нажмите звезду в адресной строке.' : 'Посещённые сайты появятся здесь.'}</p></div>`;
+  } else {
+    $('#panelBody').innerHTML = list.map((x,i)=>`
+      <div class="panel-item" data-url="${escapeHtml(x.url)}">
+        <img src="${faviconOf(x.url)}" onerror="this.style.display='none'">
+        <span class="t"><span class="ttl">${escapeHtml(x.title)}</span><br><span class="dom">${escapeHtml(hostOf(x.url))}</span></span>
+        <time>${timeAgo(x.time)}</time>
+        <button class="panel-del" data-del="${escapeHtml(x.url)}" title="Удалить"><svg><use href="#i-trash"/></svg></button>
+      </div>`).join('');
+    $$('#panelBody .panel-item').forEach(el=> el.onclick = e=>{
+      if (e.target.closest('[data-del]')){
+        const u = el.dataset.url;
+        if (panelMode==='bookmarks'){ bookmarks = bookmarks.filter(b=>b.url!==u); store.set('bookmarks',bookmarks); syncChrome(); }
+        else { historyLog = historyLog.filter(h=>h.url!==u); store.set('history',historyLog); renderRecent(); }
+        renderPanel($('#panelSearch').value); return;
+      }
+      closePanel(); navigateActive(el.dataset.url);
+    });
+  }
+  $('#panelFoot').innerHTML = src.length ? `<button class="btn danger block" id="panelClear">Очистить всё</button>` : '';
+  const c = $('#panelClear'); if(c) c.onclick = ()=>{
+    if (panelMode==='bookmarks'){ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); }
+    else { historyLog=[]; store.set('history',historyLog); renderRecent(); }
+    renderPanel(''); toast('Очищено');
+  };
+}
+$('#panelSearch').addEventListener('input', e=> renderPanel(e.target.value));
+$('#panelClose').onclick = closePanel;
+$('#panelOverlay').onclick = closePanel;
+$('#bmBtn').onclick = ()=> openPanel('bookmarks');
+$('#histBtn').onclick = ()=> openPanel('history');
+$('#openHistory').onclick = ()=> openPanel('history');
+
+/* ---------- modals / settings ---------- */
+function openModal(id){ $('#'+id).classList.add('show'); }
+function closeModal(id){ $('#'+id).classList.remove('show'); }
+$$('.modal-overlay').forEach(o=> o.addEventListener('mousedown', e=>{ if(e.target===o) o.classList.remove('show'); }));
+$$('[data-close]').forEach(b=> b.onclick = ()=> closeModal(b.dataset.close));
+$('#setBtn').onclick = ()=> openModal('settingsModal');
+$('#profileBtn').onclick = ()=> openModal('settingsModal');
+function renderSettings(){
+  $('#swProxy').classList.toggle('on', settings.proxy);
+  $('#swRecent').classList.toggle('on', settings.showRecent);
+  $('#swatches').innerHTML = ACCENTS.map(c=>`<button class="swatch ${c===settings.accent?'sel':''}" data-c="${c}" style="background:${c};color:${c};border-color:rgba(255,255,255,.15)" title="${c}"></button>`).join('');
+  $$('#swatches .swatch').forEach(s=> s.onclick = ()=>{ settings.accent=s.dataset.c; saveSettings(); renderSettings(); });
+}
+$('#swProxy').onclick = ()=>{ settings.proxy=!settings.proxy; saveSettings(); renderSettings(); syncChrome(); const t=activeTab(); if(t&&!isInternal(t.url)) loadFrame(t,t.url); };
+$('#swRecent').onclick = ()=>{ settings.showRecent=!settings.showRecent; saveSettings(); renderSettings(); renderRecent(); };
+$('#clearHist').onclick = ()=>{ historyLog=[]; store.set('history',historyLog); renderRecent(); toast('История очищена'); };
+$('#clearBm').onclick = ()=>{ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); toast('Закладки очищены'); };
+
+/* ---------- context menu ---------- */
+const ctx = $('#ctx');
+function openCtx(x, y, id){
+  const tab = tabs.find(t=>t.id===id); if(!tab) return;
+  ctx.innerHTML = `
+    <button data-a="reload"><svg><use href="#i-reload"/></svg>Перезагрузить</button>
+    <button data-a="dup"><svg><use href="#i-copy"/></svg>Дублировать</button>
+    <button data-a="pin"><svg><use href="#i-pin"/></svg>${tab.pinned?'Открепить':'Закрепить'}</button>
+    <hr>
+    <button data-a="closeOthers"><svg><use href="#i-x"/></svg>Закрыть другие</button>
+    <button data-a="close" class="danger"><svg><use href="#i-trash"/></svg>Закрыть вкладку</button>`;
+  ctx.style.left = Math.min(x, innerWidth-224)+'px'; ctx.style.top = Math.min(y, innerHeight-220)+'px';
+  ctx.classList.add('show');
+  ctx.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
+    ctx.classList.remove('show'); const a=b.dataset.a;
+    if(a==='close') closeTab(id);
+    if(a==='dup') createTab(tab.url);
+    if(a==='pin'){ tab.pinned=!tab.pinned; renderTabs(); }
+    if(a==='reload' && !isInternal(tab.url)) loadFrame(tab, tab.url);
+    if(a==='closeOthers'){ [...tabs].forEach(t=>{ if(t.id!==id) closeTab(t.id); }); activateTab(id); }
+  });
+}
+document.addEventListener('click', e=>{ if(!ctx.contains(e.target)) ctx.classList.remove('show'); });
+
+/* ---------- command palette ---------- */
+let cmdkItems = [], cmdkSel = 0;
+function openCmdk(){ openModal('cmdk'); $('#cmdkInput').value=''; buildCmdk(''); setTimeout(()=>$('#cmdkInput').focus(),60); }
+function buildCmdk(q){
+  q = q.trim().toLowerCase();
+  const actions = [
+    {label:'Новая вкладка', icon:'i-plus', tag:'Действие', run:()=>createTab()},
+    {label:'Открыть закладки', icon:'i-bookmark', tag:'Действие', run:()=>openPanel('bookmarks')},
+    {label:'Открыть историю', icon:'i-history', tag:'Действие', run:()=>openPanel('history')},
+    {label:'Настройки', icon:'i-gear', tag:'Действие', run:()=>openModal('settingsModal')},
+    {label:'Свернуть / развернуть панель', icon:'i-panel', tag:'Действие', run:()=>$('#sidebar').classList.toggle('collapsed')},
+    {label:'Перезагрузить страницу', icon:'i-reload', tag:'Действие', run:()=>$('#reloadBtn').click()}
+  ];
+  let list = [];
+  if (q) list.push({label:`Найти «${q}» в ${ENGINES[settings.engine].name}`, icon:'i-search', tag:'Поиск', run:()=>navigateActive(q)});
+  list = list.concat(actions.filter(a=> !q || a.label.toLowerCase().includes(q)));
+  tabs.forEach(t=>{ if(!q || t.title.toLowerCase().includes(q)) list.push({label:t.title, icon:isNewTab(t.url)?'i-spark':'i-globe', fav:isNewTab(t.url)?'':faviconOf(t.url), tag:'Вкладка', run:()=>activateTab(t.id)}); });
+  historyLog.slice(0,30).forEach(h=>{ if(q && (h.title+' '+h.url).toLowerCase().includes(q)) list.push({label:h.title, fav:faviconOf(h.url), tag:'История', run:()=>navigateActive(h.url)}); });
+  bookmarks.forEach(b=>{ if(q && (b.title+' '+b.url).toLowerCase().includes(q)) list.push({label:b.title, fav:faviconOf(b.url), tag:'Закладка', run:()=>navigateActive(b.url)}); });
+  cmdkItems = list.slice(0, 12); cmdkSel = 0; renderCmdk();
+}
+function renderCmdk(){
+  $('#cmdkList').innerHTML = cmdkItems.length ? cmdkItems.map((it,i)=>
+    `<button class="cmdk-item ${i===cmdkSel?'sel':''}" data-i="${i}">${it.fav?`<img src="${it.fav}" onerror="this.outerHTML='<svg><use href=&quot;#i-globe&quot;/></svg>'">`:`<svg><use href="#${it.icon||'i-globe'}"/></svg>`}<span>${escapeHtml(it.label)}</span><span class="tag">${it.tag}</span></button>`).join('')
+    : '<div class="cmdk-empty">Ничего не найдено</div>';
+  $$('#cmdkList .cmdk-item').forEach(el=> el.onclick = ()=>{ closeModal('cmdk'); cmdkItems[+el.dataset.i].run(); });
+}
+$('#cmdkInput').addEventListener('input', e=> buildCmdk(e.target.value));
+$('#cmdkInput').addEventListener('keydown', e=>{
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); cmdkSel=(cmdkSel+(e.key==='ArrowDown'?1:-1)+cmdkItems.length)%Math.max(cmdkItems.length,1); renderCmdk(); }
+  if(e.key==='Enter' && cmdkItems[cmdkSel]){ closeModal('cmdk'); cmdkItems[cmdkSel].run(); }
+});
+$('#cmdBtn').onclick = openCmdk;
+
+/* ---------- keyboard ---------- */
+document.addEventListener('keydown', e=>{
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase()==='k'){ e.preventDefault(); openCmdk(); }
+  if (mod && e.key.toLowerCase()==='b'){ e.preventDefault(); $('#sidebar').classList.toggle('collapsed'); }
+  if (e.altKey && e.key.toLowerCase()==='t'){ e.preventDefault(); createTab(); }
+  if (e.altKey && e.key.toLowerCase()==='l'){ e.preventDefault(); $('#sidebar').classList.remove('collapsed'); urlInput.focus(); }
+  if (e.altKey && e.key.toLowerCase()==='w'){ e.preventDefault(); if(activeId) closeTab(activeId); }
+  if (e.key==='Escape'){ closePanel(); ctx.classList.remove('show'); $$('.modal-overlay').forEach(m=>m.classList.remove('show')); }
+  if (mod && /^[1-9]$/.test(e.key)){ const t=tabs[+e.key-1]; if(t){ e.preventDefault(); activateTab(t.id); } }
+});
+
+/* ---------- clock / greeting / weather ---------- */
+function tickClock(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0'), mm = String(now.getMinutes()).padStart(2,'0'), ss = String(now.getSeconds()).padStart(2,'0');
+  $('#clock').innerHTML = `${hh}:${mm}<span class="sec">${ss}</span>`;
+  const h = now.getHours();
+  const g = h<5 ? 'Доброй ночи' : h<12 ? 'Доброе утро' : h<18 ? 'Добрый день' : 'Добрый вечер';
+  const date = now.toLocaleDateString('ru-RU',{weekday:'long', day:'numeric', month:'long'});
+  $('#greeting').innerHTML = `<b>${g}.</b> ${date[0].toUpperCase()+date.slice(1)}`;
+}
+setInterval(tickClock, 1000); tickClock();
+(async ()=>{
+  try{
+    const w = await (await fetch('/api/weather')).json();
+    if(!w) return;
+    const desc = w.code===0?'Ясно':w.code<=2?'Переменная облачность':w.code===3?'Пасмурно':w.code<=48?'Туман':w.code<=67?'Дождь':w.code<=77?'Снег':w.code<=82?'Ливень':w.code<=86?'Снегопад':'Гроза';
+    const el = $('#weather'); el.style.display='flex';
+    el.innerHTML = `Nizhnevartovsk · <b>${w.temp>0?'+':''}${w.temp}°</b> · ${desc}`;
+  }catch{}
+})();
+
+/* ---------- init ---------- */
+saveSettings();
+renderEngines(); renderSettings(); renderShortcuts();
+createTab();
+
+/* Splash: показ при каждом запуске, клик — пропустить */
+function hideSplash(){
+  const s = $('#splash');
+  document.body.classList.add('ready');
+  if (!s || s.classList.contains('hide')) return;
+  s.classList.add('hide');
+  setTimeout(()=> s.remove(), 560);
+}
+$('#splash').addEventListener('click', hideSplash);
+setTimeout(hideSplash, 1950);
+setTimeout(hideSplash, 4200); /* страховка */
+setTimeout(()=> toast('Добро пожаловать в ByAzen'), 2250);
+</script>
+</body>
+</html>

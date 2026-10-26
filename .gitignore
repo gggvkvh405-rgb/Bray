@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build output
+release/
+dist/
+out/
+*.exe
+
+# caches & logs
+.cache/
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
