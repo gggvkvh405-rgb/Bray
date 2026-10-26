@@ -1,13 +1,52 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" style="background:#09090B;color-scheme:dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ByAzen</title>
-<link rel="icon" type="image/png" href="/icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Inter+Tight:wght@300;400;600;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="icon.png">
+<!-- Fonts are bundled locally: an external stylesheet in <head> blocks both
+     painting and script execution, so an unreachable fonts.googleapis.com
+     used to leave a completely blank white page. -->
+<script>
+/* Boot guard: dark canvas immediately + guaranteed reveal of the UI.
+   Works even if the main script fails to run. */
+(function(){
+  var root = document.documentElement;
+  root.style.backgroundColor = '#09090B';
+  root.style.colorScheme = 'dark';
+  var revealed = false;
+  function reveal(){
+    if (revealed) return;
+    revealed = true;
+    try { document.body.classList.add('ready'); } catch(e){}
+    var s = document.getElementById('splash');
+    if (s){ s.classList.add('hide'); setTimeout(function(){ s.remove(); }, 600); }
+  }
+  function fail(msg){
+    reveal();
+    if (!document.body || document.getElementById('bootError')) return;
+    var box = document.createElement('div');
+    box.id = 'bootError';
+    box.style.cssText = 'position:fixed;z-index:2000;left:50%;top:18px;transform:translateX(-50%);max-width:min(560px,92vw);background:#1B1B20;color:#FAFAFA;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 16px;font:13px/1.5 system-ui,sans-serif;box-shadow:0 18px 50px rgba(0,0,0,.6)';
+    var safe = String(msg || 'Неизвестная ошибка').replace(/[<>&]/g, '');
+    box.innerHTML = '<b>Не удалось запустить интерфейс ByAzen.</b><br>' +
+      '<span style="color:#A1A1AA">' + safe + '</span><br>' +
+      '<button onclick="location.reload()" style="margin-top:8px;background:#FAFAFA;color:#09090B;border:0;border-radius:8px;padding:7px 14px;cursor:pointer">Перезагрузить</button>';
+    document.body.appendChild(box);
+  }
+  window.__byazenReveal = reveal;
+  window.addEventListener('error', function(e){
+    if (e && e.message && !revealed) fail(e.message);  // script errors during boot, not broken images
+  });
+  setTimeout(reveal, 2600);                       // independent of the main script
+})();
+</script>
 <style>
+@font-face{font-family:'Inter Variable';font-style:normal;font-display:swap;font-weight:100 900;src:url('fonts/inter-cyrillic-wght-normal.woff2') format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Inter Variable';font-style:normal;font-display:swap;font-weight:100 900;src:url('fonts/inter-latin-wght-normal.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Inter Tight Variable';font-style:normal;font-display:swap;font-weight:100 900;src:url('fonts/inter-tight-cyrillic-wght-normal.woff2') format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Inter Tight Variable';font-style:normal;font-display:swap;font-weight:100 900;src:url('fonts/inter-tight-latin-wght-normal.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 :root{
   --bg:#09090B; --bg-2:#0E0E11; --panel:#101013; --panel-2:#151519;
   --border:rgba(255,255,255,.07); --border-2:rgba(255,255,255,.11);
@@ -15,10 +54,12 @@
   --hover:rgba(255,255,255,.05); --active:rgba(255,255,255,.075);
   --accent:#FAFAFA; --danger:#F87171;
   --r:10px; --ease:cubic-bezier(.32,.72,.24,1);
+  color-scheme:dark;
 }
 *{margin:0;padding:0;box-sizing:border-box}
+html{background:var(--bg)}
 html,body{height:100%}
-body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13px;overflow:hidden;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font-family:'Inter Variable','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13px;overflow:hidden;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 input{font:inherit;color:inherit;background:none;border:none;outline:none}
 ::selection{background:rgba(255,255,255,.85);color:#09090B}
@@ -120,7 +161,7 @@ body.electron .window-row{justify-content:flex-end}
 .new-tab-btn:hover{border-color:rgba(255,255,255,.28);color:var(--text);background:var(--hover)}
 .new-tab-btn svg{width:15px;height:15px}
 .new-tab-btn kbd{margin-left:auto}
-kbd{font-family:'Inter';font-size:10px;color:var(--text-3);background:rgba(255,255,255,.06);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1.5px 5px}
+kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;color:var(--text-3);background:rgba(255,255,255,.06);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1.5px 5px}
 
 .section-label{display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
 .section-label .count{background:rgba(255,255,255,.07);border-radius:99px;padding:1px 7px;letter-spacing:0;font-size:10px}
@@ -182,7 +223,7 @@ kbd{font-family:'Inter';font-size:10px;color:var(--text-3);background:rgba(255,2
 .nt-tag{font-size:11px;color:var(--text-3);font-weight:550;letter-spacing:.06em;text-transform:uppercase}
 .weather{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);background:rgba(255,255,255,.045);border:1px solid var(--border);padding:6px 12px;border-radius:99px}
 .weather b{color:var(--text);font-weight:600}
-.clock{font-family:'Inter Tight';font-size:clamp(64px,9vw,92px);font-weight:300;letter-spacing:-.045em;line-height:1;color:var(--text)}
+.clock{font-family:'Inter Tight Variable','Inter Tight','Inter Variable',system-ui,sans-serif;font-size:clamp(64px,9vw,92px);font-weight:300;letter-spacing:-.045em;line-height:1;color:var(--text)}
 .clock .sec{font-size:.32em;color:var(--text-3);font-weight:400;letter-spacing:0;margin-left:4px}
 .greeting{margin-top:13px;font-size:14.5px;color:var(--text-2);font-weight:450;text-align:center}
 .greeting b{color:var(--text);font-weight:600}
@@ -399,7 +440,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 
 <!-- ============ SPLASH ============ -->
 <div id="splash" title="Пропустить">
-  <div class="splash-stage"><div class="splash-icon"><img src="/icon.png" alt="ByAzen"></div></div>
+  <div class="splash-stage"><div class="splash-icon"><img src="icon.png" alt="ByAzen"></div></div>
   <div class="splash-text">
     <div class="splash-name"><span>B</span><span>y</span><span>A</span><span>z</span><span>e</span><span>n</span></div>
     <div class="splash-sub">Browser</div>
@@ -417,7 +458,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
     </div>
 
     <div class="brand">
-      <div class="logo"><img src="/icon.png" alt="ByAzen"></div>
+      <div class="logo"><img src="icon.png" alt="ByAzen"></div>
       <div class="brand-text">
         <div class="brand-name">ByAzen</div>
         <div class="brand-sub">Browser</div>
@@ -512,7 +553,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <!-- SEARCH PAGE -->
       <section id="searchpage">
         <div class="sp-inner">
-          <div class="sp-head"><div class="logo"><img src="/icon.png" alt="ByAzen"></div><b>Поиск ByAzen</b><span>· на базе DuckDuckGo</span></div>
+          <div class="sp-head"><div class="logo"><img src="icon.png" alt="ByAzen"></div><b>Поиск ByAzen</b><span>· на базе DuckDuckGo</span></div>
           <div class="sp-search-wrap">
             <div class="sp-search">
               <svg><use href="#i-search"/></svg>
@@ -565,7 +606,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
         </div>
       </div>
       <div class="about">
-        <div class="logo"><img src="/icon.png" alt="ByAzen"></div>
+        <div class="logo"><img src="icon.png" alt="ByAzen"></div>
         <div><b style="font-size:13.5px">ByAzen 1.0</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
@@ -626,10 +667,12 @@ const DEFAULT_SHORTCUTS = [
 ];
 const ACCENTS = ['#FAFAFA','#FF6B4A','#F5C044','#7BD88F','#4CC3FF','#B79CFF'];
 
-let settings  = Object.assign({engine:'duck', accent:'#FAFAFA', proxy:true, showRecent:true}, store.get('settings',{}));
-let bookmarks = store.get('bookmarks', []);
-let historyLog= store.get('history', []);
-let shortcuts = store.get('shortcuts', DEFAULT_SHORTCUTS);
+const asArray = (v, d) => Array.isArray(v) ? v : d;
+let settings  = Object.assign({engine:'duck', accent:'#FAFAFA', proxy:true, showRecent:true}, store.get('settings',{}) || {});
+if (!ENGINES[settings.engine]) settings.engine = 'duck';
+let bookmarks = asArray(store.get('bookmarks', []), []).filter(x => x && typeof x.url === 'string');
+let historyLog= asArray(store.get('history', []), []).filter(x => x && typeof x.url === 'string');
+let shortcuts = asArray(store.get('shortcuts', DEFAULT_SHORTCUTS), DEFAULT_SHORTCUTS).filter(x => x && typeof x.url === 'string');
 
 let tabs = [], activeId = null, tabSeq = 0;
 const framesEl = $('#frames'), tabsEl = $('#tabs'), pinnedEl = $('#pinned');
@@ -641,7 +684,7 @@ const isSearch = u => !!u && u.startsWith('byazen://search');
 const isInternal = u => isNewTab(u) || isSearch(u);
 function searchQueryOf(u){ try{ return new URL(u).searchParams.get('q') || ''; }catch{ return ''; } }
 function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch{ return ''; } }
-function faviconOf(u){ const h = hostOf(u); return h ? `https://www.google.com/s2/favicons?domain=${h}&sz=64` : ''; }
+function faviconOf(u){ const h = hostOf(u); return h ? '/api/favicon?domain=' + encodeURIComponent(h) : ''; }
 function prettyUrl(u){
   if (isNewTab(u)) return '';
   if (isSearch(u)) return searchQueryOf(u);
@@ -1144,15 +1187,11 @@ saveSettings();
 renderEngines(); renderSettings(); renderShortcuts();
 createTab();
 
-/* Splash: показ при каждом запуске, клик — пропустить */
-function hideSplash(){
-  const s = $('#splash');
-  document.body.classList.add('ready');
-  if (!s || s.classList.contains('hide')) return;
-  s.classList.add('hide');
-  setTimeout(()=> s.remove(), 560);
-}
-$('#splash').addEventListener('click', hideSplash);
+/* Splash: показ при каждом запуске, клик — пропустить.
+   Сама логика вынесена в boot-скрипт в <head>, чтобы экран никогда не оставался пустым. */
+function hideSplash(){ if (window.__byazenReveal) window.__byazenReveal(); }
+const splashEl = $('#splash');
+if (splashEl) splashEl.addEventListener('click', hideSplash);
 setTimeout(hideSplash, 1950);
 setTimeout(hideSplash, 4200); /* страховка */
 setTimeout(()=> toast('Добро пожаловать в ByAzen'), 2250);
