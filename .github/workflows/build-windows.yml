@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.9 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.9 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.10 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.10 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.9 release/ByAzen.exe \
-              --title 'ByAzen 1.0.9 — улучшенный ИИ и выбор голоса' \
-              --notes 'Windows x64 build: Ollama tool calling, robust browser-command parsing, selectable system voices and speech styles.' \
+            gh release create v1.0.10 release/ByAzen.exe \
+              --title 'ByAzen 1.0.10 — исправление захвата микрофона' \
+              --notes 'Windows x64 build: prevent duplicate microphone capture when starting voice recognition and improve audio-source error guidance.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi

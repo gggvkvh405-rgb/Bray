@@ -648,7 +648,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.9</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.10</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -1427,27 +1427,23 @@ $('#aiSend').onclick=()=>sendAiMessage($('#aiInput').value);
 $('#aiInput').addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAiMessage($('#aiInput').value);}
 });
-$('#aiMic').onclick=async()=>{
+$('#aiMic').onclick=()=>{
   const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!Recognition){ addAiMessage('system','Распознавание речи недоступно в этой сборке Chromium. Введите команду текстом.'); return; }
   if(aiRecognition){ aiRecognition.stop(); return; }
-  if(!navigator.mediaDevices?.getUserMedia){ addAiMessage('system','Chromium не предоставляет доступ к микрофону. Проверьте разрешения Windows для классических приложений.'); return; }
-  const mic=$('#aiMic'); mic.disabled=true;
+  const mic=$('#aiMic');
   try{
-    // Request mic access explicitly first; SpeechRecognition often reports only "audio-capture"
-    // when Windows privacy settings or the selected recording device block capture.
-    const probe=await navigator.mediaDevices.getUserMedia({audio:true});
-    probe.getTracks().forEach(track=>track.stop());
-    await new Promise(resolve=>setTimeout(resolve,120));
+    // Let Chromium own the single microphone capture session; a separate getUserMedia probe
+    // can keep the Windows audio device busy and make SpeechRecognition fail to start.
     const rec=new Recognition(); aiRecognition=rec; rec.lang='ru-RU'; rec.interimResults=false; rec.maxAlternatives=1; rec.continuous=false;
-    mic.classList.add('listening'); mic.disabled=false; aiStatus('Слушаю… скажите команду','ok');
+    mic.classList.add('listening'); aiStatus('Слушаю… скажите команду','ok');
     rec.onresult=e=>{ const text=e.results?.[0]?.[0]?.transcript||''; if(text) sendAiMessage(text); };
     rec.onerror=e=>{
       if(e.error==='no-speech') return;
       const message=e.error==='audio-capture'
-        ? 'Не удалось открыть микрофон. Проверьте подключение и устройство ввода Windows, а также включите доступ к микрофону для классических приложений.'
+        ? 'Chromium не смог открыть аудиовход. Закройте программы, которые используют микрофон, и проверьте выбранное устройство в Параметры Windows → Система → Звук → Ввод.'
         : e.error==='not-allowed'
-          ? 'Доступ к микрофону запрещён. Разрешите его в параметрах конфиденциальности Windows и перезапустите ByAzen.'
+          ? 'Доступ к микрофону запрещён. Включите доступ к микрофону для классических приложений в параметрах конфиденциальности Windows и перезапустите ByAzen.'
           : e.error==='network'
             ? 'Служба распознавания речи Chromium недоступна. Проверьте подключение к интернету.'
             : 'Распознавание речи: '+e.error;
@@ -1456,12 +1452,13 @@ $('#aiMic').onclick=async()=>{
     rec.onend=()=>{aiRecognition=null;mic.classList.remove('listening');mic.disabled=false;};
     rec.start();
   }catch(e){
-    mic.disabled=false; aiRecognition=null; mic.classList.remove('listening');
-    const message=e.name==='NotFoundError'
-      ? 'Микрофон не найден. Подключите или выберите устройство ввода в параметрах звука Windows.'
+    aiRecognition=null; mic.classList.remove('listening'); mic.disabled=false;
+    const detail=String(e.message||e.name||'');
+    const message=/Could not start audio source/i.test(detail)
+      ? 'Chromium не смог запустить захват звука. Закройте программы, использующие микрофон, выберите устройство ввода Windows и перезапустите ByAzen.'
       : e.name==='NotAllowedError'||e.name==='PermissionDeniedError'
-        ? 'Windows запретила доступ к микрофону. Включите «Доступ к микрофону» и «Разрешить классическим приложениям доступ к микрофону» в Параметры → Конфиденциальность и безопасность → Микрофон, затем перезапустите ByAzen.'
-        : 'Не удалось открыть микрофон: '+(e.message||e.name||'неизвестная ошибка');
+        ? 'Windows запретила доступ к микрофону. Включите доступ к микрофону и разрешение для классических приложений, затем перезапустите ByAzen.'
+        : 'Не удалось начать распознавание: '+detail;
     addAiMessage('system',message); aiStatus('Микрофон недоступен','err');
   }
 };
