@@ -608,7 +608,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.3</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.4</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -682,6 +682,18 @@ let shortcuts = asArray(store.get('shortcuts', DEFAULT_SHORTCUTS), DEFAULT_SHORT
 let tabs = [], activeId = null, tabSeq = 0;
 const framesEl = $('#frames'), tabsEl = $('#tabs'), pinnedEl = $('#pinned');
 const urlInput = $('#urlInput');
+function sizeNativeWebview(frame){
+  if (!nativeWebview || !frame) return;
+  const rect = framesEl.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0){
+    frame.style.width = Math.ceil(rect.width) + 'px';
+    frame.style.height = Math.ceil(rect.height) + 'px';
+  }
+}
+function resizeNativeWebviews(){ tabs.forEach(tab=>sizeNativeWebview(tab.frame)); }
+const webviewResizeObserver = nativeWebview && window.ResizeObserver ? new ResizeObserver(resizeNativeWebviews) : null;
+if (webviewResizeObserver) webviewResizeObserver.observe(framesEl);
+if (nativeWebview) window.addEventListener('resize', resizeNativeWebviews);
 
 /* ---------- helpers ---------- */
 const isNewTab = u => !u || u === 'byazen://newtab';
@@ -731,6 +743,7 @@ function createTab(url='byazen://newtab', opts={}){
   if (!isInternal(url)){
     tab.frame = createEmbeddedPage(tab);
     framesEl.appendChild(tab.frame);
+    sizeNativeWebview(tab.frame);
     loadFrame(tab, url);
   }
   tabs.push(tab);
@@ -764,6 +777,7 @@ function ensureFrame(tab){
   if (tab.frame) return tab.frame;
   tab.frame = createEmbeddedPage(tab);
   framesEl.appendChild(tab.frame);
+  sizeNativeWebview(tab.frame);
   return tab.frame;
 }
 function updateNativeTab(tab,url,title){
