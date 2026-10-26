@@ -404,8 +404,10 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 
 
 /* Local Ollama assistant */
-.ai-modal{max-width:780px;height:82vh;display:flex;flex-direction:column;overflow:hidden}
-.ai-modal .modal-head{padding-bottom:10px}
+.ai-modal{width:min(780px,calc(100vw - 40px));max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);min-width:min(440px,calc(100vw - 24px));min-height:min(420px,calc(100vh - 24px));height:82vh;display:flex;flex-direction:column;overflow:hidden;resize:both}
+.ai-modal .modal-head{padding-bottom:10px;cursor:grab;touch-action:none;user-select:none}
+.ai-modal .modal-head:active{cursor:grabbing}
+.ai-modal .modal-head button{cursor:pointer}
 .ai-status{font-size:11px;color:var(--text-3);margin-top:4px}
 .ai-status.ok{color:#7BD88F}.ai-status.err{color:#F87171}
 .ai-modelbar{display:flex;align-items:center;gap:10px;padding:10px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
@@ -648,7 +650,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.12</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.13</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -1225,8 +1227,8 @@ $('#histBtn').onclick = ()=> openPanel('history');
 $('#openHistory').onclick = ()=> openPanel('history');
 
 /* ---------- modals / settings ---------- */
-function openModal(id){ $('#'+id).classList.add('show'); syncNativeBounds(); }
-function closeModal(id){ $('#'+id).classList.remove('show'); syncNativeBounds(); }
+function openModal(id){ $('#'+id).classList.add('show'); syncNativeBounds(); if(id==='assistantModal') initAssistantWindow(); }
+function closeModal(id){ if(id==='assistantModal') saveAssistantWindow(); $('#'+id).classList.remove('show'); syncNativeBounds(); }
 $$('.modal-overlay').forEach(o=> o.addEventListener('mousedown', e=>{ if(e.target===o) closeModal(o.id); }));
 $$('[data-close]').forEach(b=> b.onclick = ()=> closeModal(b.dataset.close));
 $('#setBtn').onclick = ()=> openModal('settingsModal');
@@ -1342,6 +1344,50 @@ $('#aiVoiceStyle').onchange=()=>store.set('assistantVoiceStyle',$('#aiVoiceStyle
 function addAiMessage(role,text){
   const el=document.createElement('div'); el.className='ai-msg '+role; el.textContent=text;
   $('#aiMessages').appendChild(el); $('#aiMessages').scrollTop=$('#aiMessages').scrollHeight; return el;
+}
+let assistantResizeObserver=null;
+function saveAssistantWindow(){
+  const el=$('#assistantModal .ai-modal');
+  if(!el||el.dataset.windowInitialized!=='1'||!$('#assistantModal').classList.contains('show'))return;
+  const r=el.getBoundingClientRect();
+  store.set('assistantWindow',{left:Math.round(r.left),top:Math.round(r.top),width:Math.round(r.width),height:Math.round(r.height)});
+}
+function clampAssistantWindow(){
+  const el=$('#assistantModal .ai-modal');
+  if(!el||el.dataset.windowInitialized!=='1'||!$('#assistantModal').classList.contains('show'))return;
+  const r=el.getBoundingClientRect(),pad=12;
+  el.style.left=Math.max(pad,Math.min(innerWidth-r.width-pad,r.left))+'px';
+  el.style.top=Math.max(pad,Math.min(innerHeight-r.height-pad,r.top))+'px';
+  saveAssistantWindow();
+}
+function initAssistantWindow(){
+  const el=$('#assistantModal .ai-modal');
+  if(!el)return;
+  if(el.dataset.windowInitialized==='1'){clampAssistantWindow();return;}
+  const r=el.getBoundingClientRect(),saved=store.get('assistantWindow',null),pad=12;
+  const minW=Math.min(440,innerWidth-2*pad),minH=Math.min(420,innerHeight-2*pad);
+  const width=Math.max(minW,Math.min(Number(saved?.width)||r.width,innerWidth-2*pad));
+  const height=Math.max(minH,Math.min(Number(saved?.height)||r.height,innerHeight-2*pad));
+  const left=Math.max(pad,Math.min(innerWidth-width-pad,Number(saved?.left)||r.left));
+  const top=Math.max(pad,Math.min(innerHeight-height-pad,Number(saved?.top)||r.top));
+  Object.assign(el.style,{position:'fixed',left:left+'px',top:top+'px',width:width+'px',height:height+'px',maxWidth:'calc(100vw - 24px)',maxHeight:'calc(100vh - 24px)',margin:'0',transform:'none',animation:'none'});
+  el.dataset.windowInitialized='1';
+  const handle=el.querySelector('.modal-head');
+  handle.addEventListener('pointerdown',e=>{
+    if(e.button!==0||e.target.closest('button,input,select,textarea'))return;
+    e.preventDefault();
+    const box=el.getBoundingClientRect(),startX=e.clientX,startY=e.clientY,startLeft=box.left,startTop=box.top;
+    handle.setPointerCapture(e.pointerId);
+    const move=ev=>{
+      const r=el.getBoundingClientRect(),pad=12;
+      el.style.left=Math.max(pad,Math.min(innerWidth-r.width-pad,startLeft+ev.clientX-startX))+'px';
+      el.style.top=Math.max(pad,Math.min(innerHeight-r.height-pad,startTop+ev.clientY-startY))+'px';
+    };
+    const end=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',end);handle.removeEventListener('pointercancel',end);saveAssistantWindow();};
+    handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',end);
+  });
+  if(window.ResizeObserver){assistantResizeObserver=new ResizeObserver(()=>saveAssistantWindow());assistantResizeObserver.observe(el);}
+  window.addEventListener('resize',clampAssistantWindow);
 }
 function openAssistant(){
   openModal('assistantModal');

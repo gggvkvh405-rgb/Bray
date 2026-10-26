@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.12 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.12 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.13 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.13 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.12 release/ByAzen.exe \
-              --title 'ByAzen 1.0.12 — управление страницами командами ИИ' \
-              --notes 'Windows x64 build: general page-aware Ollama agent with safe click, form-fill, select, keyboard and scroll browser tools.' \
+            gh release create v1.0.13 release/ByAzen.exe \
+              --title 'ByAzen 1.0.13 — перемещаемое окно ИИ' \
+              --notes 'Windows x64 build: drag the AI window by its header, resize it, and keep its position and size between openings. Includes the page-aware Ollama browser agent.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi
