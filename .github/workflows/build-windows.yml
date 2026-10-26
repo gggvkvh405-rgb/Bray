@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.1 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.1 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.2 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.2 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.1 release/ByAzen.exe \
-              --title 'ByAzen 1.0.1 — исправление белого экрана' \
-              --notes 'Portable Windows x64 build with the startup blank-screen fix.' \
+            gh release create v1.0.2 release/ByAzen.exe \
+              --title 'ByAzen 1.0.2 — исправление пустых вкладок' \
+              --notes 'Portable Windows x64 build that keeps proxy mode enabled to avoid blank embedded pages.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi
