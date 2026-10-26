@@ -648,7 +648,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.10</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.11</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -682,7 +682,14 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
     </div>
     <div class="ai-voicebar">
       <label for="aiVoice">Голос</label>
-      <select id="aiVoice" aria-label="Голос озвучивания"><option value="">Загрузка голосов…</option></select>
+      <select id="aiVoice" aria-label="Голос озвучивания">
+        <optgroup label="Русские нейросетевые (онлайн)">
+          <option value="edge:ru-RU-SvetlanaNeural">Светлана · мягкий</option>
+          <option value="edge:ru-RU-DmitryNeural">Дмитрий · уверенный</option>
+          <option value="edge:ru-RU-DariyaNeural">Дарья · выразительный</option>
+        </optgroup>
+        <optgroup id="aiSystemVoices" label="Голоса Windows"></optgroup>
+      </select>
       <label for="aiVoiceStyle">Манера</label>
       <select id="aiVoiceStyle" aria-label="Манера речи">
         <option value="natural">Естественная</option><option value="lively">Бодрая</option><option value="calm">Спокойная</option><option value="cartoon">Мультяшная</option>
@@ -698,7 +705,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <textarea id="aiInput" rows="2" placeholder="Напишите команду или задайте вопрос…"></textarea>
       <button class="btn primary" id="aiSend"><svg style="width:15px;height:15px"><use href="#i-send"/></svg> Отправить</button>
     </div>
-    <div class="ai-footnote">ИИ работает локально через Ollama и понимает обычные формулировки. Озвучка использует голоса Windows: выберите голос и манеру выше; если нет русского голоса, добавьте его в Параметры Windows → Время и язык → Речь. Распознавание речи Chromium может требовать интернет.</div>
+    <div class="ai-footnote">Чат и модель работают локально через Ollama. Русские нейроголоса Светлана, Дмитрий и Дарья работают через интернет: только текст ответа для синтеза отправляется Microsoft Edge TTS. Голоса Windows остаются на устройстве. Распознавание речи Chromium также может требовать интернет.</div>
   </section>
 </div>
 
@@ -1303,28 +1310,34 @@ $('#aiSpeak').checked = store.get('assistantSpeak', true) !== false;
 $('#aiVoiceStyle').value = store.get('assistantVoiceStyle','natural');
 function aiStatus(text,kind=''){ const el=$('#aiStatus'); el.textContent=text; el.className='ai-status'+(kind?' '+kind:''); }
 let aiVoices=[];
-function refreshAiVoices(){
-  if(!window.speechSynthesis) { $('#aiVoiceStatus').textContent='Озвучивание не поддерживается'; return; }
-  aiVoices=window.speechSynthesis.getVoices()||[];
-  const select=$('#aiVoice'), preferred=store.get('assistantVoice','');
-  select.innerHTML='';
-  if(!aiVoices.length){
-    const option=document.createElement('option'); option.value=''; option.textContent='Системные голоса не найдены'; select.appendChild(option);
-    $('#aiVoiceStatus').textContent='Проверьте установленные голоса Windows'; return;
+const aiEdgeVoices=['edge:ru-RU-SvetlanaNeural','edge:ru-RU-DmitryNeural','edge:ru-RU-DariyaNeural'];
+function updateAiVoiceStatus(){
+  const value=$('#aiVoice').value;
+  if(value.startsWith('edge:')) $('#aiVoiceStatus').textContent='Русский нейроголос · онлайн, текст ответа отправляется Microsoft';
+  else {
+    const voice=aiVoices.find(v=>v.voiceURI===value);
+    $('#aiVoiceStatus').textContent=voice?`На устройстве · ${voice.lang}`:'Системный голос недоступен';
   }
+}
+function refreshAiVoices(){
+  const select=$('#aiVoice'), group=$('#aiSystemVoices'), previous=store.get('assistantVoice','');
+  aiVoices=window.speechSynthesis?window.speechSynthesis.getVoices()||[]:[];
+  group.innerHTML='';
   const sorted=[...aiVoices].sort((a,b)=>{
     const ar=/^ru([_-]|$)/i.test(a.lang)?0:1, br=/^ru([_-]|$)/i.test(b.lang)?0:1;
     return ar-br || a.name.localeCompare(b.name,'ru');
   });
-  sorted.forEach(v=>{const o=document.createElement('option');o.value=v.voiceURI;o.textContent=`${v.name} · ${v.lang}`;select.appendChild(o);});
-  const fallback=sorted.find(v=>/^ru([_-]|$)/i.test(v.lang))||sorted.find(v=>v.default)||sorted[0];
-  select.value=sorted.some(v=>v.voiceURI===preferred)?preferred:fallback.voiceURI;
-  store.set('assistantVoice',select.value);
-  const russian=sorted.filter(v=>/^ru([_-]|$)/i.test(v.lang));
-  $('#aiVoiceStatus').textContent=russian.length?`Русских голосов: ${russian.length}`:'Русский голос не найден — добавьте голос Russian в настройках Windows';
+  if(!sorted.length){const o=document.createElement('option');o.value='';o.textContent='Системные голоса не найдены';group.appendChild(o);}
+  sorted.forEach(v=>{const o=document.createElement('option');o.value=v.voiceURI;o.textContent=`${v.name} · ${v.lang}`;group.appendChild(o);});
+  const explicit=store.get('assistantVoiceExplicit',false)===true;
+  const savedEdge=aiEdgeVoices.includes(previous);
+  const savedSystem=sorted.some(v=>v.voiceURI===previous);
+  const savedRussian=sorted.some(v=>v.voiceURI===previous&&/^ru([_-]|$)/i.test(v.lang));
+  const chosen=savedEdge?previous:(savedSystem&&(explicit||savedRussian)?previous:aiEdgeVoices[0]);
+  select.value=chosen; store.set('assistantVoice',chosen); updateAiVoiceStatus();
 }
 if(window.speechSynthesis){ window.speechSynthesis.onvoiceschanged=refreshAiVoices; setTimeout(refreshAiVoices,300); }
-$('#aiVoice').onchange=()=>store.set('assistantVoice',$('#aiVoice').value);
+$('#aiVoice').onchange=()=>{store.set('assistantVoice',$('#aiVoice').value);store.set('assistantVoiceExplicit',true);updateAiVoiceStatus();};
 $('#aiVoiceStyle').onchange=()=>store.set('assistantVoiceStyle',$('#aiVoiceStyle').value);
 function addAiMessage(role,text){
   const el=document.createElement('div'); el.className='ai-msg '+role; el.textContent=text;
@@ -1356,7 +1369,7 @@ $('#aiModel').onchange=()=>{ aiModel=$('#aiModel').value; store.set('assistantMo
 $('#aiSpeak').onchange=()=>store.set('assistantSpeak',$('#aiSpeak').checked);
 $('#aiClose').onclick=()=>closeModal('assistantModal');
 $('#assistantBtn').onclick=openAssistant;
-function aiActionLabel(a){ return ({new_tab:'Новая вкладка',home:'Главная',back:'Назад',forward:'Вперёд',reload:'Обновить страницу',close_tab:'Закрыть вкладку',bookmark:'Добавить в закладки',navigate:'Открыть сайт',search:'Искать',switch_tab:'Переключить вкладку',duplicate_tab:'Дублировать вкладку',reopen_closed_tab:'Восстановить закрытую вкладку',pin_tab:a.pinned===false?'Открепить вкладку':'Закрепить вкладку',open_bookmarks:'Открыть закладки',open_history:'Открыть историю'})[a.type]||'Команда браузера'; }
+function aiActionLabel(a){ return ({new_tab:'Новая вкладка',home:'Главная',back:'Назад',forward:'Вперёд',reload:'Обновить страницу',close_tab:'Закрыть вкладку',bookmark:'Добавить в закладки',navigate:'Открыть сайт',search:'Искать',search_site:'Искать на сайте',switch_tab:'Переключить вкладку',duplicate_tab:'Дублировать вкладку',reopen_closed_tab:'Восстановить закрытую вкладку',pin_tab:a.pinned===false?'Открепить вкладку':'Закрепить вкладку',open_bookmarks:'Открыть закладки',open_history:'Открыть историю'})[a.type]||'Команда браузера'; }
 function executeAiActions(actions){
   const done=[];
   for(const a of (Array.isArray(actions)?actions:[]).slice(0,4)){
@@ -1381,6 +1394,12 @@ function executeAiActions(actions){
       case 'open_bookmarks': openPanel('bookmarks'); done.push(aiActionLabel(a)); break;
       case 'open_history': openPanel('history'); done.push(aiActionLabel(a)); break;
       case 'search': if(typeof a.query==='string'&&a.query.trim()){ navigateActive(a.query.trim()); done.push('Поиск: '+a.query.trim()); } break;
+      case 'search_site': {
+        const q=encodeURIComponent(String(a.query||''));
+        const urls={ozon:'https://www.ozon.ru/search/?text='+q,wildberries:'https://www.wildberries.ru/catalog/0/search.aspx?search='+q,youtube:'https://www.youtube.com/results?search_query='+q,google:'https://www.google.com/search?q='+q,yandex:'https://yandex.ru/search/?text='+q};
+        if(urls[a.site]){navigateActive(urls[a.site]);done.push('Ищу на '+a.site+': '+String(a.query||''));}
+        break;
+      }
       case 'navigate':
         if(typeof a.url==='string'&&/^https?:\/\//i.test(a.url)){ navigateActive(a.url); done.push(aiActionLabel(a)+': '+a.url); }
         break;
@@ -1388,20 +1407,43 @@ function executeAiActions(actions){
   }
   if(done.length) addAiMessage('system','Выполнено: '+done.join(' · '));
 }
-function speakAi(text){
-  if(!window.speechSynthesis||!text){ $('#aiVoiceStatus').textContent='Озвучивание недоступно'; return; }
+let aiSpeechToken=0, aiAudio=null, aiAudioUrl='';
+function cancelAiSpeech(){
+  aiSpeechToken++;
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  if(aiAudio){aiAudio.pause();aiAudio.src='';aiAudio.load();aiAudio=null;}
+  if(aiAudioUrl){URL.revokeObjectURL(aiAudioUrl);aiAudioUrl='';}
+}
+async function speakAi(text){
+  if(!text)return;
+  cancelAiSpeech(); const token=++aiSpeechToken;
+  const voiceChoice=$('#aiVoice').value;
+  const styleName=$('#aiVoiceStyle').value;
+  if(voiceChoice.startsWith('edge:')){
+    $('#aiVoiceStatus').textContent='Готовлю русский нейроголос…';
+    try{
+      const response=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice:voiceChoice.slice(5),style:styleName})});
+      if(!response.ok){let error='Сервис русской озвучки не ответил';try{error=(await response.json()).error||error;}catch{}throw new Error(error);}
+      const blob=await response.blob();
+      if(token!==aiSpeechToken)return;
+      aiAudioUrl=URL.createObjectURL(blob); aiAudio=new Audio(aiAudioUrl);
+      const audio=aiAudio, url=aiAudioUrl;
+      audio.onended=()=>{if(token===aiSpeechToken){aiAudio=null;URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Готово';}};
+      audio.onerror=()=>{if(token===aiSpeechToken){aiAudio=null;URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Не удалось воспроизвести аудио';}};
+      await audio.play(); $('#aiVoiceStatus').textContent='Говорю русским нейроголосом';
+    }catch(e){if(token===aiSpeechToken){if(aiAudio){aiAudio.pause();aiAudio.src='';aiAudio.load();aiAudio=null;}if(aiAudioUrl){URL.revokeObjectURL(aiAudioUrl);aiAudioUrl='';}$('#aiVoiceStatus').textContent=e.message||'Проверьте интернет для русского нейроголоса';aiStatus('Не удалось озвучить ответ','err');}}
+    return;
+  }
+  if(!window.speechSynthesis){ $('#aiVoiceStatus').textContent='Системное озвучивание недоступно'; return; }
   const voices=window.speechSynthesis.getVoices()||[];
-  const selected=voices.find(v=>v.voiceURI===$('#aiVoice').value);
+  const selected=voices.find(v=>v.voiceURI===voiceChoice);
   const voice=selected||voices.find(v=>/^ru([_-]|$)/i.test(v.lang))||voices.find(v=>v.default)||null;
   const styles={natural:{rate:1,pitch:1},lively:{rate:1.12,pitch:1.18},calm:{rate:.88,pitch:.92},cartoon:{rate:1.08,pitch:1.42}};
-  const style=styles[$('#aiVoiceStyle').value]||styles.natural;
-  window.speechSynthesis.cancel();
+  const style=styles[styleName]||styles.natural;
   const utterance=new SpeechSynthesisUtterance(text); utterance.lang=voice?.lang||'ru-RU'; utterance.voice=voice;
   utterance.rate=style.rate; utterance.pitch=style.pitch; utterance.volume=1;
-  utterance.onstart=()=>{ $('#aiVoiceStatus').textContent=voice?`${voice.name} · ${voice.lang}`:'Говорю системным голосом'; };
-  utterance.onend=()=>refreshAiVoices();
+  utterance.onstart=()=>updateAiVoiceStatus();
   utterance.onerror=e=>{ $('#aiVoiceStatus').textContent='Ошибка озвучивания: '+e.error; aiStatus('Не удалось озвучить ответ','err'); };
-  if(!voices.some(v=>/^ru([_-]|$)/i.test(v.lang))) $('#aiVoiceStatus').textContent='Русский системный голос не установлен — пробую голос по умолчанию';
   window.speechSynthesis.resume(); window.speechSynthesis.speak(utterance);
 }
 $('#aiVoiceTest').onclick=()=>speakAi('Привет! Я голосовой помощник ByAzen. Выбери голос и настрой манеру речи.');
