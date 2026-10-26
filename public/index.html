@@ -210,9 +210,9 @@ kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;col
 #progress.loading{opacity:1;animation:load 8s cubic-bezier(.1,.6,.3,1) forwards}
 @keyframes load{0%{width:0}18%{width:42%}55%{width:71%}100%{width:92%}}
 #progress.done{width:100%!important;opacity:0}
-#frames,#frames iframe{position:absolute;inset:0;width:100%;height:100%}
-#frames iframe{border:none;background:#fff;display:none}
-#frames iframe.visible{display:block}
+#frames,#frames iframe,#frames webview{position:absolute;inset:0;width:100%;height:100%}
+#frames iframe,#frames webview{border:none;background:#fff;display:none}
+#frames iframe.visible,#frames webview.visible{display:block}
 
 /* ================= NEW TAB ================= */
 #newtab{position:absolute;inset:0;overflow-y:auto;background:radial-gradient(1100px 520px at 50% -12%,rgba(255,255,255,.055),transparent 62%),#0A0A0C;display:none}
@@ -479,7 +479,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <div class="omnibox">
         <span class="lead" id="omniLead"><svg><use href="#i-search"/></svg></span>
         <input id="urlInput" placeholder="Поиск или адрес сайта" spellcheck="false" autocomplete="off">
-        <button class="omni-btn" id="shieldBtn" title="Прокси-режим всегда включён"><svg><use href="#i-shield"/></svg></button>
+        <button class="omni-btn" id="shieldBtn" title="Способ загрузки сайта"><svg><use href="#i-shield"/></svg></button>
         <button class="omni-btn" id="starBtn" title="В закладки"><svg><use href="#i-star"/></svg></button>
       </div>
       <div class="dropdown" id="omniDrop"></div>
@@ -596,7 +596,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="set-group">
         <h4>Браузер</h4>
-        <div class="set-row"><div class="tx"><b>Прокси-режим</b><span>Всегда включён, чтобы сайты не блокировались во вкладке</span></div><button class="switch" id="swProxy" disabled title="Прокси-режим всегда включён"></button></div>
+        <div class="set-row"><div class="tx"><b>Встроенная загрузка сайтов</b><span>В приложении — изолированный Chromium; в веб-версии — локальный прокси</span></div><button class="switch" id="swProxy" disabled title="Встроенная загрузка включена"></button></div>
         <div class="set-row"><div class="tx"><b>Недавние на стартовой</b><span>Показывать последние посещённые сайты на новой вкладке</span></div><button class="switch" id="swRecent"></button></div>
       </div>
       <div class="set-group">
@@ -608,7 +608,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.3</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -647,6 +647,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem('byazen:'+k); return v ? JSON.parse(v) : d; }catch{ return d; } },
   set(k, v){ try{ localStorage.setItem('byazen:'+k, JSON.stringify(v)); }catch{} }
 };
+const nativeWebview = !!(window.byazenDesktop && window.byazenDesktop.electron);
 
 const ENGINES = {
   duck:   { name:'DuckDuckGo', url:q => 'https://html.duckduckgo.com/html/?q='+encodeURIComponent(q)+'&kl=ru-ru' },
@@ -670,9 +671,9 @@ const ACCENTS = ['#FAFAFA','#FF6B4A','#F5C044','#7BD88F','#4CC3FF','#B79CFF'];
 
 const asArray = (v, d) => Array.isArray(v) ? v : d;
 let settings  = Object.assign({engine:'duck', accent:'#FAFAFA', proxy:true, showRecent:true}, store.get('settings',{}) || {});
-// Direct navigation inside iframes is rejected by many sites, resulting in blank tabs.
-// Migrate old saved settings to the only reliable embedded mode.
-if (settings.proxy !== true) { settings.proxy = true; store.set('settings', settings); }
+// Web builds need the local proxy because ordinary iframes are blocked by many sites.
+// Migrate any old direct-mode preference in the web build; Electron uses native webviews instead.
+if (!nativeWebview && settings.proxy !== true) { settings.proxy = true; store.set('settings', settings); }
 if (!ENGINES[settings.engine]) settings.engine = 'duck';
 let bookmarks = asArray(store.get('bookmarks', []), []).filter(x => x && typeof x.url === 'string');
 let historyLog= asArray(store.get('history', []), []).filter(x => x && typeof x.url === 'string');
@@ -728,23 +729,52 @@ function createTab(url='byazen://newtab', opts={}){
   const tab = { id:++tabSeq, url, title:opts.title || titleFor(url),
                 loading:false, pinned:!!opts.pinned, hist: isNewTab(url)?[]:[url], hi: isNewTab(url)?-1:0, frame:null };
   if (!isInternal(url)){
-    const f = document.createElement('iframe');
-    f.setAttribute('allow','autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; picture-in-picture');
-    f.addEventListener('load', ()=>{ if(tab.loading){ tab.loading=false; renderTabs(); syncChrome(); } });
-    tab.frame = f; framesEl.appendChild(f);
+    tab.frame = createEmbeddedPage(tab);
+    framesEl.appendChild(tab.frame);
     loadFrame(tab, url);
   }
   tabs.push(tab);
   if (opts.activate !== false) activateTab(tab.id); else renderTabs();
   return tab;
 }
+function createEmbeddedPage(tab){
+  const f = document.createElement(nativeWebview ? 'webview' : 'iframe');
+  f.setAttribute('allow','autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; picture-in-picture');
+  if (nativeWebview){
+    f.setAttribute('partition','persist:byazen-sites');
+    f.setAttribute('webpreferences','nodeIntegration=no,contextIsolation=yes,sandbox=yes');
+    f.addEventListener('did-start-loading', ()=>{ tab.loading=true; if(tab.id===activeId) syncChrome(); renderTabs(); });
+    f.addEventListener('did-stop-loading', ()=>{ tab.loading=false; if(tab.id===activeId) syncChrome(); renderTabs(); });
+    f.addEventListener('did-navigate', e=> updateNativeTab(tab,e.url));
+    f.addEventListener('did-navigate-in-page', e=>{ if(e.isMainFrame) updateNativeTab(tab,e.url); });
+    f.addEventListener('page-title-updated', e=> updateNativeTab(tab,null,e.title));
+    f.addEventListener('did-fail-load', e=>{
+      if (e.errorCode === -3) return; // aborted because a newer navigation replaced it
+      tab.loading=false;
+      if (tab.id===activeId) syncChrome();
+      renderTabs();
+    });
+  } else {
+    f.addEventListener('load', ()=>{ if(tab.loading){ tab.loading=false; renderTabs(); syncChrome(); } });
+  }
+  tab.frame = f;
+  return f;
+}
 function ensureFrame(tab){
   if (tab.frame) return tab.frame;
-  const f = document.createElement('iframe');
-  f.setAttribute('allow','autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; picture-in-picture');
-  f.addEventListener('load', ()=>{ if(tab.loading){ tab.loading=false; renderTabs(); syncChrome(); } });
-  tab.frame = f; framesEl.appendChild(f);
-  return f;
+  tab.frame = createEmbeddedPage(tab);
+  framesEl.appendChild(tab.frame);
+  return tab.frame;
+}
+function updateNativeTab(tab,url,title){
+  if (url && /^https?:\/\//i.test(url) && url !== tab.url){
+    tab.url=url;
+    if (tab.hist[tab.hi] !== url){ tab.hist=tab.hist.slice(0,tab.hi+1); tab.hist.push(url); tab.hi=tab.hist.length-1; }
+  }
+  if (title && title.trim()) tab.title=title.trim();
+  if (tab.url) addHistory(tab.url,tab.title);
+  renderTabs();
+  if (tab.id===activeId){ syncChrome(); document.title=tab.title+' — ByAzen'; }
 }
 function updateView(){
   const tab = activeTab(); if(!tab) return;
@@ -756,7 +786,7 @@ function updateView(){
 function loadFrame(tab, url){
   tab.loading = true;
   const f = ensureFrame(tab);
-  f.src = '/proxy?url='+encodeURIComponent(url);
+  f.src = nativeWebview ? url : '/proxy?url='+encodeURIComponent(url);
   updateView(); syncChrome();
 }
 function navigateTab(tab, url, pushHist=true){
@@ -986,7 +1016,7 @@ $('#starBtn').onclick = ()=>{
   store.set('bookmarks', bookmarks); syncChrome();
 };
 $('#shieldBtn').onclick = ()=>{
-  toast('Прокси-режим всегда включён, чтобы сайты не блокировались во вкладке');
+  toast(nativeWebview ? 'Сайт работает в отдельной вкладке Chromium' : 'Веб-версия загружает сайты через локальный прокси');
 };
 
 /* ---------- shortcuts ---------- */

@@ -40,7 +40,8 @@ if (!app.requestSingleInstanceLock()) {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false
+        sandbox: false,
+        webviewTag: true
       }
     });
 
@@ -48,6 +49,26 @@ if (!app.requestSingleInstanceLock()) {
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:\/\//i.test(url)) shell.openExternal(url);
       return { action: 'deny' };
+    });
+
+    // Allow real websites to render in isolated Chromium guests (not iframes/proxy HTML).
+    win.webContents.on('will-attach-webview', (e, webPreferences) => {
+      webPreferences.nodeIntegration = false;
+      webPreferences.contextIsolation = true;
+      webPreferences.sandbox = true;
+      delete webPreferences.preload;
+    });
+    win.webContents.on('did-attach-webview', (_e, guest) => {
+      guest.setWindowOpenHandler(({ url }) => {
+        if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+        return { action: 'deny' };
+      });
+      guest.on('will-navigate', (e, url) => {
+        if (!/^https?:\/\//i.test(url) && url !== 'about:blank') {
+          e.preventDefault();
+          shell.openExternal(url);
+        }
+      });
     });
 
     // Верхний фрейм никогда не уходит с локального приложения
