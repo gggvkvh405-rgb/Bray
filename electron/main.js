@@ -128,10 +128,13 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
-    // Mic access is granted only to ByAzen's local UI, after the user starts voice input.
-    win.webContents.session.setPermissionRequestHandler((requester, permission, callback, details) => {
-      const isLocalApp = requester === win.webContents && String(details?.requestingUrl || '').startsWith(`http://127.0.0.1:${port}/`);
-      callback(isLocalApp && permission === 'media');
+    // Mic permission is granted only to the trusted app renderer, never to website tabs.
+    // The main renderer is locked to the local UI by the will-navigate handler below.
+    win.webContents.session.setPermissionRequestHandler((requester, permission, callback) => {
+      callback(requester === win.webContents && permission === 'media');
+    });
+    win.webContents.session.setPermissionCheckHandler((requester, permission) => {
+      return requester === win.webContents && permission === 'media';
     });
 
     // Кнопка ↗ и target=_blank — в системный браузер, не в новое окно Electron
