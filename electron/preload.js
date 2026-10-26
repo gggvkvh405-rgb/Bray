@@ -1,11 +1,18 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
-// Только верхний фрейм (сам интерфейс), не сайты во вкладках
 if (window.top === window.self) {
   try {
     contextBridge.exposeInMainWorld('byazenDesktop', {
       electron: true,
-      platform: process.platform
+      platform: process.platform,
+      openSite: (id, url) => ipcRenderer.send('byazen:site-open', { id, url }),
+      setActiveSite: (id, bounds) => ipcRenderer.send('byazen:site-active', { id, bounds }),
+      closeSite: id => ipcRenderer.send('byazen:site-close', id),
+      onSiteEvent: callback => {
+        const listener = (_event, data) => callback(data);
+        ipcRenderer.on('byazen:site-event', listener);
+        return () => ipcRenderer.removeListener('byazen:site-event', listener);
+      }
     });
   } catch {}
   window.addEventListener('DOMContentLoaded', () => {

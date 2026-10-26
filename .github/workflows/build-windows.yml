@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.4 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.4 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.5 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.5 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.4 release/ByAzen.exe \
-              --title 'ByAzen 1.0.4 — исправление размера страницы' \
-              --notes 'Portable Windows x64 build using isolated Chromium webviews sized to the full content area.' \
+            gh release create v1.0.5 release/ByAzen.exe \
+              --title 'ByAzen 1.0.5 — отдельная поверхность Chromium' \
+              --notes 'Portable Windows x64 build using a native WebContentsView sized to the full content area.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi
