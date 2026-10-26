@@ -402,6 +402,30 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 .cmdk-item .tag{margin-left:auto;font-size:10.5px;color:var(--text-3);background:rgba(255,255,255,.06);padding:2px 7px;border-radius:99px}
 .cmdk-empty{padding:26px;text-align:center;color:var(--text-3);font-size:13px}
 
+
+/* Local Ollama assistant */
+.ai-modal{max-width:780px;height:82vh;display:flex;flex-direction:column;overflow:hidden}
+.ai-modal .modal-head{padding-bottom:10px}
+.ai-status{font-size:11px;color:var(--text-3);margin-top:4px}
+.ai-status.ok{color:#7BD88F}.ai-status.err{color:#F87171}
+.ai-modelbar{display:flex;align-items:center;gap:10px;padding:10px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+.ai-modelbar label{display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:11px;white-space:nowrap}
+.ai-modelbar select{min-width:170px;max-width:280px;height:30px;padding:0 9px;background:#1D1D22;color:var(--text);border:1px solid var(--border-2);border-radius:8px;font-size:11.5px}
+.ai-modelbar .spacer{flex:1}
+.ai-messages{flex:1;min-height:0;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:12px}
+.ai-msg{max-width:88%;padding:11px 13px;border-radius:13px;font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-msg.user{align-self:flex-end;background:#24242A;color:var(--text)}
+.ai-msg.assistant{align-self:flex-start;background:rgba(255,255,255,.045);border:1px solid var(--border);color:var(--text-2)}
+.ai-msg.system{align-self:center;color:var(--text-3);font-size:11px;background:none;text-align:center}
+.ai-msg.pending{opacity:.65}
+.ai-composer{padding:14px 18px 17px;border-top:1px solid var(--border);display:flex;gap:9px;align-items:flex-end}
+.ai-composer textarea{flex:1;resize:none;min-height:42px;max-height:120px;padding:11px 12px;background:rgba(255,255,255,.045);border:1px solid var(--border-2);border-radius:11px;color:var(--text);font:inherit;line-height:1.45;outline:none}
+.ai-composer textarea:focus{border-color:rgba(255,255,255,.25)}
+.ai-composer .icon-btn{background:rgba(255,255,255,.05);border:1px solid var(--border);flex:none}
+.ai-composer .icon-btn.listening{color:#F87171;border-color:#F87171;animation:pulse 1s infinite}
+.ai-footnote{padding:0 20px 11px;color:var(--text-3);font-size:10px;line-height:1.5}
+@media(max-width:640px){.ai-modal{height:90vh}.ai-modelbar{padding:9px 12px;flex-wrap:wrap}.ai-modelbar select{min-width:130px;flex:1}.ai-messages{padding:14px}.ai-composer{padding:10px}}
+
 /* Context menu / toast */
 #ctx{position:fixed;z-index:200;width:214px;background:#1A1A1F;border:1px solid var(--border-2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);padding:5px;display:none}
 #ctx.show{display:block;animation:pop .13s var(--ease)}
@@ -438,6 +462,9 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 <symbol id="i-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></symbol>
 <symbol id="i-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+<symbol id="i-volume" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></symbol>
 <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></symbol>
 <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
@@ -507,6 +534,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
         <button class="quick-btn" id="bmBtn"><svg><use href="#i-bookmark"/></svg><span class="hide-collapsed">Закладки</span></button>
         <button class="quick-btn" id="histBtn"><svg><use href="#i-history"/></svg><span class="hide-collapsed">История</span></button>
         <button class="quick-btn" id="cmdBtn"><svg><use href="#i-cmd"/></svg><span class="hide-collapsed">Команды</span></button>
+        <button class="quick-btn" id="assistantBtn" title="Локальный ИИ (Ctrl+J)"><svg><use href="#i-spark"/></svg><span class="hide-collapsed">ИИ</span></button>
         <button class="quick-btn" id="setBtn"><svg><use href="#i-gear"/></svg><span class="hide-collapsed" style="white-space:nowrap">Настройки</span></button>
       </div>
       <button class="profile-row" id="profileBtn">
@@ -615,7 +643,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.6</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.7</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -631,6 +659,32 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <button class="btn primary block" id="scSave">Добавить</button>
     </div>
   </div>
+</div>
+
+<!-- ============ LOCAL OLLAMA ASSISTANT ============ -->
+<div class="modal-overlay" id="assistantModal">
+  <section class="modal ai-modal" role="dialog" aria-modal="true" aria-labelledby="assistantTitle">
+    <div class="modal-head">
+      <div><h2 id="assistantTitle">ByAzen ИИ</h2><div class="ai-status" id="aiStatus">Проверяю Ollama…</div></div>
+      <button class="icon-btn" id="aiClose" title="Закрыть"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <div class="ai-modelbar">
+      <label for="aiModel">Модель Ollama</label>
+      <select id="aiModel" aria-label="Модель Ollama"><option value="qwen2.5:3b">qwen2.5:3b</option></select>
+      <button class="icon-btn" id="aiRefresh" title="Обновить список моделей"><svg><use href="#i-reload"/></svg></button>
+      <span class="spacer"></span>
+      <label title="Ответ будет прочитан голосом системы"><input id="aiSpeak" type="checkbox"> Озвучивать ответ</label>
+    </div>
+    <div class="ai-messages" id="aiMessages" role="log" aria-live="polite">
+      <div class="ai-msg system">Скажите или напишите команду: «Открой YouTube», «Новая вкладка», «Назад».</div>
+    </div>
+    <div class="ai-composer">
+      <button class="icon-btn" id="aiMic" title="Сказать команду"><svg><use href="#i-mic"/></svg></button>
+      <textarea id="aiInput" rows="2" placeholder="Напишите команду или задайте вопрос…"></textarea>
+      <button class="btn primary" id="aiSend"><svg style="width:15px;height:15px"><use href="#i-send"/></svg> Отправить</button>
+    </div>
+    <div class="ai-footnote">ИИ работает через локальную Ollama. Команды ограничены действиями браузера; произвольный код не выполняется. Для голоса нужна поддержка распознавания речи Chromium.</div>
+  </section>
 </div>
 
 <!-- ============ COMMAND PALETTE ============ -->
@@ -685,15 +739,28 @@ if (!ENGINES[settings.engine]) settings.engine = 'duck';
 let bookmarks = asArray(store.get('bookmarks', []), []).filter(x => x && typeof x.url === 'string');
 let historyLog= asArray(store.get('history', []), []).filter(x => x && typeof x.url === 'string');
 let shortcuts = asArray(store.get('shortcuts', DEFAULT_SHORTCUTS), DEFAULT_SHORTCUTS).filter(x => x && typeof x.url === 'string');
+let closedTabs = asArray(store.get('closedTabs', []), []).filter(x => x && typeof x.url === 'string');
 
 let tabs = [], activeId = null, tabSeq = 0;
 const framesEl = $('#frames'), tabsEl = $('#tabs'), pinnedEl = $('#pinned');
 const urlInput = $('#urlInput');
+function persistTabs(){
+  const recent=tabs.slice(-20);
+  store.set('session',recent.map(t=>({url:t.url,title:t.title,pinned:t.pinned})));
+  store.set('sessionActive',recent.findIndex(t=>t.id===activeId));
+}
+function reopenLastTab(){
+  const item=closedTabs.shift();
+  if(!item){toast('Нет закрытых вкладок');return;}
+  store.set('closedTabs',closedTabs);
+  createTab(item.url,{title:item.title,pinned:!!item.pinned});
+}
 function syncNativeBounds(){
   if (!nativeWebview) return;
   const tab = activeTab();
   const rect = $('#viewport').getBoundingClientRect();
-  const id = tab && !isInternal(tab.url) ? tab.id : null;
+  const modalOpen = !!document.querySelector('.modal-overlay.show');
+  const id = !modalOpen && tab && !isInternal(tab.url) ? tab.id : null;
   window.byazenDesktop.setActiveSite(id, {
     x: Math.round(rect.left), y: Math.round(rect.top),
     width: Math.round(rect.width), height: Math.round(rect.height)
@@ -754,7 +821,7 @@ function createTab(url='byazen://newtab', opts={}){
     loadFrame(tab, url);
   }
   tabs.push(tab);
-  if (opts.activate !== false) activateTab(tab.id); else renderTabs();
+  if (opts.activate !== false) activateTab(tab.id); else { renderTabs(); persistTabs(); }
   return tab;
 }
 function createEmbeddedPage(tab){
@@ -777,6 +844,7 @@ function updateNativeTab(tab,url,title){
   }
   if (title && title.trim()) tab.title=title.trim();
   if (tab.url) addHistory(tab.url,tab.title);
+  persistTabs();
   renderTabs();
   if (tab.id===activeId){ syncChrome(); document.title=tab.title+' — ByAzen'; }
 }
@@ -820,13 +888,14 @@ function navigateTab(tab, url, pushHist=true){
     tab.url = url; tab.title = titleFor(url); tab.loading = false;
     if (pushHist && !isNewTab(url)){ tab.hist = tab.hist.slice(0, tab.hi+1); tab.hist.push(url); tab.hi = tab.hist.length-1; }
     if (tab.id !== activeId){ activateTab(tab.id); } else { updateView(); renderTabs(); syncChrome(); document.title = isNewTab(url) ? 'ByAzen' : tab.title + ' — ByAzen'; }
+    persistTabs();
     return;
   }
   tab.url = url;
   if (pushHist){ tab.hist = tab.hist.slice(0, tab.hi+1); tab.hist.push(url); tab.hi = tab.hist.length-1; tab.title = hostOf(url) || url; }
   $('#ntSearch').value = ''; $('#ntDrop').classList.remove('show'); $('#omniDrop').classList.remove('show');
   addHistory(url, hostOf(url));
-  loadFrame(tab, url); renderTabs(); syncChrome(); updateView();
+  loadFrame(tab, url); renderTabs(); syncChrome(); updateView(); persistTabs();
 }
 function navigateActive(raw){
   const url = resolveInput(raw); if(!url) return;
@@ -839,16 +908,17 @@ function activateTab(id){
   const tab = activeTab();
   updateView();
   document.title = tab ? (isNewTab(tab.url) ? 'ByAzen' : tab.title + ' — ByAzen') : 'ByAzen';
-  renderTabs(); syncChrome(); renderRecent();
+  renderTabs(); syncChrome(); renderRecent(); persistTabs();
   if (tab && isNewTab(tab.url)) setTimeout(()=> $('#ntSearch').focus(), 60);
 }
 function closeTab(id){
   const i = tabs.findIndex(t=>t.id===id); if(i<0) return;
   const [tab] = tabs.splice(i,1);
+  if (!isNewTab(tab.url)) { closedTabs.unshift({url:tab.url,title:tab.title,pinned:tab.pinned}); closedTabs=closedTabs.slice(0,12); store.set('closedTabs',closedTabs); }
   if (tab.frame) tab.frame.remove();
   if (tab.nativeView) window.byazenDesktop.closeSite(tab.id);
-  if (!tabs.length){ createTab(); return; }
-  if (activeId === id) activateTab(tabs[Math.max(0,i-1)].id); else renderTabs();
+  if (!tabs.length){ persistTabs(); createTab(); return; }
+  if (activeId === id) activateTab(tabs[Math.max(0,i-1)].id); else { renderTabs(); persistTabs(); }
 }
 function tabFavHTML(tab){
   if (tab.loading) return '<span class="spinner"></span>';
@@ -1133,9 +1203,9 @@ $('#histBtn').onclick = ()=> openPanel('history');
 $('#openHistory').onclick = ()=> openPanel('history');
 
 /* ---------- modals / settings ---------- */
-function openModal(id){ $('#'+id).classList.add('show'); }
-function closeModal(id){ $('#'+id).classList.remove('show'); }
-$$('.modal-overlay').forEach(o=> o.addEventListener('mousedown', e=>{ if(e.target===o) o.classList.remove('show'); }));
+function openModal(id){ $('#'+id).classList.add('show'); syncNativeBounds(); }
+function closeModal(id){ $('#'+id).classList.remove('show'); syncNativeBounds(); }
+$$('.modal-overlay').forEach(o=> o.addEventListener('mousedown', e=>{ if(e.target===o) closeModal(o.id); }));
 $$('[data-close]').forEach(b=> b.onclick = ()=> closeModal(b.dataset.close));
 $('#setBtn').onclick = ()=> openModal('settingsModal');
 $('#profileBtn').onclick = ()=> openModal('settingsModal');
@@ -1181,6 +1251,8 @@ function buildCmdk(q){
   q = q.trim().toLowerCase();
   const actions = [
     {label:'Новая вкладка', icon:'i-plus', tag:'Действие', run:()=>createTab()},
+    {label:'Восстановить закрытую вкладку', icon:'i-history', tag:'Действие', run:()=>reopenLastTab()},
+    {label:'Открыть ByAzen ИИ', icon:'i-spark', tag:'Локальная модель', run:()=>openAssistant()},
     {label:'Открыть закладки', icon:'i-bookmark', tag:'Действие', run:()=>openPanel('bookmarks')},
     {label:'Открыть историю', icon:'i-history', tag:'Действие', run:()=>openPanel('history')},
     {label:'Настройки', icon:'i-gear', tag:'Действие', run:()=>openModal('settingsModal')},
@@ -1208,15 +1280,117 @@ $('#cmdkInput').addEventListener('keydown', e=>{
 });
 $('#cmdBtn').onclick = openCmdk;
 
+/* ---------- Local Ollama assistant ---------- */
+let aiHistory = [], aiBusy = false, aiRecognition = null;
+let aiModel = store.get('assistantModel', 'qwen2.5:3b');
+$('#aiModel').value = aiModel;
+$('#aiSpeak').checked = store.get('assistantSpeak', false) === true;
+function aiStatus(text,kind=''){ const el=$('#aiStatus'); el.textContent=text; el.className='ai-status'+(kind?' '+kind:''); }
+function addAiMessage(role,text){
+  const el=document.createElement('div'); el.className='ai-msg '+role; el.textContent=text;
+  $('#aiMessages').appendChild(el); $('#aiMessages').scrollTop=$('#aiMessages').scrollHeight; return el;
+}
+function openAssistant(){
+  openModal('assistantModal');
+  refreshAiModels();
+  setTimeout(()=>$('#aiInput').focus(),70);
+}
+async function refreshAiModels(){
+  aiStatus('Подключаюсь к Ollama…');
+  try{
+    const r=await fetch('/api/ollama/models'); const d=await r.json();
+    const select=$('#aiModel'), previous=store.get('assistantModel','qwen2.5:3b');
+    select.innerHTML='';
+    const models=Array.isArray(d.models)?d.models:[];
+    models.forEach(m=>{ const o=document.createElement('option'); o.value=m.name; o.textContent=m.name; select.appendChild(o); });
+    if(!models.some(m=>m.name===previous)){
+      const o=document.createElement('option'); o.value=previous; o.textContent=previous+(d.available?' · не скачана':' · модель по умолчанию'); select.appendChild(o);
+    }
+    select.value=previous; aiModel=previous;
+    if(d.available) aiStatus(models.length?`Ollama подключена · ${models.length} моделей`:'Ollama запущена, но модели не скачаны','ok');
+    else aiStatus('Ollama не запущена. Установите Ollama и скачайте модель, например qwen2.5:3b.','err');
+  }catch{ aiStatus('Не удалось проверить Ollama.','err'); }
+}
+$('#aiRefresh').onclick=refreshAiModels;
+$('#aiModel').onchange=()=>{ aiModel=$('#aiModel').value; store.set('assistantModel',aiModel); };
+$('#aiSpeak').onchange=()=>store.set('assistantSpeak',$('#aiSpeak').checked);
+$('#aiClose').onclick=()=>closeModal('assistantModal');
+$('#assistantBtn').onclick=openAssistant;
+function aiActionLabel(a){ return ({new_tab:'Новая вкладка',home:'Главная',back:'Назад',forward:'Вперёд',reload:'Обновить страницу',close_tab:'Закрыть вкладку',bookmark:'Добавить в закладки',navigate:'Открыть сайт',search:'Искать'})[a.type]||'Команда браузера'; }
+function executeAiActions(actions){
+  const done=[];
+  for(const a of (Array.isArray(actions)?actions:[]).slice(0,4)){
+    switch(a.type){
+      case 'new_tab': createTab(); done.push(aiActionLabel(a)); break;
+      case 'home': $('#homeBtn').click(); done.push(aiActionLabel(a)); break;
+      case 'back': { const t=activeTab(); if(t) goHist(t,-1); done.push(aiActionLabel(a)); break; }
+      case 'forward': { const t=activeTab(); if(t) goHist(t,1); done.push(aiActionLabel(a)); break; }
+      case 'reload': $('#reloadBtn').click(); done.push(aiActionLabel(a)); break;
+      case 'close_tab': if(activeTab()&&confirm('ИИ просит закрыть текущую вкладку. Продолжить?')){ closeTab(activeId); done.push(aiActionLabel(a)); } break;
+      case 'bookmark': if(activeTab()&&!isInternal(activeTab().url)){ $('#starBtn').click(); done.push(aiActionLabel(a)); } break;
+      case 'search': if(typeof a.query==='string'&&a.query.trim()){ navigateActive(a.query.trim()); done.push('Поиск: '+a.query.trim()); } break;
+      case 'navigate':
+        if(typeof a.url==='string'&&/^https?:\/\//i.test(a.url)){ navigateActive(a.url); done.push(aiActionLabel(a)+': '+a.url); }
+        break;
+    }
+  }
+  if(done.length) addAiMessage('system','Выполнено: '+done.join(' · '));
+}
+function speakAi(text){
+  if(!window.speechSynthesis||!text) return;
+  window.speechSynthesis.cancel();
+  const utterance=new SpeechSynthesisUtterance(text); utterance.lang='ru-RU'; utterance.rate=1;
+  const ru=window.speechSynthesis.getVoices().find(v=>/^ru(-|_)/i.test(v.lang)); if(ru) utterance.voice=ru;
+  window.speechSynthesis.speak(utterance);
+}
+async function sendAiMessage(text){
+  text=(text||'').trim(); if(!text||aiBusy) return;
+  aiBusy=true; $('#aiSend').disabled=true; $('#aiMic').disabled=true;
+  $('#aiInput').value=''; addAiMessage('user',text); aiHistory.push({role:'user',content:text});
+  const pending=addAiMessage('assistant pending','Думаю…');
+  try{
+    const r=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:aiModel||'qwen2.5:3b',messages:aiHistory.slice(-12)})});
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error||'Ошибка Ollama');
+    pending.remove(); const reply=String(data.reply||'Готово.');
+    addAiMessage('assistant',reply); aiHistory.push({role:'assistant',content:reply});
+    executeAiActions(data.actions);
+    if($('#aiSpeak').checked) speakAi(reply);
+    aiStatus(`Ответила модель ${data.model||aiModel}`,'ok');
+  }catch(e){
+    pending.remove(); addAiMessage('system',e.message||'ИИ сейчас недоступен.'); aiStatus('Нет ответа от Ollama','err');
+  }finally{ aiBusy=false; $('#aiSend').disabled=false; $('#aiMic').disabled=false; $('#aiInput').focus(); }
+}
+$('#aiSend').onclick=()=>sendAiMessage($('#aiInput').value);
+$('#aiInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAiMessage($('#aiInput').value);}
+});
+$('#aiMic').onclick=()=>{
+  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!Recognition){ addAiMessage('system','Распознавание речи недоступно в этой сборке Chromium. Введите команду текстом.'); return; }
+  if(aiRecognition){ aiRecognition.stop(); return; }
+  try{
+    const rec=new Recognition(); aiRecognition=rec; rec.lang='ru-RU'; rec.interimResults=false; rec.maxAlternatives=1; rec.continuous=false;
+    $('#aiMic').classList.add('listening'); aiStatus('Слушаю… скажите команду','ok');
+    rec.onresult=e=>{ const text=e.results?.[0]?.[0]?.transcript||''; if(text) sendAiMessage(text); };
+    rec.onerror=e=>{ if(e.error!=='no-speech') addAiMessage('system','Распознавание речи: '+e.error); };
+    rec.onend=()=>{aiRecognition=null;$('#aiMic').classList.remove('listening');};
+    rec.start();
+  }catch{ aiRecognition=null; $('#aiMic').classList.remove('listening'); addAiMessage('system','Не удалось включить микрофон. Проверьте разрешение на микрофон.'); }
+};
+
+
 /* ---------- keyboard ---------- */
 document.addEventListener('keydown', e=>{
   const mod = e.ctrlKey || e.metaKey;
   if (mod && e.key.toLowerCase()==='k'){ e.preventDefault(); openCmdk(); }
+  if (mod && e.shiftKey && e.key.toLowerCase()==='t'){ e.preventDefault(); reopenLastTab(); }
+  if (mod && e.key.toLowerCase()==='j'){ e.preventDefault(); openAssistant(); }
   if (mod && e.key.toLowerCase()==='b'){ e.preventDefault(); $('#sidebar').classList.toggle('collapsed'); }
   if (e.altKey && e.key.toLowerCase()==='t'){ e.preventDefault(); createTab(); }
   if (e.altKey && e.key.toLowerCase()==='l'){ e.preventDefault(); $('#sidebar').classList.remove('collapsed'); urlInput.focus(); }
   if (e.altKey && e.key.toLowerCase()==='w'){ e.preventDefault(); if(activeId) closeTab(activeId); }
-  if (e.key==='Escape'){ closePanel(); ctx.classList.remove('show'); $$('.modal-overlay').forEach(m=>m.classList.remove('show')); }
+  if (e.key==='Escape'){ closePanel(); ctx.classList.remove('show'); $$('.modal-overlay').forEach(m=>closeModal(m.id)); }
   if (mod && /^[1-9]$/.test(e.key)){ const t=tabs[+e.key-1]; if(t){ e.preventDefault(); activateTab(t.id); } }
 });
 
@@ -1244,7 +1418,13 @@ setInterval(tickClock, 1000); tickClock();
 /* ---------- init ---------- */
 saveSettings();
 renderEngines(); renderSettings(); renderShortcuts();
-createTab();
+const savedSession=asArray(store.get('session',[]),[]).filter(t=>t&&typeof t.url==='string'&&(t.url.startsWith('byazen://')||/^https?:\/\//i.test(t.url))).slice(-20);
+const savedActiveIndex=Number(store.get('sessionActive',0))||0;
+if(savedSession.length){
+  savedSession.forEach(t=>createTab(t.url,{title:t.title,pinned:!!t.pinned,activate:false}));
+  const activeIndex=Math.max(0,Math.min(savedSession.length-1,savedActiveIndex));
+  activateTab(tabs[activeIndex].id);
+}else createTab();
 
 /* Splash: показ при каждом запуске, клик — пропустить.
    Сама логика вынесена в boot-скрипт в <head>, чтобы экран никогда не оставался пустым. */

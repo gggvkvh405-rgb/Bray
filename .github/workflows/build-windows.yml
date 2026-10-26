@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.6 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.6 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.7 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.7 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.6 release/ByAzen.exe \
-              --title 'ByAzen 1.0.6 — компактная боковая панель' \
-              --notes 'Portable Windows x64 build with compact sidebar controls that stay within the collapsed panel.' \
+            gh release create v1.0.7 release/ByAzen.exe \
+              --title 'ByAzen 1.0.7 — локальный ИИ-помощник' \
+              --notes 'ByAzen Windows x64 with local Ollama chat, safe browser commands, voice input/output and session restore.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi
