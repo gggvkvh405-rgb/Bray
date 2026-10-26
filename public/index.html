@@ -648,7 +648,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.11</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.12</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -1369,43 +1369,70 @@ $('#aiModel').onchange=()=>{ aiModel=$('#aiModel').value; store.set('assistantMo
 $('#aiSpeak').onchange=()=>store.set('assistantSpeak',$('#aiSpeak').checked);
 $('#aiClose').onclick=()=>closeModal('assistantModal');
 $('#assistantBtn').onclick=openAssistant;
-function aiActionLabel(a){ return ({new_tab:'Новая вкладка',home:'Главная',back:'Назад',forward:'Вперёд',reload:'Обновить страницу',close_tab:'Закрыть вкладку',bookmark:'Добавить в закладки',navigate:'Открыть сайт',search:'Искать',search_site:'Искать на сайте',switch_tab:'Переключить вкладку',duplicate_tab:'Дублировать вкладку',reopen_closed_tab:'Восстановить закрытую вкладку',pin_tab:a.pinned===false?'Открепить вкладку':'Закрепить вкладку',open_bookmarks:'Открыть закладки',open_history:'Открыть историю'})[a.type]||'Команда браузера'; }
-function executeAiActions(actions){
-  const done=[];
+function aiActionLabel(a){ return ({new_tab:'Новая вкладка',home:'Главная',back:'Назад',forward:'Вперёд',reload:'Обновить страницу',close_tab:'Закрыть вкладку',bookmark:'Добавить в закладки',navigate:'Открыть сайт',search:'Искать',search_site:'Искать на сайте',switch_tab:'Переключить вкладку',duplicate_tab:'Дублировать вкладку',reopen_closed_tab:'Восстановить закрытую вкладку',pin_tab:a.pinned===false?'Открепить вкладку':'Закрепить вкладку',open_bookmarks:'Открыть закладки',open_history:'Открыть историю',page_read:'Прочитать страницу',page_click:'Нажать элемент страницы',page_fill:'Заполнить поле',page_select:'Выбрать вариант',page_press:'Нажать клавишу',page_scroll:'Прокрутить страницу'})[a.type]||'Действие браузера'; }
+async function getAiPageContext(){
+  const tab=activeTab();
+  if(!tab)return {url:'',title:'Нет активной вкладки'};
+  if(isInternal(tab.url))return {url:tab.url,title:tab.title,text:'Внутренняя страница ByAzen'};
+  if(nativeWebview&&tab.nativeView){
+    try{return await window.byazenDesktop.getPageContext(tab.id);}catch(e){return {url:tab.url,title:tab.title,error:String(e.message||e)};}
+  }
+  return {url:tab.url,title:tab.title,error:'Чтение и управление страницей доступны в настольной версии ByAzen.'};
+}
+async function runPageTool(action){
+  const tab=activeTab();
+  if(!tab||isInternal(tab.url))return {ok:false,error:'Сначала открой сайт во вкладке.'};
+  if(!nativeWebview||!tab.nativeView)return {ok:false,error:'Управление содержимым сайта доступно в настольной версии.'};
+  const result=await window.byazenDesktop.performPageAction(tab.id,action);
+  if(result?.confirmationRequired){
+    if(!confirm(`${result.message||'Подтвердите действие на странице'}\n\nЭлемент: ${result.target||action.target||action.key||''}\n\nПродолжить?`))return {ok:false,cancelled:true,message:'Пользователь отменил действие.'};
+    return await window.byazenDesktop.performPageAction(tab.id,{...action,confirmed:true});
+  }
+  return result;
+}
+async function executeAiActions(actions){
+  const results=[];
   for(const a of (Array.isArray(actions)?actions:[]).slice(0,4)){
+    let result={ok:true,action:aiActionLabel(a)};
     switch(a.type){
-      case 'new_tab': createTab(); done.push(aiActionLabel(a)); break;
-      case 'home': $('#homeBtn').click(); done.push(aiActionLabel(a)); break;
-      case 'back': { const t=activeTab(); if(t) goHist(t,-1); done.push(aiActionLabel(a)); break; }
-      case 'forward': { const t=activeTab(); if(t) goHist(t,1); done.push(aiActionLabel(a)); break; }
-      case 'reload': $('#reloadBtn').click(); done.push(aiActionLabel(a)); break;
-      case 'close_tab': if(activeTab()&&confirm('ИИ просит закрыть текущую вкладку. Продолжить?')){ closeTab(activeId); done.push(aiActionLabel(a)); } break;
-      case 'bookmark': if(activeTab()&&!isInternal(activeTab().url)){ $('#starBtn').click(); done.push(aiActionLabel(a)); } break;
+      case 'new_tab': createTab(); break;
+      case 'home': $('#homeBtn').click(); break;
+      case 'back': { const t=activeTab(); if(t) goHist(t,-1); break; }
+      case 'forward': { const t=activeTab(); if(t) goHist(t,1); break; }
+      case 'reload': $('#reloadBtn').click(); break;
+      case 'close_tab': if(activeTab()&&confirm('ИИ просит закрыть текущую вкладку. Продолжить?')) closeTab(activeId); else result={ok:false,cancelled:true,message:'Пользователь отменил закрытие вкладки.'}; break;
+      case 'bookmark': if(activeTab()&&!isInternal(activeTab().url)) $('#starBtn').click(); else result={ok:false,error:'Нет страницы для добавления в закладки.'}; break;
       case 'switch_tab': {
         const q=String(a.query||'').toLocaleLowerCase('ru');
         const match=tabs.find(t=>String(t.title+' '+t.url).toLocaleLowerCase('ru').includes(q));
-        if(match){ activateTab(match.id); done.push(aiActionLabel(a)+': '+match.title); }
-        else addAiMessage('system','Не нашла открытую вкладку «'+q+'».');
+        if(match) activateTab(match.id); else result={ok:false,error:'Не нашла открытую вкладку: '+q};
         break;
       }
-      case 'duplicate_tab': { const t=activeTab(); if(t){createTab(t.url,{title:t.title});done.push(aiActionLabel(a));} break; }
-      case 'reopen_closed_tab': { const before=tabs.length; reopenLastTab(); if(tabs.length>before) done.push(aiActionLabel(a)); break; }
-      case 'pin_tab': { const t=activeTab(); if(t){t.pinned=a.pinned!==false;renderTabs();persistTabs();done.push(aiActionLabel(a));} break; }
-      case 'open_bookmarks': openPanel('bookmarks'); done.push(aiActionLabel(a)); break;
-      case 'open_history': openPanel('history'); done.push(aiActionLabel(a)); break;
-      case 'search': if(typeof a.query==='string'&&a.query.trim()){ navigateActive(a.query.trim()); done.push('Поиск: '+a.query.trim()); } break;
+      case 'duplicate_tab': { const t=activeTab(); if(t) createTab(t.url,{title:t.title}); else result={ok:false,error:'Нет вкладки для копирования.'}; break; }
+      case 'reopen_closed_tab': { const before=tabs.length; reopenLastTab(); if(tabs.length===before) result={ok:false,error:'Нет закрытых вкладок.'}; break; }
+      case 'pin_tab': { const t=activeTab(); if(t){t.pinned=a.pinned!==false;renderTabs();persistTabs();} else result={ok:false,error:'Нет активной вкладки.'}; break; }
+      case 'open_bookmarks': openPanel('bookmarks'); break;
+      case 'open_history': openPanel('history'); break;
+      case 'search': if(typeof a.query==='string'&&a.query.trim()) navigateActive(a.query.trim()); else result={ok:false,error:'Пустой запрос.'}; break;
       case 'search_site': {
         const q=encodeURIComponent(String(a.query||''));
         const urls={ozon:'https://www.ozon.ru/search/?text='+q,wildberries:'https://www.wildberries.ru/catalog/0/search.aspx?search='+q,youtube:'https://www.youtube.com/results?search_query='+q,google:'https://www.google.com/search?q='+q,yandex:'https://yandex.ru/search/?text='+q};
-        if(urls[a.site]){navigateActive(urls[a.site]);done.push('Ищу на '+a.site+': '+String(a.query||''));}
+        if(urls[a.site]) navigateActive(urls[a.site]); else result={ok:false,error:'Сайт не поддерживается.'};
         break;
       }
-      case 'navigate':
-        if(typeof a.url==='string'&&/^https?:\/\//i.test(a.url)){ navigateActive(a.url); done.push(aiActionLabel(a)+': '+a.url); }
-        break;
+      case 'navigate': if(typeof a.url==='string'&&/^https?:\/\//i.test(a.url)) navigateActive(a.url); else result={ok:false,error:'Недопустимый адрес.'}; break;
+      case 'page_read': result=await runPageTool({type:'read'}); break;
+      case 'page_click': result=await runPageTool({type:'click',target:a.target}); break;
+      case 'page_fill': result=await runPageTool({type:'fill',target:a.target,value:a.value}); break;
+      case 'page_select': result=await runPageTool({type:'select',target:a.target,value:a.value}); break;
+      case 'page_press': result=await runPageTool({type:'press',key:a.key}); break;
+      case 'page_scroll': result=await runPageTool({type:'scroll',direction:a.direction,amount:a.amount}); break;
+      default: result={ok:false,error:'Такого действия нет.'};
     }
+    results.push({type:a.type,...result});
+    if(!result.ok&&result.cancelled) break;
   }
-  if(done.length) addAiMessage('system','Выполнено: '+done.join(' · '));
+  return results;
 }
 let aiSpeechToken=0, aiAudio=null, aiAudioUrl='';
 function cancelAiSpeech(){
@@ -1452,15 +1479,31 @@ async function sendAiMessage(text){
   aiBusy=true; $('#aiSend').disabled=true; $('#aiMic').disabled=true;
   $('#aiInput').value=''; addAiMessage('user',text); aiHistory.push({role:'user',content:text});
   const pending=addAiMessage('assistant pending','Думаю…');
+  const completed=[]; let finalReply=''; let responseModel=aiModel;
   try{
-    const r=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:aiModel||'qwen2.5:3b',messages:aiHistory.slice(-12)})});
-    const data=await r.json();
-    if(!r.ok) throw new Error(data.error||'Ошибка Ollama');
-    pending.remove(); const reply=String(data.reply||'Готово.');
-    addAiMessage('assistant',reply); aiHistory.push({role:'assistant',content:reply});
-    executeAiActions(data.actions);
-    if($('#aiSpeak').checked) speakAi(reply);
-    aiStatus(`Ответила модель ${data.model||aiModel}`,'ok');
+    // Let Ollama plan against the live page, execute its browser tools, then feed results back.
+    // This gives it a small observe → act → observe loop instead of fixed phrase-to-command rules.
+    for(let turn=0;turn<5;turn++){
+      const pageContext=await getAiPageContext();
+      const r=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:aiModel||'qwen2.5:3b',messages:aiHistory.slice(-12),pageContext})});
+      const data=await r.json();
+      if(!r.ok) throw new Error(data.error||'Ошибка Ollama');
+      responseModel=data.model||aiModel;
+      const actions=Array.isArray(data.actions)?data.actions:[];
+      if(!actions.length){finalReply=String(data.reply||'Готово.');aiHistory.push({role:'assistant',content:finalReply});break;}
+      if(turn===4){finalReply='Задача требует слишком много шагов. Я остановилась и не стала выполнять дополнительные действия автоматически.';aiHistory.push({role:'assistant',content:finalReply});break;}
+      pending.textContent=turn===0?'Выполняю и проверяю результат…':'Продолжаю по результату страницы…';
+      const results=await executeAiActions(actions);
+      completed.push(...results);
+      const historyResults=results.map(({snapshot,...rest})=>rest);
+      aiHistory.push({role:'assistant',content:JSON.stringify({browser_action_results:historyResults})});
+    }
+    if(!finalReply) finalReply='Готово.';
+    pending.remove(); addAiMessage('assistant',finalReply);
+    const done=completed.filter(r=>r.ok&&!['page_read'].includes(r.type)).map(r=>aiActionLabel({type:r.type,...r}));
+    if(done.length) addAiMessage('system','Выполнено: '+done.join(' · '));
+    if($('#aiSpeak').checked) speakAi(finalReply);
+    aiStatus(`Ответила модель ${responseModel}`,'ok');
   }catch(e){
     pending.remove(); addAiMessage('system',e.message||'ИИ сейчас недоступен.'); aiStatus('Нет ответа от Ollama','err');
   }finally{ aiBusy=false; $('#aiSend').disabled=false; $('#aiMic').disabled=false; $('#aiInput').focus(); }

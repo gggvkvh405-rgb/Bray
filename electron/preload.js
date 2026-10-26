@@ -8,6 +8,8 @@ if (window.top === window.self) {
       openSite: (id, url) => ipcRenderer.send('byazen:site-open', { id, url }),
       setActiveSite: (id, bounds) => ipcRenderer.send('byazen:site-active', { id, bounds }),
       closeSite: id => ipcRenderer.send('byazen:site-close', id),
+      getPageContext: id => ipcRenderer.invoke('byazen:page-context', id),
+      performPageAction: (id, action) => ipcRenderer.invoke('byazen:page-action', { id, action }),
       onSiteEvent: callback => {
         const listener = (_event, data) => callback(data);
         ipcRenderer.on('byazen:site-event', listener);
