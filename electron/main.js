@@ -9,6 +9,9 @@ let server = null;
 const siteViews = new Map();
 const websitePermissionLog=[];
 const configuredSiteSessions=new WeakSet();
+const downloadRecords=[];
+const downloadItems=new Map();
+let downloadSequence=0;
 
 const PAGE_CONTEXT_SCRIPT = `(() => {
   const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'; };
@@ -74,6 +77,10 @@ function sendSiteEvent(id, type, data = {}) {
   if (win && !win.isDestroyed()) win.webContents.send('byazen:site-event', { id, type, ...data });
 }
 
+function publishDownload(record){
+  if(win&&!win.isDestroyed())win.webContents.send('byazen:download-event',{...record});
+}
+function patchDownload(record,changes){Object.assign(record,changes);publishDownload(record);}
 function configureSiteSession(session){
   if(configuredSiteSessions.has(session))return;
   configuredSiteSessions.add(session);
@@ -83,21 +90,30 @@ function configureSiteSession(session){
     try{source=new URL(item.getURL());}catch{item.cancel();return;}
     if(!['http:','https:'].includes(source.protocol)){item.cancel();return;}
     const fileName=path.basename(String(item.getFilename()||'download').replace(/[<>:"|?*\x00-\x1f]/g,'_')).replace(/^\.+/,'').slice(0,120)||'download';
-    if(item.getTotalBytes()>maxBytes){item.cancel();if(win&&!win.isDestroyed())dialog.showMessageBox(win,{type:'warning',title:'Загрузка заблокирована',message:'Файл превышает лимит 250 МБ.'});return;}
-    if(!win||win.isDestroyed()){item.cancel();return;}
+    const record={id:++downloadSequence,fileName,source:source.origin,total:item.getTotalBytes(),received:item.getReceivedBytes(),status:'awaiting',createdAt:Date.now(),path:''};
+    downloadRecords.unshift(record);while(downloadRecords.length>100){const index=downloadRecords.findIndex(x=>!['awaiting','downloading'].includes(x.status));if(index<0)break;const [removed]=downloadRecords.splice(index,1);downloadItems.delete(removed.id);}downloadItems.set(record.id,item);publishDownload(record);
+    if(item.getTotalBytes()>maxBytes){patchDownload(record,{status:'blocked',error:'Файл превышает лимит 250 МБ'});downloadItems.delete(record.id);item.cancel();if(win&&!win.isDestroyed())dialog.showMessageBox(win,{type:'warning',title:'Загрузка заблокирована',message:'Файл превышает лимит 250 МБ.'});return;}
+    if(!win||win.isDestroyed()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);item.cancel();return;}
     item.pause();
     const dangerous=/\.(exe|msi|bat|cmd|com|scr|ps1|vbs|js|reg)$/i.test(fileName);
     const approve=dangerous?dialog.showMessageBox(win,{type:'warning',buttons:['Продолжить','Отмена'],defaultId:1,cancelId:1,noLink:true,title:'Потенциально опасный файл',message:`Сайт предлагает загрузить «${fileName}».`,detail:'Исполняемые файлы могут повредить компьютер. Продолжайте только если доверяете источнику.'}).then(result=>result.response===0):Promise.resolve(true);
     approve.then(async allowed=>{
-      if(!allowed||item.isCanceled())return item.cancel();
-      if(!win||win.isDestroyed()||item.isCanceled())return item.cancel();
+      if(!allowed||item.isCanceled()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
+      if(!win||win.isDestroyed()||item.isCanceled()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
       const choice=await dialog.showSaveDialog(win,{title:'Сохранить загрузку',defaultPath:fileName,buttonLabel:'Сохранить'});
-      if(choice.canceled||!choice.filePath||item.isCanceled())return item.cancel();
-      item.setSavePath(choice.filePath);
-      item.on('updated',()=>{if(item.getReceivedBytes()>maxBytes)item.cancel();});
-      item.once('done',(_event,state)=>{if(state==='completed'&&win&&!win.isDestroyed())win.webContents.send('byazen:download-complete',{fileName:path.basename(choice.filePath)});});
+      if(choice.canceled||!choice.filePath||item.isCanceled()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
+      item.setSavePath(choice.filePath);patchDownload(record,{status:'downloading',path:choice.filePath,total:item.getTotalBytes()});
+      item.on('updated',(_event,state)=>{
+        const received=item.getReceivedBytes();
+        if(received>maxBytes){patchDownload(record,{status:'blocked',received,error:'Превышен лимит 250 МБ'});item.cancel();return;}
+        patchDownload(record,{status:state==='interrupted'?'interrupted':'downloading',received,total:item.getTotalBytes()});
+      });
+      item.once('done',(_event,state)=>{
+        const status=state==='completed'?'completed':state==='cancelled'?'cancelled':'failed';
+        patchDownload(record,{status,received:item.getReceivedBytes(),total:item.getTotalBytes(),path:choice.filePath});downloadItems.delete(record.id);
+      });
       item.resume();
-    }).catch(()=>item.cancel());
+    }).catch(error=>{patchDownload(record,{status:'failed',error:String(error.message||error).slice(0,160)});downloadItems.delete(record.id);item.cancel();});
   });
   session.setPermissionRequestHandler((requester,permission,callback,details)=>{
     let origin='unknown';try{origin=new URL(details?.requestingUrl||requester.getURL()).origin;}catch{}
@@ -121,6 +137,12 @@ function createSiteView(id) {
   view.setVisible(false);
   const guest = view.webContents;
   configureSiteSession(guest.session);
+  guest.on('before-input-event',(event,input)=>{
+    if(input.type==='keyDown'&&(input.control||input.meta)&&String(input.key).toLowerCase()==='f'){
+      event.preventDefault();sendSiteEvent(id,'shortcut',{key:'find'});
+    }
+  });
+  guest.on('found-in-page',(_event,result)=>sendSiteEvent(id,'find-result',result));
 
   guest.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
@@ -164,6 +186,11 @@ ipcMain.on('byazen:site-open', (event, payload = {}) => {
 function trustedUi(event) { return !!(win && !win.isDestroyed() && event.sender === win.webContents); }
 ipcMain.handle('byazen:permission-log',event=>trustedUi(event)?websitePermissionLog.slice(0,100):[]);
 ipcMain.handle('byazen:permission-log-clear',event=>{if(!trustedUi(event))return false;websitePermissionLog.length=0;return true;});
+ipcMain.handle('byazen:downloads-list',event=>trustedUi(event)?downloadRecords.map(x=>({...x})):[]);
+ipcMain.handle('byazen:downloads-cancel',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||item.isCanceled())return {ok:false};item.cancel();if(record)patchDownload(record,{status:'cancelled'});downloadItems.delete(numeric);return {ok:true};});
+ipcMain.handle('byazen:downloads-clear',event=>{if(!trustedUi(event))return false;for(let i=downloadRecords.length-1;i>=0;i--)if(!['awaiting','downloading'].includes(downloadRecords[i].status))downloadRecords.splice(i,1);return true;});
+ipcMain.handle('byazen:downloads-open',async(event,id)=>{if(!trustedUi(event))return {ok:false};const item=downloadRecords.find(x=>x.id===Number(id));if(!item||item.status!=='completed'||!item.path)return {ok:false};try{const error=await shell.openPath(item.path);return {ok:!error,error:error||''};}catch{return {ok:false,error:'Не удалось открыть файл'};}});
+ipcMain.handle('byazen:downloads-reveal',(event,id)=>{if(!trustedUi(event))return {ok:false};const item=downloadRecords.find(x=>x.id===Number(id));if(!item||item.status!=='completed'||!item.path)return {ok:false};try{shell.showItemInFolder(item.path);return {ok:true};}catch{return {ok:false};}});
 function pageView(id) {
   const view=siteViews.get(Number(id));
   if(!view||view.webContents.isDestroyed()) return null;
@@ -193,6 +220,18 @@ ipcMain.handle('byazen:page-zoom', async (event,payload={})=>{
   const factor=Math.max(.5,Math.min(2,Number(payload.factor)||1));
   try{contents.setZoomFactor(factor);return {ok:true,factor};}catch{return {ok:false};}
 });
+ipcMain.handle('byazen:page-mute',async(event,idValue)=>{
+  if(!trustedUi(event))return {ok:false};const contents=pageView(idValue);if(!contents)return {ok:false};
+  try{const muted=!contents.isAudioMuted();contents.setAudioMuted(muted);return {ok:true,muted};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:page-find',async(event,payload={})=>{
+  if(!trustedUi(event))return {ok:false};const contents=pageView(payload.id);if(!contents)return {ok:false};
+  const text=String(payload.text||'').trim().slice(0,300);
+  if(!text){try{contents.stopFindInPage('clearSelection');}catch{}return {ok:true,requestId:0};}
+  try{return {ok:true,requestId:contents.findInPage(text,{forward:payload.forward!==false,findNext:payload.findNext===true,matchCase:false})};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:page-find-stop',(event,idValue)=>{if(!trustedUi(event))return false;const contents=pageView(idValue);if(!contents)return false;try{contents.stopFindInPage('clearSelection');return true;}catch{return false;}});
+
 ipcMain.handle('byazen:page-print', async (event,idValue)=>{
   if(!trustedUi(event))return {ok:false,error:'Недоверенный источник'};
   const contents=pageView(idValue);if(!contents)return {ok:false,error:'Нет веб-страницы для печати'};

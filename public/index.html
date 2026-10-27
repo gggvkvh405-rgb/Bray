@@ -235,6 +235,23 @@ kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;col
 #progress.loading{opacity:1;animation:load 8s cubic-bezier(.1,.6,.3,1) forwards}
 @keyframes load{0%{width:0}18%{width:42%}55%{width:71%}100%{width:92%}}
 #progress.done{width:100%!important;opacity:0}
+#findBar{position:absolute;z-index:60;top:10px;right:12px;display:none;align-items:center;gap:4px;padding:5px;background:#17171b;border:1px solid var(--border-2);border-radius:11px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+#findBar.show{display:flex}
+#findBar input{width:min(240px,34vw);height:31px;border:0;outline:0;background:transparent;color:var(--text);padding:0 9px;font-size:12px}
+#findCount{min-width:42px;text-align:center;font-size:10px;color:var(--text-3);font-variant-numeric:tabular-nums}
+#findBar .icon-btn{width:29px;height:29px}
+#viewport.find-open #frames,#viewport.find-open #newtab,#viewport.find-open #searchpage{top:48px;height:calc(100% - 48px)}
+.downloads-modal{max-width:680px;max-height:78vh;display:flex;flex-direction:column}
+.download-item{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--border)}
+.download-item .download-info{min-width:0;flex:1}
+.download-item .download-name{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.download-item .download-meta{margin-top:3px;color:var(--text-3);font-size:10.5px}
+.download-item progress{display:block;width:100%;height:4px;margin-top:7px;accent-color:var(--accent)}
+.download-actions{display:flex;gap:5px;flex:none}
+.download-actions .btn{padding:6px 8px;font-size:10px}
+.mute-indicator{margin-left:4px;color:var(--text-3);font-size:10px}
+.pin-btn{position:relative}
+.pin-btn.muted:after{content:'🔇';position:absolute;right:1px;bottom:0;font-size:8px}
 #frames,#frames iframe{position:absolute;inset:0;width:100%;height:100%}
 #frames iframe{border:none;background:#fff;display:none}
 #frames iframe.visible{display:block}
@@ -497,6 +514,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
 <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
 <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
 <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
@@ -550,6 +568,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <button class="icon-btn" id="reloadBtn" title="Обновить"><svg><use href="#i-reload"/></svg></button>
       <button class="icon-btn" id="homeBtn" title="Главная"><svg><use href="#i-home"/></svg></button>
       <div class="spacer"></div>
+      <button class="icon-btn hide-collapsed" id="downloadsBtn" title="Загрузки"><svg><use href="#i-download"/></svg></button>
       <button class="icon-btn hide-collapsed" id="extBtn" title="Открыть сайт в системном браузере"><svg><use href="#i-ext"/></svg></button>
     </div>
 
@@ -592,6 +611,13 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
   <!-- ============ MAIN ============ -->
   <main id="main">
     <div id="viewport">
+      <div id="findBar" role="search" aria-label="Поиск на странице">
+        <input id="findInput" type="search" placeholder="Найти на странице" autocomplete="off" aria-label="Текст для поиска">
+        <span id="findCount" aria-live="polite">0/0</span>
+        <button class="icon-btn" id="findPrev" title="Предыдущее совпадение (Shift+Enter)">↑</button>
+        <button class="icon-btn" id="findNext" title="Следующее совпадение (Enter)">↓</button>
+        <button class="icon-btn" id="findClose" title="Закрыть поиск (Esc)"><svg><use href="#i-x"/></svg></button>
+      </div>
       <div id="progress"></div>
       <div id="frames"></div>
 
@@ -714,7 +740,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.17</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.18</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -750,6 +776,13 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
     <p style="padding:4px 20px 12px;color:var(--text-3);font-size:11px">ByAzen блокирует запросы сайтов к камере, микрофону, геолокации и другим защищённым возможностям. Это журнал только для просмотра.</p>
     <div id="permissionLogList" class="panel-body"></div>
     <div class="panel-foot"><button class="btn danger block" id="clearPermissionLog">Очистить журнал</button></div>
+  </section>
+</div>
+<div class="modal-overlay" id="downloadsModal">
+  <section class="modal downloads-modal" role="dialog" aria-modal="true" aria-labelledby="downloadsTitle">
+    <div class="modal-head"><div><h2 id="downloadsTitle">Загрузки</h2><div class="ai-status" id="downloadsSummary">Загрузки этого сеанса</div></div><button class="icon-btn" data-close="downloadsModal" title="Закрыть"><svg><use href="#i-x"/></svg></button></div>
+    <div id="downloadsList" class="panel-body"></div>
+    <div class="panel-foot"><button class="btn danger block" id="clearDownloads">Очистить завершённые</button></div>
   </section>
 </div>
 <div class="modal-overlay" id="aiChatsModal">
@@ -877,6 +910,7 @@ let shortcuts = asArray(store.get('shortcuts', DEFAULT_SHORTCUTS), DEFAULT_SHORT
 let closedTabs = asArray(store.get('closedTabs', []), []).filter(x => x && typeof x.url === 'string');
 
 let tabs = [], activeId = null, lastActiveId=null, tabSeq = 0;
+let activeFindRequestId=0,findDebounce=null,downloadEntries=[];
 const framesEl = $('#frames'), tabsEl = $('#tabs'), pinnedEl = $('#pinned');
 const urlInput = $('#urlInput');
 function persistTabs(){
@@ -894,11 +928,12 @@ function syncNativeBounds(){
   if (!nativeWebview) return;
   const tab = activeTab();
   const rect = $('#viewport').getBoundingClientRect();
+  const findOffset=$('#findBar').classList.contains('show')?48:0;
   const modalOpen = !!document.querySelector('.modal-overlay.show');
   const id = !modalOpen && tab && !isInternal(tab.url) ? tab.id : null;
   window.byazenDesktop.setActiveSite(id, {
-    x: Math.round(rect.left), y: Math.round(rect.top),
-    width: Math.round(rect.width), height: Math.round(rect.height)
+    x: Math.round(rect.left), y: Math.round(rect.top+findOffset),
+    width: Math.round(rect.width), height: Math.max(1,Math.round(rect.height-findOffset))
   });
 }
 const viewportResizeObserver = nativeWebview && window.ResizeObserver ? new ResizeObserver(syncNativeBounds) : null;
@@ -949,7 +984,7 @@ function titleFor(url){
 }
 function createTab(url='byazen://newtab', opts={}){
   const tab = { id:++tabSeq, url, title:opts.title || titleFor(url), group:typeof opts.group==='string'?opts.group:'',
-                loading:false, pinned:!!opts.pinned, hist: isNewTab(url)?[]:[url], hi: isNewTab(url)?-1:0, frame:null };
+                loading:false, muted:false, pinned:!!opts.pinned, hist: isNewTab(url)?[]:[url], hi: isNewTab(url)?-1:0, frame:null };
   if (!isInternal(url)){
     if (nativeWebview) tab.nativeView = true;
     else { tab.frame = createEmbeddedPage(tab); framesEl.appendChild(tab.frame); }
@@ -962,7 +997,10 @@ function createTab(url='byazen://newtab', opts={}){
 function createEmbeddedPage(tab){
   const f = document.createElement('iframe');
   f.setAttribute('allow','autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; picture-in-picture');
-  f.addEventListener('load', ()=>{ if(tab.loading){ tab.loading=false; renderTabs(); syncChrome(); } });
+  f.addEventListener('load', ()=>{
+    if(tab.loading){ tab.loading=false; renderTabs(); syncChrome(); }
+    try{f.contentDocument.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();if(activeId===tab.id)openFindBar();}});}catch{}
+  });
   tab.frame=f;
   return f;
 }
@@ -986,6 +1024,14 @@ function updateNativeTab(tab,url,title){
 if (nativeWebview) window.byazenDesktop.onSiteEvent(data=>{
   const tab=tabs.find(t=>t.id===Number(data.id));
   if(!tab) return;
+  if(data.type==='find-result'){
+    if(tab.id===activeId&&data.requestId===activeFindRequestId)$('#findCount').textContent=data.matches?`${data.activeMatchOrdinal||0}/${data.matches}`:'0/0';
+    return;
+  }
+  if(data.type==='shortcut'){
+    if(tab.id===activeId&&data.key==='find')openFindBar();
+    return;
+  }
   if(data.type==='navigate') updateNativeTab(tab,data.url);
   else if(data.type==='title') updateNativeTab(tab,null,data.title);
   else if(data.type==='loading'){
@@ -998,6 +1044,14 @@ if (nativeWebview) window.byazenDesktop.onSiteEvent(data=>{
     if(tab.id===activeId) syncChrome();
     toast('Не удалось загрузить сайт: '+(data.errorDescription||'проверьте соединение'));
   }
+});
+if(nativeWebview)window.byazenDesktop.onDownloadEvent(record=>{
+  const index=downloadEntries.findIndex(item=>item.id===record.id);
+  if(index<0)downloadEntries.unshift(record);else downloadEntries[index]=record;
+  downloadEntries=downloadEntries.slice(0,100);
+  if($('#downloadsModal').classList.contains('show'))renderDownloads();
+  if(record.status==='completed')toast(`Загрузка завершена: ${record.fileName}`);
+  else if(record.status==='blocked')toast(`Загрузка заблокирована: ${record.fileName}`);
 });
 function updateView(){
   const tab = activeTab();
@@ -1019,6 +1073,7 @@ function loadFrame(tab, url){
   updateView(); syncChrome();
 }
 function navigateTab(tab, url, pushHist=true){
+  if($('#findBar').classList.contains('show'))closeFindBar();
   if (isInternal(url)){
     tab.url = url; tab.title = titleFor(url); tab.loading = false;
     if (pushHist && !isNewTab(url)){ tab.hist = tab.hist.slice(0, tab.hi+1); tab.hist.push(url); tab.hi = tab.hist.length-1; }
@@ -1040,6 +1095,7 @@ function navigateActive(raw){
 }
 function activeTab(){ return tabs.find(t=>t.id===activeId); }
 function activateTab(id){
+  if(activeId!==id&&$('#findBar').classList.contains('show'))closeFindBar();
   if(activeId!==id&&tabs.some(t=>t.id===activeId))lastActiveId=activeId;
   activeId = id;
   const tab = activeTab();
@@ -1054,6 +1110,7 @@ function switchPreviousTab(){
   if(tabs.length>1){const index=tabs.findIndex(t=>t.id===activeId);activateTab(tabs[(index-1+tabs.length)%tabs.length].id);}
 }
 function closeTab(id){
+  if(id===activeId&&$('#findBar').classList.contains('show'))closeFindBar();
   const i = tabs.findIndex(t=>t.id===id); if(i<0) return;
   const [tab] = tabs.splice(i,1);
   if (!isNewTab(tab.url)) { closedTabs.unshift({url:tab.url,title:tab.title,pinned:tab.pinned,group:tab.group||'',closedAt:Date.now()}); closedTabs=closedTabs.slice(0,12); store.set('closedTabs',closedTabs); }
@@ -1061,6 +1118,14 @@ function closeTab(id){
   if (tab.nativeView) window.byazenDesktop.closeSite(tab.id);
   if (!tabs.length){ persistTabs(); createTab(); return; }
   if (activeId === id) activateTab(tabs[Math.max(0,i-1)].id); else { renderTabs(); persistTabs(); }
+}
+async function toggleTabMute(id){
+  const tab=tabs.find(item=>item.id===Number(id));if(!tab)return;
+  try{
+    if(nativeWebview){const result=await window.byazenDesktop.togglePageMute(tab.id);if(!result?.ok)throw new Error();tab.muted=result.muted;}
+    else{const media=tab.frame?.contentDocument?.querySelectorAll('audio,video');if(!media?.length){toast('На этой странице нет HTML-аудио или видео');return;}tab.muted=!tab.muted;media.forEach(item=>item.muted=tab.muted);}
+    renderTabs();toast(tab.muted?'Звук вкладки выключен':'Звук вкладки включён');
+  }catch{toast('Не удалось изменить звук этой вкладки');}
 }
 function tabFavHTML(tab){
   if (tab.loading) return '<span class="spinner"></span>';
@@ -1072,11 +1137,11 @@ function tabGroupColor(name){let hash=0;for(const ch of name)hash=(hash*31+ch.ch
 function renderTabs(){
   $('#tabCount').textContent = tabs.length;
   pinnedEl.innerHTML = tabs.filter(t=>t.pinned).map(t=>
-    `<button class="pin-btn ${t.id===activeId?'active':''}" data-id="${t.id}" ${t.group?`style="--tab-group-color:${tabGroupColor(t.group)}"`:''} title="${t.group?escapeHtml(t.group)+' · ':''}${escapeHtml(t.title)}">${tabFavHTML(t)}</button>`).join('');
+    `<button class="pin-btn ${t.id===activeId?'active':''} ${t.muted?'muted':''}" data-id="${t.id}" ${t.group?`style="--tab-group-color:${tabGroupColor(t.group)}"`:''} title="${t.muted?'Звук выключен · ':''}${t.group?escapeHtml(t.group)+' · ':''}${escapeHtml(t.title)}">${tabFavHTML(t)}</button>`).join('');
   tabsEl.innerHTML = tabs.filter(t=>!t.pinned).map(t=>`
-    <div class="tab ${t.id===activeId?'active':''}" data-id="${t.id}" ${t.group?`data-group="${escapeHtml(t.group)}" style="--tab-group-color:${tabGroupColor(t.group)}"`:''} draggable="true" title="${t.group?escapeHtml(t.group)+' · ':''}${escapeHtml(t.title)}">
+    <div class="tab ${t.id===activeId?'active':''} ${t.muted?'muted':''}" data-id="${t.id}" ${t.group?`data-group="${escapeHtml(t.group)}" style="--tab-group-color:${tabGroupColor(t.group)}"`:''} draggable="true" title="${t.muted?'Звук выключен · ':''}${t.group?escapeHtml(t.group)+' · ':''}${escapeHtml(t.title)}">
       <span class="tab-fav">${tabFavHTML(t)}</span>
-      <span class="tab-title">${escapeHtml(t.title)}${t.group?`<small class="tab-group-label">${escapeHtml(t.group)}</small>`:''}</span>
+      <span class="tab-title">${escapeHtml(t.title)}${t.muted?'<small class="mute-indicator">🔇</small>':''}${t.group?`<small class="tab-group-label">${escapeHtml(t.group)}</small>`:''}</span>
       <button class="tab-close" data-close="${t.id}" title="Закрыть"><svg><use href="#i-x"/></svg></button>
     </div>`).join('');
   // events
@@ -1501,10 +1566,11 @@ function openCtx(x, y, id){
     <button data-a="dup"><svg><use href="#i-copy"/></svg>Дублировать</button>
     <button data-a="pin"><svg><use href="#i-pin"/></svg>${tab.pinned?'Открепить':'Закрепить'}</button>
     <button data-a="group"><svg><use href="#i-bookmark"/></svg>${tab.group?'Изменить группу':'Добавить в группу'}</button>
+    <button data-a="mute">${tab.muted?'🔊 Включить звук':'🔇 Выключить звук'}</button>
     <hr>
     <button data-a="closeOthers"><svg><use href="#i-x"/></svg>Закрыть другие</button>
     <button data-a="close" class="danger"><svg><use href="#i-trash"/></svg>Закрыть вкладку</button>`;
-  ctx.style.left = Math.min(x, innerWidth-224)+'px'; ctx.style.top = Math.min(y, innerHeight-220)+'px';
+  ctx.style.left = Math.min(x, innerWidth-224)+'px'; ctx.style.top = Math.min(y, innerHeight-270)+'px';
   ctx.classList.add('show');
   ctx.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
     ctx.classList.remove('show'); const a=b.dataset.a;
@@ -1512,6 +1578,7 @@ function openCtx(x, y, id){
     if(a==='dup') createTab(tab.url);
     if(a==='pin'){ tab.pinned=!tab.pinned; renderTabs(); persistTabs(); }
     if(a==='group'){const name=prompt('Название группы вкладок (оставьте пустым, чтобы убрать):',tab.group||'');if(name!==null){tab.group=name.trim().slice(0,36);renderTabs();persistTabs();}}
+    if(a==='mute')toggleTabMute(id);
     if(a==='reload' && !isInternal(tab.url)) loadFrame(tab, tab.url);
     if(a==='closeOthers'){ [...tabs].forEach(t=>{ if(t.id!==id) closeTab(t.id); }); activateTab(id); }
   });
@@ -1557,6 +1624,42 @@ async function showPageInfo(){try{const page=await activePageData();alert(`За�
 async function zoomActivePage(delta=0){const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Масштаб доступен на веб-странице');return;}const next=Math.max(.5,Math.min(2,Math.round(((pageZooms.get(tab.id)||1)+delta)*10)/10));pageZooms.set(tab.id,next);if(nativeWebview){const r=await window.byazenDesktop.setPageZoom(tab.id,next);if(!r?.ok)toast('Не удалось изменить масштаб');}else if(tab.frame)tab.frame.style.zoom=String(next);toast(`Масштаб страницы: ${Math.round(next*100)}%`);}
 async function resetZoomActivePage(){const tab=activeTab();if(!tab||isInternal(tab.url))return;if(nativeWebview)await window.byazenDesktop.setPageZoom(tab.id,1);else if(tab.frame)tab.frame.style.zoom='1';pageZooms.set(tab.id,1);toast('Масштаб страницы сброшен');}
 async function printCurrentPage(){const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Откройте страницу для печати');return;}if(nativeWebview){const r=await window.byazenDesktop.printPage(tab.id);if(!r?.ok)toast('Печать не выполнена: '+(r?.error||'ошибка'));}else try{tab.frame.contentWindow.print();}catch{toast('Печать недоступна для этой страницы');}}
+function openFindBar(){
+  const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Откройте веб-страницу для поиска по ней');return;}
+  $('#findBar').classList.add('show');$('#viewport').classList.add('find-open');syncNativeBounds();$('#findInput').focus();
+  (async()=>{let query=$('#findInput').value;if(!query)try{query=await selectedPageText();}catch{}if(query){$('#findInput').value=query;$('#findInput').select();findOnPage(1,false);}else{$('#findCount').textContent='0/0';$('#findInput').focus();}})();
+}
+async function findOnPage(direction=1,findNext=true){
+  const tab=activeTab(),query=$('#findInput').value.trim();if(!tab||isInternal(tab.url)||!$('#findBar').classList.contains('show'))return;
+  if(!query){$('#findCount').textContent='0/0';if(nativeWebview)await window.byazenDesktop.stopPageFind(tab.id);else try{tab.frame.contentWindow.getSelection()?.removeAllRanges();}catch{}return;}
+  if(nativeWebview){$('#findCount').textContent='…';const result=await window.byazenDesktop.findPage(tab.id,query,{forward:direction>=0,findNext});if(result?.ok)activeFindRequestId=result.requestId;else $('#findCount').textContent='0/0';return;}
+  try{const found=tab.frame.contentWindow.find(query,false,direction<0,true,false,false,false);$('#findCount').textContent=found?'Найдено':'0/0';}catch{$('#findCount').textContent='Недоступно';}
+}
+function closeFindBar(){
+  clearTimeout(findDebounce);const tab=activeTab();if(nativeWebview&&tab&&!isInternal(tab.url))window.byazenDesktop.stopPageFind(tab.id);else try{tab?.frame?.contentWindow.getSelection()?.removeAllRanges();}catch{}
+  $('#findBar').classList.remove('show');$('#viewport').classList.remove('find-open');$('#findCount').textContent='0/0';syncNativeBounds();
+}
+$('#findInput').addEventListener('input',()=>{clearTimeout(findDebounce);$('#findCount').textContent='…';findDebounce=setTimeout(()=>findOnPage(1,false),120);});
+$('#findInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();findOnPage(e.shiftKey?-1:1,true);}});
+$('#findPrev').onclick=()=>findOnPage(-1,true);$('#findNext').onclick=()=>findOnPage(1,true);$('#findClose').onclick=closeFindBar;
+function formatBytes(value){const n=Number(value)||0;if(n<1024)return `${n} Б`;const units=['КБ','МБ','ГБ'];let size=n/1024,index=0;while(size>=1024&&index<units.length-1){size/=1024;index++;}return `${size.toFixed(size>=100?0:1)} ${units[index]}`;}
+const DOWNLOAD_STATUS={awaiting:'Ожидает подтверждения',downloading:'Загружается',completed:'Готово',cancelled:'Отменено',failed:'Ошибка',interrupted:'Прервано',blocked:'Заблокировано'};
+async function openDownloads(){
+  openModal('downloadsModal');if(nativeWebview){try{downloadEntries=await window.byazenDesktop.getDownloads();}catch{downloadEntries=[];}}renderDownloads();
+}
+function renderDownloads(){
+  const list=$('#downloadsList');if(!nativeWebview){list.innerHTML='<div class="empty"><b>Менеджер загрузок доступен в настольной версии</b></div>';$('#downloadsSummary').textContent='';return;}
+  const active=downloadEntries.filter(x=>['awaiting','downloading'].includes(x.status)).length;
+  $('#downloadsSummary').textContent=active?`${active} активных · история этого сеанса`:'История загрузок этого сеанса';
+  if(!downloadEntries.length){list.innerHTML='<div class="empty"><svg><use href="#i-download"/></svg><b>Загрузок пока нет</b><p>Скачанные файлы появятся здесь.</p></div>';return;}
+  list.innerHTML=downloadEntries.map(item=>{const total=Number(item.total)||0,received=Number(item.received)||0,percent=total?Math.min(100,Math.floor(received/total*100)):0;const status=DOWNLOAD_STATUS[item.status]||'Состояние неизвестно';const detail=item.status==='downloading'?`${formatBytes(received)}${total?` из ${formatBytes(total)} · ${percent}%`:''}`:item.status==='completed'?`${formatBytes(received||total)} · ${new Date(item.createdAt).toLocaleString('ru-RU')}`:item.error||`${status} · ${new Date(item.createdAt).toLocaleString('ru-RU')}`;const actions=['awaiting','downloading'].includes(item.status)?`<button class="btn danger" data-cancel-download="${item.id}">Отменить</button>`:item.status==='completed'?`<button class="btn" data-open-download="${item.id}">Открыть</button><button class="btn" data-reveal-download="${item.id}" title="Показать в папке">Папка</button>`:'';return `<div class="download-item"><svg width="19" height="19" style="flex:none;color:var(--text-3)"><use href="#i-download"/></svg><div class="download-info"><div class="download-name" title="${escapeHtml(item.fileName)}">${escapeHtml(item.fileName)}</div><div class="download-meta">${escapeHtml(item.source||'')} · ${escapeHtml(detail)}</div>${item.status==='downloading'?`<progress max="100" value="${percent}" aria-label="Загрузка ${percent}%"></progress>`:''}</div><div class="download-actions">${actions}</div></div>`;}).join('');
+  $$('[data-cancel-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.cancelDownload(Number(button.dataset.cancelDownload));if(!result?.ok)toast('Не удалось отменить загрузку');});
+  $$('[data-open-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.openDownloadedFile(Number(button.dataset.openDownload));if(!result?.ok)toast('Не удалось открыть файл');});
+  $$('[data-reveal-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.revealDownloadedFile(Number(button.dataset.revealDownload));if(!result?.ok)toast('Не удалось открыть папку файла');});
+}
+$('#clearDownloads').onclick=async()=>{if(nativeWebview){await window.byazenDesktop.clearDownloads();downloadEntries=downloadEntries.filter(x=>['awaiting','downloading'].includes(x.status));renderDownloads();}};
+$('#downloadsBtn').onclick=openDownloads;
+$('#findInput').addEventListener('focus',()=>$('#findInput').select());
 
 /* ---------- command palette ---------- */
 let cmdkItems = [], cmdkSel = 0;
@@ -1596,6 +1699,9 @@ function buildCmdk(q){
     {label:'Уменьшить страницу',icon:'i-minus',tag:'Масштаб',run:()=>zoomActivePage(-.1)},
     {label:'Сбросить масштаб страницы',icon:'i-reload',tag:'Масштаб',run:()=>resetZoomActivePage()},
     {label:'Печатать страницу',icon:'i-copy',tag:'Страница',run:()=>printCurrentPage()},
+    {label:'Найти на странице',icon:'i-search',tag:'Поиск по странице',run:()=>openFindBar()},
+    {label:'Открыть загрузки',icon:'i-download',tag:'Инструменты',run:()=>openDownloads()},
+    {label:activeTab()?.muted?'Включить звук вкладки':'Выключить звук вкладки',icon:'i-volume',tag:'Вкладка',run:()=>toggleTabMute(activeId)},
     {label:'Открыть закладки', icon:'i-bookmark', tag:'Действие', run:()=>openPanel('bookmarks')},
     {label:'Открыть историю', icon:'i-history', tag:'Действие', run:()=>openPanel('history')},
     {label:'Настройки', icon:'i-gear', tag:'Действие', run:()=>openModal('settingsModal')},
@@ -1983,6 +2089,8 @@ function runHotkey(name){
   actions[name]?.();
 }
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&$('#findBar').classList.contains('show')){e.preventDefault();closeFindBar();return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();openFindBar();return;}
   const combo=eventHotkey(e),action=Object.keys(hotkeys).find(k=>hotkeys[k]===combo);
   if(action){e.preventDefault();runHotkey(action);return;}
   const mod=e.ctrlKey||e.metaKey;
