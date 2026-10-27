@@ -236,7 +236,7 @@ function renderStudio(section='all'){
   body.querySelectorAll('[data-delete-fragment]').forEach(b=>b.onclick=()=>{fragments=fragments.filter(x=>x.id!==b.dataset.deleteFragment);store.set('webFragments',fragments);renderStudio();});
   body.querySelectorAll('[data-dig-tab]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.digTab),item=closedTabs.splice(i,1)[0];store.set('closedTabs',closedTabs);if(item)createTab(item.url,{title:item.title,group:item.group||'',pinned:!!item.pinned});renderStudio();});
   body.querySelectorAll('[data-action="roulette"]').forEach(b=>b.onclick=openRandomBookmark);
-  body.querySelector('[data-action="pet"]').onclick=()=>{cyclePet();renderStudio();};
+  body.querySelectorAll('[data-action="pet"]').forEach(button=>button.onclick=()=>{cyclePet();renderStudio();});
   body.querySelector('[data-action="snow"]').onclick=()=>{closeModal('byazenStudio');openSnowGlobe();};
   body.querySelector('[data-action="theme-toggle"]').onclick=()=>{easter.classList.add('show');setTimeout(()=>easter.classList.remove('show'),3000);toast('Секретный режим активирован. Почти ничего не изменилось.');};
   body.querySelector('#funDailyTheme').onchange=e=>{funConfig.dailyTheme=e.target.checked;saveFun();applyDailyTheme();};
