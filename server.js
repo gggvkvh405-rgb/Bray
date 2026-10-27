@@ -71,7 +71,11 @@ app.post('/api/tts', async (req, res) => {
   const availableVoices = new Set(['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural', 'ru-RU-DariyaNeural']);
   if (!text) return res.status(400).json({ error: 'Нет текста для озвучивания' });
   if (!availableVoices.has(voice)) return res.status(400).json({ error: 'Неизвестный голос' });
-  const style = styles[String(req.body?.style || 'natural')] || styles.natural;
+  const baseStyle = styles[String(req.body?.style || 'natural')] || styles.natural;
+  const requestedRate=Number(req.body?.rate),speed=[0.8,1,1.2].includes(requestedRate)?requestedRate:1;
+  const baseRate=baseStyle.rate==='default'?0:Number.parseInt(baseStyle.rate,10)||0;
+  const rateDelta=baseRate+Math.round((speed-1)*100);
+  const style={...baseStyle,rate:rateDelta===0?'default':`${rateDelta>0?'+':''}${rateDelta}%`};
   try {
     const tts = new EdgeTTS({ voice, lang: 'ru-RU', outputFormat: 'audio-24khz-48kbitrate-mono-mp3', timeout: 25000, ...style });
     const chunks = [];

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, shell, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, WebContentsView, shell, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { startServer } = require('../server');
 
@@ -263,6 +263,27 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
+    let allowWindowClose=false,closeConfirmationPending=false;
+    win.on('close', event=>{
+      if(allowWindowClose)return;
+      event.preventDefault();
+      if(closeConfirmationPending)return;
+      closeConfirmationPending=true;
+      Promise.race([
+        win.webContents.executeJavaScript('typeof tabs !== "undefined" ? tabs.length : 2'),
+        new Promise(resolve=>setTimeout(()=>resolve(2),1200))
+      ]).then(async count=>{
+        if(count>1){
+          const answer=await dialog.showMessageBox(win,{type:'question',buttons:['Закрыть окно','Отмена'],defaultId:1,cancelId:1,noLink:true,title:'Закрыть ByAzen?',message:`Открыто вкладок: ${count}. Закрыть браузер?`,detail:'Сессия вкладок будет сохранена и восстановлена при следующем запуске.'});
+          if(answer.response!==0)return;
+        }
+        allowWindowClose=true;
+        if(win&&!win.isDestroyed())win.close();
+      }).catch(async()=>{
+        if(!win||win.isDestroyed())return;
+        try{const answer=await dialog.showMessageBox(win,{type:'question',buttons:['Закрыть окно','Отмена'],defaultId:1,cancelId:1,title:'Закрыть ByAzen?',message:'Закрыть окно браузера?',detail:'Сессия будет сохранена.'});if(answer.response===0){allowWindowClose=true;win.close();}}catch{}
+      }).finally(()=>{closeConfirmationPending=false;});
+    });
     win.once('ready-to-show', () => win.show());
     win.on('closed', () => { win = null; siteViews.clear(); });
 

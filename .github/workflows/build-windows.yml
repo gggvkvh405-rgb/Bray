@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.14 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.14 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.15 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.15 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.14 release/ByAzen.exe \
-              --title 'ByAzen 1.0.14 — резервные копии и закладки' \
-              --notes 'Windows x64 build: import/export bookmarks as HTML, browse recently closed tabs, create and restore a validated local ByAzen backup, and move/resize the AI window. Backup does not contain website passwords, cookies or login data.' \
+            gh release create v1.0.15 release/ByAzen.exe \
+              --title 'ByAzen 1.0.15 — группы и коллекции вкладок' \
+              --notes 'Windows x64 build: tab groups, configurable keyboard shortcuts, bookmark folders/notes/tags and toolbar, saved tab collections, bookmark sorting, configurable speech speed, and a close-window confirmation. Previous bookmark transfer, local backup and AI-window sizing features remain included.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi
