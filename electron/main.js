@@ -432,7 +432,7 @@ if (!app.requestSingleInstanceLock()) {
       return requester === win.webContents && permission === 'media';
     });
 
-    // Кнопка ↗ и target=_blank — в системный браузер, не в новое окно Electron
+    // Кнопка «открыть во внешнем браузере» и target=_blank — в системный браузер, не в новое окно Electron
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:\/\//i.test(url)) shell.openExternal(url);
       return { action: 'deny' };

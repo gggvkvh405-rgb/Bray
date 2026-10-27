@@ -1,6 +1,6 @@
 {
   "name": "byazen",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "ByAzen — минималистичный тёмный браузер",
   "author": "ByAzen",
   "private": true,
@@ -27,7 +27,9 @@
       {
         "from": "resources/piper",
         "to": "piper",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "files": [
