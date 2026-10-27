@@ -6,54 +6,134 @@ const readArray=(key,max=300)=>{const value=store.get(key,[]);return Array.isArr
 let projects=readArray('researchProjects',50),fragments=readArray('webFragments',200),hiddenDeskIds=new Set(),deskMode=false;
 let funConfig=Object.assign({dailyTheme:false,cursorBubbles:false,tabFarewell:false,pet:'🦝',costume:'',persona:'friendly'},store.get('funConfig',{})||{});
 const saveFun=()=>store.set('funConfig',funConfig);
+const PETS=[
+  {emoji:'🦝',name:'Рокки',mood:'Любит новые вкладки',copy:'Тихий хранитель ссылок'},
+  {emoji:'🐉',name:'Финик',mood:'Охраняет идеи',copy:'Маленький дракон больших планов'},
+  {emoji:'🐸',name:'Квася',mood:'Прыгает к хорошим находкам',copy:'Главный эксперт по лягушачьему отдыху'},
+  {emoji:'🦊',name:'Рыжик',mood:'Ищет короткий путь',copy:'Проводник по вашим вкладкам'},
+  {emoji:'🐙',name:'Осьминожка',mood:'Помнит все страницы',copy:'Восемь лапок — порядок в браузере'},
+  {emoji:'🦖',name:'Топтыжка',mood:'Добрый и доисторический',copy:'Охраняет закладки от метеоритов'},
+  {emoji:'🦉',name:'Букля',mood:'Не спит над важной статьёй',copy:'Мудрый спутник ночных чтений'},
+  {emoji:'🐼',name:'Панда Пон',mood:'Мастер уютных пауз',copy:'Хрустит бамбуком между задачами'},
+  {emoji:'🐧',name:'Пиксель',mood:'Скользит по ссылкам',copy:'Полярный исследователь интернета'},
+  {emoji:'🐈',name:'Плюша',mood:'Проверяет каждый уголок',copy:'Кошачий инспектор новых вкладок'}
+];
+const currentPet=()=>PETS.find(item=>item.emoji===funConfig.pet)||PETS[0];
 const style=document.createElement('style');
 style.textContent=`
 #byazenFeatureBtn{font-size:9.5px}
-#byazenFeatureDock{max-width:660px;width:100%;margin:24px auto 0;padding:13px;border:1px solid var(--border);border-radius:15px;background:rgba(255,255,255,.025)}
-.byazen-dock-title{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);margin:0 0 10px 3px}
-.byazen-dock-actions{display:flex;flex-wrap:wrap;gap:7px}
-.byazen-dock-actions .btn{font-size:10.5px;padding:7px 10px}
-.byazen-modal{max-width:740px;max-height:82vh;display:flex;flex-direction:column}
-.byazen-modal .modal-body{overflow:auto}
-.byazen-card{padding:12px;border:1px solid var(--border);background:rgba(255,255,255,.025);border-radius:12px;margin:8px 0}
-.byazen-card h3{font-size:13px;margin:0 0 5px;color:var(--text)}
-.byazen-card p{font-size:11px;line-height:1.5;color:var(--text-3);margin:4px 0 9px}
-.byazen-card-actions{display:flex;flex-wrap:wrap;gap:7px}
-.byazen-card-actions .btn{font-size:10.5px}
-.byazen-list{display:grid;gap:7px;margin-top:8px}
-.byazen-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:rgba(255,255,255,.02)}
+#byazenFeatureDock{max-width:700px;width:100%;margin:24px auto 0;padding:15px;border:1px solid rgba(167,139,250,.18);border-radius:18px;background:linear-gradient(135deg,rgba(139,92,246,.07),rgba(255,255,255,.018) 54%,rgba(56,189,248,.045));box-shadow:0 12px 34px rgba(0,0,0,.15);backdrop-filter:blur(12px)}
+.byazen-dock-title{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);margin:0 0 11px 3px}.byazen-dock-title::before{content:'✦';color:#c4b5fd;font-size:13px}
+.byazen-dock-actions{display:flex;flex-wrap:wrap;gap:8px}
+.byazen-dock-actions .btn{font-size:10.5px;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.08)}
+.byazen-modal{max-width:780px;max-height:84vh;display:flex;flex-direction:column}
+.byazen-modal .modal-body{overflow:auto;gap:14px}
+.byazen-card{position:relative;overflow:hidden;padding:16px;border:1px solid rgba(255,255,255,.085);background:linear-gradient(135deg,rgba(255,255,255,.045),rgba(255,255,255,.018));border-radius:16px;margin:0;box-shadow:0 10px 28px rgba(0,0,0,.12)}
+.byazen-card h3{font-size:14px;margin:0 0 5px;color:var(--text)}
+.byazen-card p{font-size:11.5px;line-height:1.55;color:var(--text-3);margin:5px 0 11px}
+.byazen-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.byazen-card-actions .btn{font-size:10.5px;border-radius:10px}
+.byazen-list{display:grid;gap:8px;margin-top:10px}
+.byazen-item{display:flex;align-items:center;gap:9px;padding:10px 11px;border:1px solid rgba(255,255,255,.075);border-radius:11px;background:rgba(255,255,255,.025)}
 .byazen-item .byazen-item-main{flex:1;min-width:0}.byazen-item b{font-size:11.5px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.byazen-item small{display:block;color:var(--text-3);font-size:10px;overflow-wrap:anywhere}
 .byazen-item .btn{font-size:10px;padding:6px 8px;flex:none}
-.byazen-progress{height:6px;border-radius:5px;background:#26262c;overflow:hidden;margin:8px 0}.byazen-progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
-.byazen-pet{display:flex;align-items:center;justify-content:center;gap:8px;margin:14px auto 0;width:max-content;max-width:100%;padding:8px 13px;border:1px solid var(--border);border-radius:99px;background:rgba(255,255,255,.025);color:var(--text-3);font-size:11px;cursor:pointer}
-.byazen-pet .face{font-size:22px;filter:drop-shadow(0 3px 6px #0008);transition:transform .25s}.byazen-pet:hover .face{transform:rotate(-10deg) scale(1.12)}
-.tab[data-costume]:not([data-costume=""])::before{content:attr(data-costume);font-size:13px;margin-right:5px}.pin-btn[data-costume]:not([data-costume=""]){position:relative}.pin-btn[data-costume]:not([data-costume=""])::after{content:attr(data-costume);position:absolute;right:-2px;bottom:-4px;font-size:9px}
+.byazen-progress{height:6px;border-radius:5px;background:#26262c;overflow:hidden;margin:8px 0}.byazen-progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#a78bfa,#67e8f9);transition:width .3s}
+.byazen-pet{width:min(430px,calc(100% - 20px));min-height:82px;display:grid;grid-template-columns:62px minmax(0,1fr) 34px;align-items:center;gap:13px;margin:18px auto 0;padding:10px 14px;border:1px solid rgba(196,181,253,.2);border-radius:22px;background:linear-gradient(120deg,rgba(109,40,217,.16),rgba(255,255,255,.035) 55%,rgba(56,189,248,.09));box-shadow:0 15px 40px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.06);color:var(--text);text-align:left;backdrop-filter:blur(12px)}
+.byazen-pet-orb{position:relative;width:62px;height:62px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.16);border-radius:20px;background:radial-gradient(circle at 34% 24%,#fff6,transparent 34%),linear-gradient(145deg,rgba(167,139,250,.32),rgba(34,211,238,.16));box-shadow:inset 0 1px 8px #ffffff12,0 6px 16px #0004;cursor:pointer;overflow:hidden}
+.byazen-pet-orb::after{content:'';position:absolute;width:90px;height:90px;border:1px solid rgba(255,255,255,.12);border-radius:50%;transform:translate(22px,20px);pointer-events:none}
+.byazen-pet .face{position:relative;z-index:1;font-size:37px;line-height:1;filter:drop-shadow(0 4px 5px #0007);animation:byazenPetIdle 2.8s ease-in-out infinite}
+.byazen-pet .pet-spark{position:absolute;z-index:2;right:8px;top:7px;color:#fef3c7;font-size:11px;animation:byazenSpark 2.2s ease-in-out infinite}
+.byazen-pet-info{min-width:0;display:grid;gap:3px}
+.byazen-pet-label{font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:#c4b5fd;font-weight:650}
+.byazen-pet-name{font-size:14px;font-weight:650;letter-spacing:-.02em}
+.byazen-pet .pet-copy{font-size:10px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.byazen-pet-mood{justify-self:start;margin-top:2px;padding:3px 7px;border:1px solid rgba(196,181,253,.12);border-radius:999px;background:rgba(167,139,250,.08);color:#d7caff;font-size:9px}
+.byazen-pet-change{width:32px;height:32px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.1);border-radius:11px;background:rgba(255,255,255,.04);color:var(--text-2);font-size:15px;cursor:pointer;transition:transform .2s,background .2s}
+.byazen-pet-change:hover{transform:rotate(35deg);background:rgba(255,255,255,.1)}
+.byazen-pet-heart{position:absolute;z-index:5;left:50%;top:18%;font-style:normal;font-size:17px;pointer-events:none;animation:byazenPetHeart .9s ease-out forwards}
+@keyframes byazenPetIdle{0%,100%{transform:translateY(1px) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
+@keyframes byazenSpark{0%,100%{opacity:.45;transform:scale(.8) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(35deg)}}
+@keyframes byazenPetHeart{to{transform:translate(10px,-35px) scale(1.35);opacity:0}}
+.tab[data-costume]:not([data-costume=""])::before{content:attr(data-costume);display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 3px;margin-right:6px;border:1px solid rgba(196,181,253,.22);border-radius:7px;background:linear-gradient(145deg,rgba(167,139,250,.19),rgba(255,255,255,.05));font-size:12px;box-shadow:inset 0 1px rgba(255,255,255,.08)}.pin-btn[data-costume]:not([data-costume=""]){position:relative}.pin-btn[data-costume]:not([data-costume=""])::after{content:attr(data-costume);position:absolute;right:-2px;bottom:-4px;font-size:9px}
 .byazen-desk-hidden{display:none!important}
 .byazen-source-link{color:#a5b4fc;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-#byazenSnow{position:fixed;inset:0;z-index:320;background:rgba(4,8,18,.72);display:none;place-items:center;backdrop-filter:blur(4px)}#byazenSnow.show{display:grid}
-.byazen-globe{width:min(390px,84vw);aspect-ratio:1;border-radius:50%;border:8px solid #cbd5e1;background:radial-gradient(circle at 32% 25%,#ffffff38,transparent 30%),linear-gradient(145deg,#173453,#1b163c);box-shadow:0 24px 90px #000a,inset 0 0 38px #a5f3fc38;position:relative;overflow:hidden;cursor:grab;touch-action:none}
-.byazen-globe.shake{animation:byazenShake .55s ease-in-out}.byazen-flake{position:absolute;top:-12px;color:#fff;font-size:12px;text-shadow:0 0 6px white;animation:byazenFall 3s linear infinite;pointer-events:none}
-@keyframes byazenFall{to{transform:translateY(430px) rotate(240deg);opacity:.3}}@keyframes byazenShake{25%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}75%{transform:rotate(-4deg)}}
-#byazenCursorLayer{position:fixed;inset:0;pointer-events:none;z-index:500;overflow:hidden}.byazen-bubble{position:absolute;width:8px;height:8px;border:1px solid #c4b5fd;border-radius:50%;animation:byazenPop .65s ease-out forwards}@keyframes byazenPop{to{transform:translateY(-22px) scale(2.2);opacity:0}}
+.byazen-fun-panel{padding:17px;background:linear-gradient(145deg,rgba(109,40,217,.1),rgba(255,255,255,.025) 50%,rgba(34,211,238,.045))}
+.byazen-fun-heading{display:flex;align-items:flex-start;gap:11px;margin-bottom:15px}
+.byazen-fun-heading-icon{width:38px;height:38px;display:grid;place-items:center;flex:none;border:1px solid rgba(196,181,253,.18);border-radius:13px;background:linear-gradient(145deg,rgba(167,139,250,.2),rgba(34,211,238,.1));font-size:18px}
+.byazen-fun-heading h3{margin:1px 0 3px;font-size:14px}.byazen-fun-heading p{margin:0;max-width:560px}
+.byazen-fun-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.byazen-fun-toggle{min-width:0;display:grid;grid-template-columns:34px minmax(0,1fr) 40px;align-items:center;gap:9px;padding:11px;border:1px solid rgba(255,255,255,.075);border-radius:13px;background:rgba(6,7,14,.28);cursor:pointer;transition:border-color .18s,background .18s,transform .18s}
+.byazen-fun-toggle:hover{transform:translateY(-1px);border-color:rgba(196,181,253,.2);background:rgba(255,255,255,.04)}
+.byazen-fun-toggle-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;background:rgba(167,139,250,.12);font-size:16px}
+.byazen-fun-toggle b{display:block;font-size:11px;font-weight:600}.byazen-fun-toggle small{display:block;margin-top:3px;color:var(--text-3);font-size:9.5px;line-height:1.4}
+.byazen-fun-toggle input{appearance:none;width:34px;height:20px;margin:0;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:#292933;cursor:pointer;transition:background .18s,border-color .18s;position:relative}
+.byazen-fun-toggle input::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#e4e4e7;transition:transform .18s}
+.byazen-fun-toggle input:checked{background:linear-gradient(90deg,#8b5cf6,#22d3ee);border-color:transparent}.byazen-fun-toggle input:checked::after{transform:translateX(14px);background:#fff}
+.byazen-fun-subhead{display:flex;align-items:center;gap:8px;margin:18px 0 8px;color:var(--text-2);font-size:11px;font-weight:650}
+.byazen-fun-subhead::before{content:'';width:3px;height:14px;border-radius:3px;background:linear-gradient(#a78bfa,#22d3ee)}
+.byazen-fun-select-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.byazen-fun-select{min-width:0;padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(6,7,14,.22)}
+.byazen-fun-select label{display:block;margin:0 0 7px;color:var(--text-2);font-size:10px;font-weight:600}
+.byazen-fun-select .field{height:35px;font-size:11px}
+.byazen-fun-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}
+.byazen-fun-action{min-height:58px;display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;text-align:left;background:rgba(255,255,255,.025);border-color:rgba(255,255,255,.08)}
+.byazen-fun-action:hover{border-color:rgba(196,181,253,.2);transform:translateY(-1px)}
+.byazen-fun-action .action-icon{width:30px;height:30px;display:grid;place-items:center;flex:none;border-radius:9px;background:rgba(167,139,250,.1);font-size:15px}
+.byazen-fun-action b{display:block;font-size:10px}.byazen-fun-action small{display:block;margin-top:2px;color:var(--text-3);font-size:8.5px;line-height:1.25}
+#byazenSnow{position:fixed;inset:0;z-index:320;background:radial-gradient(ellipse at 50% 40%,rgba(59,130,246,.16),transparent 56%),rgba(5,8,18,.82);display:none;place-items:center;padding:18px;backdrop-filter:blur(14px)}#byazenSnow.show{display:grid}
+.byazen-snow-card{position:relative;display:grid;justify-items:center;gap:14px;padding:28px 28px 20px;border:1px solid rgba(226,232,240,.13);border-radius:28px;background:linear-gradient(150deg,rgba(30,41,59,.8),rgba(15,23,42,.72));box-shadow:0 30px 100px #0009,inset 0 1px rgba(255,255,255,.06);animation:byazenSnowIn .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes byazenSnowIn{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+.byazen-snow-close{position:absolute;right:12px;top:12px;width:30px;height:30px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#e2e8f0;font-size:18px;cursor:pointer}
+.byazen-globe{width:min(340px,74vw);aspect-ratio:1;border:5px solid rgba(226,232,240,.75);border-radius:50%;background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.5),transparent 19%),radial-gradient(circle at 50% 85%,#1e3a5f 0,transparent 53%),linear-gradient(155deg,#7dd3fc 0%,#344e8b 45%,#171b42 100%);box-shadow:0 18px 50px #0008,inset 0 0 28px rgba(224,242,254,.32),inset -16px -22px 40px rgba(8,15,40,.55);position:relative;overflow:hidden;cursor:grab;touch-action:none}
+.byazen-globe::before{content:'';position:absolute;z-index:4;inset:3% 5% 43%;border-radius:50% 50% 40% 35%;background:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,.07) 42%,transparent 70%);pointer-events:none}
+.byazen-globe-scene{position:absolute;inset:0;overflow:hidden}
+.byazen-globe-moon{position:absolute;right:23%;top:18%;width:26px;height:26px;border-radius:50%;background:#fff7d6;box-shadow:0 0 22px #fef3c7b3}
+.byazen-globe-star{position:absolute;color:#fff7d6;text-shadow:0 0 8px #fff8;font-size:14px;animation:byazenSpark 2s ease-in-out infinite}
+.byazen-globe-hill{position:absolute;left:-12%;right:-12%;bottom:10%;height:39%;border-radius:48% 52% 0 0;background:linear-gradient(150deg,#dbeafe 0%,#bfdbfe 38%,#7c9ccc 100%);box-shadow:inset 0 9px 15px #fff9}
+.byazen-globe-pet{position:absolute;z-index:2;left:50%;bottom:22%;transform:translateX(-50%);font-size:65px;filter:drop-shadow(0 8px 5px #10204499);animation:byazenPetIdle 2.6s ease-in-out infinite}
+.byazen-globe-tree{position:absolute;z-index:2;bottom:18%;font-size:35px;filter:drop-shadow(0 4px 4px #13244266)}
+.byazen-globe-caption{margin:0;color:#cbd5e1;font-size:11px;text-align:center}
+.byazen-globe.shake{animation:byazenShake .55s ease-in-out}.byazen-flake{position:absolute;z-index:3;top:-12px;color:#fff;font-size:11px;text-shadow:0 0 7px #fff;animation:byazenFall 3s linear infinite;pointer-events:none}
+@keyframes byazenFall{to{transform:translateY(360px) rotate(240deg);opacity:.3}}@keyframes byazenShake{25%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}75%{transform:rotate(-3deg)}}
+#byazenCursorLayer{position:fixed;inset:0;pointer-events:none;z-index:500;overflow:hidden}.byazen-bubble{position:absolute;width:10px;height:10px;border:1px solid rgba(196,181,253,.9);border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff9,rgba(167,139,250,.2) 45%,transparent 70%);box-shadow:0 0 10px rgba(167,139,250,.3);animation:byazenPop .75s ease-out forwards}@keyframes byazenPop{to{transform:translateY(-26px) scale(2.3);opacity:0}}
 #byazenEaster{position:fixed;inset:0;z-index:499;pointer-events:none;display:none;background:radial-gradient(circle at 50% 50%,#5b21b655,transparent 55%)}#byazenEaster.show{display:block;animation:byazenEaster .7s alternate 4}@keyframes byazenEaster{to{filter:hue-rotate(170deg);opacity:.2}}
 #toast.byazen-farewell{animation:byazenFarewell 1.1s ease-out}@keyframes byazenFarewell{0%{transform:translate(-50%,12px) scale(.8);opacity:0}20%{transform:translate(-50%,0) scale(1.03);opacity:1}100%{transform:translate(-40%,-35px) scale(.86);opacity:0}}
 #byazenGame{min-height:140px;border-radius:12px;background:linear-gradient(140deg,#151d2b,#24173b);position:relative;overflow:hidden;margin:10px 0;padding:10px;color:#ddd}
 #byazenGameTarget{position:absolute;left:46%;top:48%;font-size:28px;border:0;background:none;cursor:pointer;transition:left .18s,top .18s}
 .ai-quick .byazen-ai-quick{border-color:#6d5ce7;color:#d6ccff}
-@media(prefers-reduced-motion:reduce){.byazen-flake,.byazen-pet .face,#byazenEaster.show{animation:none!important}}
+@media(max-width:560px){
+  #byazenFeatureDock{padding:12px;border-radius:15px}.byazen-dock-actions{gap:6px}.byazen-dock-actions .btn{padding:7px 9px;font-size:10px}
+  .byazen-pet{grid-template-columns:54px minmax(0,1fr) 32px;gap:10px;min-height:72px;padding:8px 10px;border-radius:19px}.byazen-pet-orb{width:54px;height:54px;border-radius:17px}.byazen-pet .face{font-size:32px}.byazen-pet-label{font-size:8px}.byazen-pet-name{font-size:13px}.byazen-pet-mood{font-size:8px}
+  .byazen-modal{max-height:90vh}.byazen-modal .modal-body{padding:12px;gap:10px}.byazen-fun-panel{padding:13px}.byazen-fun-grid,.byazen-fun-select-grid{grid-template-columns:1fr}.byazen-fun-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.byazen-fun-action{min-height:54px;padding:8px}.byazen-fun-action small{font-size:8px}
+  .byazen-snow-card{padding:40px 16px 16px;border-radius:22px}.byazen-globe{width:min(300px,74vw)}.byazen-snow-close{right:9px;top:8px}
+}
+@media(max-width:360px){.byazen-fun-actions{grid-template-columns:1fr}.byazen-fun-toggle{grid-template-columns:31px minmax(0,1fr) 36px;padding:9px}.byazen-item{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.byazen-flake,.byazen-pet .face,.byazen-pet .pet-spark,.byazen-globe-star,.byazen-snow-card,#byazenEaster.show,.byazen-pet-heart{animation:none!important;transition:none!important}}
 `;
 document.head.appendChild(style);
-const dock=document.createElement('section');dock.id='byazenFeatureDock';dock.innerHTML=`<div class="byazen-dock-title">Рабочий стол ByAzen</div><div class="byazen-dock-actions"><button class="btn" data-feature="desk">Свернуть лишние вкладки</button><button class="btn" data-feature="project-save">Снимок проекта</button><button class="btn" data-feature="projects">Продолжить проект</button><button class="btn" data-feature="fragments">Сохранённые фрагменты</button><button class="btn" data-feature="roulette">🎲 Случайная закладка</button><button class="btn" data-feature="studio">Фан-режимы</button></div></section>`;
+const dock=document.createElement('section');dock.id='byazenFeatureDock';dock.innerHTML=`<div class="byazen-dock-title">Рабочий стол ByAzen</div><div class="byazen-dock-actions"><button class="btn" data-feature="desk">🧭 Фокус-вкладки</button><button class="btn" data-feature="project-save">📌 Снимок проекта</button><button class="btn" data-feature="projects">🗂 Проекты</button><button class="btn" data-feature="fragments">✂ Фрагменты</button><button class="btn" data-feature="roulette">🎲 Рулетка</button><button class="btn" data-feature="studio">✨ Игровая</button></div></section>`;
 $('#shortcuts').insertAdjacentElement('afterend',dock);
-const pet=document.createElement('button');pet.type='button';pet.className='byazen-pet';pet.id='byazenPet';pet.title='Погладить питомца';
-pet.innerHTML=`<span class="face">${esc(funConfig.pet)}</span><span class="pet-copy">Питомец · ${tabs.length} вкладок</span>`;
+const pet=document.createElement('section');pet.className='byazen-pet';pet.id='byazenPet';
+pet.innerHTML=`<button class="byazen-pet-orb" type="button" aria-label="Погладить питомца" title="Погладить питомца"><span class="face">${esc(currentPet().emoji)}</span><span class="pet-spark">✦</span></button><span class="byazen-pet-info"><span class="byazen-pet-label">Ваш спутник ByAzen</span><strong class="byazen-pet-name">${esc(currentPet().name)}</strong><span class="pet-copy"></span><span class="byazen-pet-mood">${esc(currentPet().mood)}</span></span><button class="byazen-pet-change" type="button" aria-label="Сменить питомца" title="Выбрать другого питомца">⟳</button>`;
 $('#greeting').insertAdjacentElement('afterend',pet);
-pet.onclick=()=>{const animals=['🦝','🐉','🐸','🦊','🐙','🦖','🦉'];let i=animals.indexOf(funConfig.pet);funConfig.pet=animals[(i+1+animals.length)%animals.length];saveFun();pet.querySelector('.face').textContent=funConfig.pet;pet.querySelector('.pet-copy').textContent=`Питомец · ${tabs.length} вкладок`;toast('Питомец доволен. Наверное.');};
-const featureBtn=document.createElement('button');featureBtn.className='quick-btn hide-collapsed';featureBtn.id='byazenFeatureBtn';featureBtn.title='Рабочий стол, заметки и забавные режимы';featureBtn.innerHTML='<svg><use href="#i-spark"/></svg><span class="hide-collapsed">Мастерская</span>';
+function updatePetCard(copy){
+  const buddy=currentPet(),count=tabs.length,lastTwo=count%100,last=count%10;
+  const tabWord=lastTwo>=11&&lastTwo<=14?'вкладок':last===1?'вкладка':last>=2&&last<=4?'вкладки':'вкладок';
+  pet.querySelector('.face').textContent=buddy.emoji;pet.querySelector('.byazen-pet-name').textContent=buddy.name;pet.querySelector('.byazen-pet-mood').textContent=buddy.mood;
+  pet.querySelector('.pet-copy').textContent=copy||`${buddy.copy} · ${count} ${tabWord}`;
+}
+function cyclePet(){const index=PETS.findIndex(item=>item.emoji===funConfig.pet);funConfig.pet=PETS[(index+1+PETS.length)%PETS.length].emoji;saveFun();updatePetCard();toast(`Теперь с вами ${currentPet().name} ${currentPet().emoji}`);}
+updatePetCard();
+pet.querySelector('.byazen-pet-change').onclick=cyclePet;
+pet.querySelector('.byazen-pet-orb').onclick=()=>{
+  const orb=pet.querySelector('.byazen-pet-orb'),heart=document.createElement('i');heart.className='byazen-pet-heart';heart.textContent=['💜','✨','💙'][Math.floor(Math.random()*3)];orb.append(heart);setTimeout(()=>heart.remove(),950);
+  updatePetCard(`${currentPet().name} говорит: «Спасибо за поглаживание!»`);setTimeout(()=>updatePetCard(),1900);
+};
+const featureBtn=document.createElement('button');featureBtn.className='quick-btn hide-collapsed';featureBtn.id='byazenFeatureBtn';featureBtn.title='Рабочий стол, проекты и игровая мастерская';featureBtn.innerHTML='<svg><use href="#i-spark"/></svg><span class="hide-collapsed">Мастерская</span>';
 $('#assistantBtn').insertAdjacentElement('afterend',featureBtn);
-const modal=document.createElement('div');modal.className='modal-overlay';modal.id='byazenStudio';modal.innerHTML=`<section class="modal byazen-modal" role="dialog" aria-modal="true" aria-labelledby="byazenStudioTitle"><div class="modal-head"><div><h2 id="byazenStudioTitle">Мастерская ByAzen</h2><div class="ai-status">Проекты, фрагменты и безобидные глупости</div></div><button class="icon-btn" data-feature-close title="Закрыть">×</button></div><div class="modal-body" id="byazenStudioBody"></div></section>`;
+const modal=document.createElement('div');modal.className='modal-overlay';modal.id='byazenStudio';modal.innerHTML=`<section class="modal byazen-modal" role="dialog" aria-modal="true" aria-labelledby="byazenStudioTitle"><div class="modal-head"><div><h2 id="byazenStudioTitle">Игровая мастерская</h2><div class="ai-status">Украшения вкладок, уютные эффекты и мини-игры</div></div><button class="icon-btn" data-feature-close title="Закрыть">×</button></div><div class="modal-body" id="byazenStudioBody"></div></section>`;
 document.body.append(modal);
-const snow=document.createElement('div');snow.id='byazenSnow';snow.innerHTML='<div class="byazen-globe" id="byazenGlobe" role="button" tabindex="0" aria-label="Встряхнуть снежный шар"></div>';document.body.append(snow);
+const snow=document.createElement('div');snow.id='byazenSnow';snow.innerHTML='<section class="byazen-snow-card" role="dialog" aria-modal="true" aria-label="Снежный шар"><button class="byazen-snow-close" type="button" aria-label="Закрыть снежный шар">×</button><div class="byazen-globe" id="byazenGlobe" role="button" tabindex="0" aria-label="Встряхнуть снежный шар"></div><p class="byazen-globe-caption">Нажмите на шар или покачайте его ❄</p></section>';document.body.append(snow);
 const cursorLayer=document.createElement('div');cursorLayer.id='byazenCursorLayer';document.body.append(cursorLayer);
 const easter=document.createElement('div');easter.id='byazenEaster';document.body.append(easter);
 modal.addEventListener('mousedown',e=>{if(e.target===modal)closeModal('byazenStudio');});
@@ -71,10 +151,10 @@ function applyDailyTheme(){
 applyDailyTheme();
 function applyDesk(){
   tabs.forEach(tab=>{for(const el of document.querySelectorAll(`[data-id="${tab.id}"]`)){el.classList.toggle('byazen-desk-hidden',deskMode&&!hiddenDeskIds.has(tab.id)&&tab.id!==activeId);}});
-  const button=dock.querySelector('[data-feature="desk"]');if(button)button.textContent=deskMode?'Показать все вкладки':'Свернуть лишние вкладки';
+  const button=dock.querySelector('[data-feature="desk"]');if(button)button.textContent=deskMode?'↩ Показать все вкладки':'🧭 Фокус-вкладки';
 }
 const baseRenderTabs=renderTabs;
-renderTabs=function(...args){baseRenderTabs(...args);for(const tab of tabs){const costume=tab.costume||funConfig.costume||'';const el=document.querySelector(`#tabs [data-id="${tab.id}"]`),pin=document.querySelector(`#pinned [data-id="${tab.id}"]`);if(el)el.dataset.costume=costume;if(pin)pin.dataset.costume=costume;}applyDesk();const p=document.querySelector('#byazenPet .pet-copy');if(p)p.textContent=`Питомец · ${tabs.length} вкладок`;};
+renderTabs=function(...args){baseRenderTabs(...args);for(const tab of tabs){const costume=tab.costume||funConfig.costume||'';const el=document.querySelector(`#tabs [data-id="${tab.id}"]`),pin=document.querySelector(`#pinned [data-id="${tab.id}"]`);if(el)el.dataset.costume=costume;if(pin)pin.dataset.costume=costume;}applyDesk();if(typeof updatePetCard==='function')updatePetCard();};
 function toggleDesk(){
   if(deskMode){deskMode=false;hiddenDeskIds.clear();applyDesk();toast('Все вкладки снова на виду');return;}
   const active=activeTab();if(!active){toast('Нет активной вкладки');return;}
@@ -115,15 +195,31 @@ function renderArchaeology(){
   return `<div class="byazen-card"><h3>Археология вкладок 🏺</h3><p>Недавно закрытые страницы. Восстановление не сохраняет пароли и сайтные данные отдельно.</p>${list?`<div class="byazen-list">${list}</div>`:'<p>Раскопки пока не нашли ничего. Закройте обычную вкладку — и она появится здесь.</p>'}</div>`;
 }
 function renderFun(){
-  const costumes=['','🧢','👑','🚀','🦖','🧙','🐾'];
-  return `<div class="byazen-card"><h3>Несерьёзные настройки</h3><p>Все эффекты локальные и необязательные. Ничего не отправляется наружу.</p>
-    <label class="set-row"><span class="tx"><b>Случайная тема дня</b><span>Автоматически меняет оформление; выключено по умолчанию</span></span><input type="checkbox" id="funDailyTheme" ${funConfig.dailyTheme?'checked':''}></label>
-    <label class="set-row"><span class="tx"><b>Пузырьки за курсором</b><span>Декоративный след; уважает системный режим уменьшения анимации</span></span><input type="checkbox" id="funCursor" ${funConfig.cursorBubbles?'checked':''}></label>
-    <label class="set-row"><span class="tx"><b>Прощальный тост вкладке</b><span>Добрая фраза при закрытии вкладки</span></span><input type="checkbox" id="funFarewell" ${funConfig.tabFarewell?'checked':''}></label>
-    <div class="set-row"><span class="tx"><b>Общий костюм вкладок</b><span>Украшение по умолчанию для вкладок без личного костюма</span></span><select class="field" id="funCostume">${costumes.map(c=>`<option value="${c}" ${c===funConfig.costume?'selected':''}>${c||'Без костюма'}</option>`).join('')}</select></div>
-    <div class="set-row"><span class="tx"><b>Зоопарк вкладок · наряд активной</b><span>Выберите зверя или персонажа только для текущей вкладки</span></span><select class="field" id="tabZooCostume"><option value="">По умолчанию</option><option>🦝</option><option>🐉</option><option>🐸</option><option>🦊</option><option>🐙</option><option>🦖</option><option>🦉</option><option>🧢</option><option>👑</option><option>🚀</option><option>🧙</option></select></div>
-    <div class="byazen-card-actions"><button class="btn" data-action="apply-zoo-costume">Нарядить активную вкладку</button><button class="btn" data-action="random-zoo">Случайные костюмы всем</button></div>
-    <div class="byazen-card-actions"><button class="btn" data-action="roulette">🎲 Рулетка закладок</button><button class="btn" data-action="snow">❄️ Снежный шар</button><button class="btn" data-action="pet">Сменить питомца</button><button class="btn" data-action="game" ${tabs.some(t=>t.loading)?'':'disabled'} title="Появляется, пока загружается вкладка">Мини-игра загрузки</button><button class="btn" data-action="theme-toggle">Тайный режим BYAZEN</button></div>
+  const costumes=['','🧢','👑','🚀','🦖','🧙','🐾','✨','🌙'];
+  const animalOptions=PETS.map(item=>`<option value="${item.emoji}">${item.emoji} ${esc(item.name)}</option>`).join('');
+  const action=(id,icon,title,description,disabled=false)=>`<button class="btn byazen-fun-action" data-action="${id}" ${disabled?'disabled':''}><span class="action-icon">${icon}</span><span><b>${title}</b><small>${description}</small></span></button>`;
+  return `<div class="byazen-card byazen-fun-panel">
+    <div class="byazen-fun-heading"><span class="byazen-fun-heading-icon">✦</span><div><h3>Фан без перегруза</h3><p>Небольшие украшения, уютные эффекты и игры. Всё можно отключить в любой момент.</p></div></div>
+    <div class="byazen-fun-grid">
+      <label class="byazen-fun-toggle"><span class="byazen-fun-toggle-icon">🌈</span><span><b>Тема дня</b><small>Меняет цвета оформления раз в сутки</small></span><input type="checkbox" id="funDailyTheme" ${funConfig.dailyTheme?'checked':''} aria-label="Включить случайную тему дня"></label>
+      <label class="byazen-fun-toggle"><span class="byazen-fun-toggle-icon">🫧</span><span><b>След за курсором</b><small>Мягкие пузырьки, без эффекта при уменьшении анимации</small></span><input type="checkbox" id="funCursor" ${funConfig.cursorBubbles?'checked':''} aria-label="Включить пузырьки за курсором"></label>
+      <label class="byazen-fun-toggle"><span class="byazen-fun-toggle-icon">👋</span><span><b>Прощание вкладки</b><small>Добрая фраза, когда закрывается обычная вкладка</small></span><input type="checkbox" id="funFarewell" ${funConfig.tabFarewell?'checked':''} aria-label="Включить прощание вкладки"></label>
+      <div class="byazen-fun-toggle" role="group" aria-label="Ваш питомец"><span class="byazen-fun-toggle-icon">${esc(currentPet().emoji)}</span><span><b>Ваш питомец</b><small>${esc(currentPet().name)} · нажмите, чтобы выбрать другого</small></span><button class="icon-btn" type="button" data-action="pet" aria-label="Сменить питомца" title="Сменить питомца">⟳</button></div>
+    </div>
+    <div class="byazen-fun-subhead">Наряды вкладок</div>
+    <div class="byazen-fun-select-grid">
+      <div class="byazen-fun-select"><label for="funCostume">Общий наряд</label><select class="field" id="funCostume">${costumes.map(c=>`<option value="${c}" ${c===funConfig.costume?'selected':''}>${c||'Без украшения'}</option>`).join('')}</select></div>
+      <div class="byazen-fun-select"><label for="tabZooCostume">Наряд активной вкладки</label><select class="field" id="tabZooCostume"><option value="">По умолчанию</option>${animalOptions}<option>🧢</option><option>👑</option><option>🚀</option><option>🧙</option></select></div>
+    </div>
+    <div class="byazen-fun-actions">${action('apply-zoo-costume','🎨','Нарядить вкладку','Применить выбранное украшение')}${action('random-zoo','🦊','Зоопарк','Случайный зверёк для каждой вкладки')}</div>
+    <div class="byazen-fun-subhead">Маленькие развлечения</div>
+    <div class="byazen-fun-actions">
+      ${action('roulette','🎲','Рулетка','Открыть случайную закладку')}
+      ${action('snow','❄️','Снежный шар','Встряхнуть и отдохнуть')}
+      ${action('pet','🐾','Питомец','Познакомиться с новым другом')}
+      ${action('game','⭐','Мини-игра','Поймать звезду во время загрузки',!tabs.some(t=>t.loading))}
+      ${action('theme-toggle','🌌','Тайный режим','Мягкий световой сюрприз')}
+    </div>
     <div id="byazenGame" hidden><b>Поймай звезду, пока загружается страница</b><div id="byazenGameScore">Очки: 0 · 15 секунд</div><button id="byazenGameTarget" aria-label="Поймать звезду">⭐</button></div>
   </div>`;
 }
@@ -140,7 +236,7 @@ function renderStudio(section='all'){
   body.querySelectorAll('[data-delete-fragment]').forEach(b=>b.onclick=()=>{fragments=fragments.filter(x=>x.id!==b.dataset.deleteFragment);store.set('webFragments',fragments);renderStudio();});
   body.querySelectorAll('[data-dig-tab]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.digTab),item=closedTabs.splice(i,1)[0];store.set('closedTabs',closedTabs);if(item)createTab(item.url,{title:item.title,group:item.group||'',pinned:!!item.pinned});renderStudio();});
   body.querySelectorAll('[data-action="roulette"]').forEach(b=>b.onclick=openRandomBookmark);
-  body.querySelector('[data-action="pet"]').onclick=()=>{const faces=['🦝','🐉','🐸','🦊','🐙','🦖','🦉'];funConfig.pet=faces[(faces.indexOf(funConfig.pet)+1)%faces.length];saveFun();pet.querySelector('.face').textContent=funConfig.pet;renderStudio();};
+  body.querySelector('[data-action="pet"]').onclick=()=>{cyclePet();renderStudio();};
   body.querySelector('[data-action="snow"]').onclick=()=>{closeModal('byazenStudio');openSnowGlobe();};
   body.querySelector('[data-action="theme-toggle"]').onclick=()=>{easter.classList.add('show');setTimeout(()=>easter.classList.remove('show'),3000);toast('Секретный режим активирован. Почти ничего не изменилось.');};
   body.querySelector('#funDailyTheme').onchange=e=>{funConfig.dailyTheme=e.target.checked;saveFun();applyDailyTheme();};
@@ -148,7 +244,7 @@ function renderStudio(section='all'){
   body.querySelector('#funFarewell').onchange=e=>{funConfig.tabFarewell=e.target.checked;saveFun();};
   body.querySelector('#funCostume').onchange=e=>{funConfig.costume=e.target.value;saveFun();renderTabs();};
   body.querySelector('[data-action="apply-zoo-costume"]').onclick=()=>{const tab=activeTab();if(!tab)return toast('Нет активной вкладки');tab.costume=body.querySelector('#tabZooCostume').value;renderTabs();persistTabs();toast(tab.costume?`${tab.costume} назначен вкладке`:'Костюм вкладки сброшен');};
-  body.querySelector('[data-action="random-zoo"]').onclick=()=>{const animals=['🦝','🐉','🐸','🦊','🐙','🦖','🦉'];tabs.forEach(t=>t.costume=animals[Math.floor(Math.random()*animals.length)]);renderTabs();persistTabs();toast('Зоопарк вкладок сформирован');};
+  body.querySelector('[data-action="random-zoo"]').onclick=()=>{tabs.forEach(t=>t.costume=PETS[Math.floor(Math.random()*PETS.length)].emoji);renderTabs();persistTabs();toast('Зоопарк вкладок сформирован');};
   body.querySelector('[data-action="game"]').onclick=()=>startLoadingMiniGame(body);
 }
 function openRandomBookmark(){
@@ -157,14 +253,21 @@ function openRandomBookmark(){
   if(confirm(`🎲 Рулетка выбрала «${item.title||hostOf(item.url)}». Открыть?`))navigateActive(item.url);
 }
 function openSnowGlobe(){
-  snow.classList.add('show');if(nativeWebview)window.byazenDesktop.setActiveSite(null);const globe=$('#byazenGlobe');globe.innerHTML=`<div style="position:absolute;bottom:14%;left:28%;font-size:56px">${esc(funConfig.pet)}</div><div style="position:absolute;bottom:8%;left:43%;font-size:28px">🎄</div>`;
-  for(let i=0;i<36;i++){const flake=document.createElement('span');flake.className='byazen-flake';flake.textContent=Math.random()>.5?'❄':'·';flake.style.left=Math.random()*100+'%';flake.style.animationDelay=(-Math.random()*3)+'s';flake.style.animationDuration=(2+Math.random()*3)+'s';globe.append(flake);}
+  snow.classList.add('show');if(nativeWebview)window.byazenDesktop.setActiveSite(null);const globe=$('#byazenGlobe'),buddy=currentPet();
+  const stars=['✦','✧','✦'];globe.innerHTML=`<div class="byazen-globe-scene"><span class="byazen-globe-moon"></span><span class="byazen-globe-star" style="left:23%;top:27%">${stars[0]}</span><span class="byazen-globe-star" style="left:68%;top:36%;animation-delay:.8s">${stars[1]}</span><span class="byazen-globe-star" style="left:38%;top:19%;animation-delay:1.2s">${stars[2]}</span><span class="byazen-globe-tree" style="left:20%">🌲</span><span class="byazen-globe-tree" style="right:17%;font-size:28px;bottom:20%">🌲</span><div class="byazen-globe-hill"></div><span class="byazen-globe-pet" aria-hidden="true">${esc(buddy.emoji)}</span></div>`;
+  for(let i=0;i<30;i++){const flake=document.createElement('span');flake.className='byazen-flake';flake.textContent=Math.random()>.45?'❄':'·';flake.style.left=Math.random()*100+'%';flake.style.animationDelay=(-Math.random()*3)+'s';flake.style.animationDuration=(2.4+Math.random()*2.8)+'s';globe.append(flake);}
   const shake=()=>{globe.classList.remove('shake');void globe.offsetWidth;globe.classList.add('shake');};
   globe.onclick=shake;
+  let pointerStart=null;
+  globe.onpointerdown=e=>{pointerStart=[e.clientX,e.clientY];};
+  globe.onpointerup=e=>{if(pointerStart&&Math.hypot(e.clientX-pointerStart[0],e.clientY-pointerStart[1])>18)shake();pointerStart=null;};
   const closeSnow=()=>{snow.classList.remove('show');globe.innerHTML='';if(nativeWebview)syncNativeBounds();};
+  snow.querySelector('.byazen-snow-close').onclick=closeSnow;
   snow.onclick=e=>{if(e.target===snow)closeSnow();};
-  globe.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();closeSnow();}else if(e.key==='Enter'||e.key===' '){e.preventDefault();shake();}};
-  globe.title='Нажмите, чтобы встряхнуть; щёлкните снаружи, чтобы закрыть';
+  globe.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();shake();}};
+  snow.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();closeSnow();}};
+  globe.title='Нажмите или покачайте шар, чтобы поднять снег';
+  snow.querySelector('.byazen-snow-close').focus({preventScroll:true});
 }
 function startLoadingMiniGame(body){
   const game=body.querySelector('#byazenGame');game.hidden=false;let score=0,remaining=15;const target=game.querySelector('#byazenGameTarget'),label=game.querySelector('#byazenGameScore');
@@ -191,7 +294,7 @@ runPageContextAction=async function(action){
   return baseRunPageContextAction(action);
 };
 const baseCloseTab=closeTab;
-closeTab=function(id){const t=tabs.find(x=>x.id===id);const result=baseCloseTab(id);if(t&&funConfig.tabFarewell){toast(t.private?'Приватная вкладка тихо закрылась.':`${funConfig.pet} машет вслед вкладке «${String(t.title||'').slice(0,36)}»`);const note=$('#toast');note.classList.remove('byazen-farewell');void note.offsetWidth;note.classList.add('byazen-farewell');setTimeout(()=>note.classList.remove('byazen-farewell'),1200);}return result;};
+closeTab=function(id){const t=tabs.find(x=>x.id===id);const result=baseCloseTab(id);if(t&&funConfig.tabFarewell){toast(t.private?'Приватная вкладка тихо закрылась.':`${currentPet().name} машет вслед вкладке «${String(t.title||'').slice(0,36)}»`);const note=$('#toast');note.classList.remove('byazen-farewell');void note.offsetWidth;note.classList.add('byazen-farewell');setTimeout(()=>note.classList.remove('byazen-farewell'),1200);}return result;};
 const basePersistTabs=persistTabs;
 persistTabs=function(){basePersistTabs();const normal=tabs.filter(t=>!t.private).slice(-20);store.set('tabCostumes',normal.map(t=>({url:t.url,title:t.title,costume:t.costume||''})));};
 const savedCostumes=readArray('tabCostumes',20);tabs.filter(t=>!t.private).forEach(t=>{const m=savedCostumes.find(x=>x.url===t.url&&x.title===t.title);if(m)t.costume=m.costume||'';});renderTabs();
