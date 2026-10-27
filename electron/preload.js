@@ -5,6 +5,12 @@ if (window.top === window.self) {
     contextBridge.exposeInMainWorld('byazenDesktop', {
       electron: true,
       platform: process.platform,
+      registerBrowser: () => ipcRenderer.invoke('byazen:register-browser'),
+      onOpenUrl: callback => {
+        const listener = (_event, data) => callback(data);
+        ipcRenderer.on('byazen:open-url', listener);
+        return () => ipcRenderer.removeListener('byazen:open-url', listener);
+      },
       openVoiceSettings: () => ipcRenderer.invoke('byazen:open-voice-settings'),
       openLanguageSettings: () => ipcRenderer.invoke('byazen:open-language-settings'),
       listPiperVoices: () => ipcRenderer.invoke('byazen:piper-catalog'),

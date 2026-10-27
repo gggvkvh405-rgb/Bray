@@ -1,4 +1,5 @@
 const { app, BrowserWindow, WebContentsView, shell, Menu, ipcMain, dialog } = require('electron');
+const { execFileSync } = require('node:child_process');
 const path = require('path');
 const fs = require('fs');
 const { registerPiperHandlers } = require('./piper');
@@ -206,8 +207,8 @@ function createSiteView(id,isPrivate=false) {
   });
 
   const openOutsidePrivateSession=url=>{
-    if(isPrivate){const insecure=/^http:\/\//i.test(url),choice=dialog.showMessageBoxSync(win,{type:'warning',buttons:['Отмена','Открыть'],defaultId:0,cancelId:0,title:insecure?'Незащищённое соединение':'Переход из приватной вкладки',message:insecure?'Эта ссылка откроется вне приватной сессии ByAzen и передаст данные по незашифрованному HTTP-соединению. Продолжить?':'Эта ссылка откроется во внешнем приложении вне приватной сессии ByAzen. Продолжить?'});if(choice!==1)return;}
-    shell.openExternal(url).catch(()=>{});
+    if(isPrivate){const insecure=/^http:\/\//i.test(url),choice=dialog.showMessageBoxSync(win,{type:'warning',buttons:['Отмена','Открыть в ByAzen'],defaultId:0,cancelId:0,title:insecure?'Незащищённое соединение':'Новая приватная вкладка',message:insecure?'Ссылка откроется в новой приватной вкладке ByAzen по незашифрованному HTTP-соединению. Продолжить?':'Ссылка откроется в новой приватной вкладке ByAzen; история и данные сайта останутся в приватной сессии. Продолжить?'});if(choice!==1)return;}
+    queueOpenUrl(url, isPrivate);
   };
   guest.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) openOutsidePrivateSession(url);
@@ -253,6 +254,13 @@ ipcMain.on('byazen:site-open', (event, payload = {}) => {
 
 function trustedUi(event) { return !!(win && !win.isDestroyed() && event.sender === win.webContents); }
 registerPiperHandlers(ipcMain, { app, isTrusted: trustedUi, getWindow: () => win, resourcesPath: process.resourcesPath });
+ipcMain.handle('byazen:register-browser',event=>{
+  if(!trustedUi(event)||process.platform!=='win32')return {ok:false,error:'Доступно только в Windows.'};
+  const result=registerWindowsBrowser();
+  if(!result.ok)return result;
+  shell.openExternal('ms-settings:defaultapps').catch(()=>{});
+  return {ok:true};
+});
 ipcMain.handle('byazen:open-voice-settings',event=>{
   if(!trustedUi(event)||process.platform!=='win32')return {ok:false};
   try{shell.openExternal('ms-settings:speech').catch(()=>{});return {ok:true};}catch{return {ok:false};}
@@ -384,16 +392,75 @@ ipcMain.on('byazen:site-close', (event, idValue) => {
   if(privateSession){privateSession.clearStorageData().catch(()=>{});privateSession.clearCache().catch(()=>{});}
 });
 
+const pendingOpenUrls = [];
+function validExternalUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch { return ''; }
+}
+function extractExternalUrl(args) {
+  for (const arg of args || []) {
+    const url = validExternalUrl(arg);
+    if (url) return url;
+  }
+  return '';
+}
+function queueOpenUrl(value, isPrivate = false) {
+  const url = validExternalUrl(value);
+  if (!url) return;
+  pendingOpenUrls.push({ url, private: !!isPrivate });
+  flushOpenUrls();
+}
+function flushOpenUrls() {
+  if (!win || win.isDestroyed() || win.webContents.isLoadingMainFrame()) return;
+  while (pendingOpenUrls.length) win.webContents.send('byazen:open-url', pendingOpenUrls.shift());
+}
+function registerWindowsBrowser() {
+  if (process.platform !== 'win32') return { ok: false, error: 'Доступно только в Windows.' };
+  try {
+    const exe = app.getPath('exe');
+    const openCommand = `"${exe}" "%1"`;
+    const add = (key, name, value) => execFileSync('reg.exe', [
+      'add', key, name ? '/v' : '/ve', ...(name ? [name] : []),
+      '/t', 'REG_SZ', '/d', value, '/f'
+    ], { windowsHide: true, stdio: 'ignore' });
+    const progId = 'ByAzenURL';
+    const clientKey = 'HKCU\\Software\\Clients\\StartMenuInternet\\ByAzen';
+    const capabilities = `${clientKey}\\Capabilities`;
+    add(`HKCU\\Software\\Classes\\${progId}`, '', 'URL:ByAzen URL');
+    add(`HKCU\\Software\\Classes\\${progId}`, 'URL Protocol', '');
+    add(`HKCU\\Software\\Classes\\${progId}\\DefaultIcon`, '', `"${exe}",0`);
+    add(`HKCU\\Software\\Classes\\${progId}\\shell\\open\\command`, '', openCommand);
+    add(clientKey, '', 'ByAzen');
+    add(`${clientKey}\\DefaultIcon`, '', `"${exe}",0`);
+    add(`${clientKey}\\shell\\open\\command`, '', `"${exe}"`);
+    add(capabilities, 'ApplicationName', 'ByAzen');
+    add(capabilities, 'ApplicationIcon', `"${exe}",0`);
+    add(capabilities, 'ApplicationDescription', 'Минималистичный браузер ByAzen');
+    add(`${capabilities}\\URLAssociations`, 'http', progId);
+    add(`${capabilities}\\URLAssociations`, 'https', progId);
+    add('HKCU\\Software\\RegisteredApplications', 'ByAzen', 'Software\\Clients\\StartMenuInternet\\ByAzen\\Capabilities');
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: String(error?.message || 'Не удалось зарегистрировать ByAzen в Windows.').slice(0, 300) };
+  }
+}
+
 // Один запущенный экземпляр
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, commandLine) => {
     if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+    queueOpenUrl(extractExternalUrl(commandLine));
   });
   app.on('before-quit',()=>persistDownloadHistory(true));
+  const startupUrl = extractExternalUrl(process.argv);
+  if (startupUrl) pendingOpenUrls.push({ url: startupUrl, private: false });
 
   app.whenReady().then(async () => {
+    if (process.platform === 'win32') registerWindowsBrowser();
     loadDownloadHistory();
     Menu.setApplicationMenu(null);
 
@@ -432,9 +499,10 @@ if (!app.requestSingleInstanceLock()) {
       return requester === win.webContents && permission === 'media';
     });
 
-    // Кнопка «открыть во внешнем браузере» и target=_blank — в системный браузер, не в новое окно Electron
+    // target=_blank открывается отдельной вкладкой внутри ByAzen.
+    win.webContents.on('did-finish-load', flushOpenUrls);
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+      if (/^https?:\/\//i.test(url)) queueOpenUrl(url);
       return { action: 'deny' };
     });
 
@@ -472,6 +540,7 @@ if (!app.requestSingleInstanceLock()) {
     win.on('closed', () => { win = null; siteViews.clear(); });
 
     await win.loadURL(`http://127.0.0.1:${port}/`);
+    flushOpenUrls();
   });
 
   app.on('window-all-closed', () => {
