@@ -78,10 +78,10 @@ function sendSiteEvent(id, type, data = {}) {
 }
 
 function publishDownload(record){
-  if(win&&!win.isDestroyed())win.webContents.send('byazen:download-event',{...record});
+  if(!record.privateOwnerId&&win&&!win.isDestroyed())win.webContents.send('byazen:download-event',{...record});
 }
 function patchDownload(record,changes){Object.assign(record,changes);publishDownload(record);}
-function configureSiteSession(session){
+function configureSiteSession(session,isPrivate=false,privateOwnerId=null){
   if(configuredSiteSessions.has(session))return;
   configuredSiteSessions.add(session);
   session.on('will-download',(event,item)=>{
@@ -90,7 +90,7 @@ function configureSiteSession(session){
     try{source=new URL(item.getURL());}catch{item.cancel();return;}
     if(!['http:','https:'].includes(source.protocol)){item.cancel();return;}
     const fileName=path.basename(String(item.getFilename()||'download').replace(/[<>:"|?*\x00-\x1f]/g,'_')).replace(/^\.+/,'').slice(0,120)||'download';
-    const record={id:++downloadSequence,fileName,source:source.origin,total:item.getTotalBytes(),received:item.getReceivedBytes(),status:'awaiting',createdAt:Date.now(),path:''};
+    const record={id:++downloadSequence,fileName,source:source.origin,total:item.getTotalBytes(),received:item.getReceivedBytes(),status:'awaiting',createdAt:Date.now(),path:'',...(isPrivate?{privateOwnerId}: {})};
     downloadRecords.unshift(record);while(downloadRecords.length>100){const index=downloadRecords.findIndex(x=>!['awaiting','downloading'].includes(x.status));if(index<0)break;const [removed]=downloadRecords.splice(index,1);downloadItems.delete(removed.id);}downloadItems.set(record.id,item);publishDownload(record);
     if(item.getTotalBytes()>maxBytes){patchDownload(record,{status:'blocked',error:'Файл превышает лимит 250 МБ'});downloadItems.delete(record.id);item.cancel();if(win&&!win.isDestroyed())dialog.showMessageBox(win,{type:'warning',title:'Загрузка заблокирована',message:'Файл превышает лимит 250 МБ.'});return;}
     if(!win||win.isDestroyed()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);item.cancel();return;}
@@ -124,34 +124,58 @@ function configureSiteSession(session){
   session.setPermissionCheckHandler(()=>false);
 }
 
-function createSiteView(id) {
+function createSiteView(id,isPrivate=false) {
   const view = new WebContentsView({
     webPreferences: {
-      partition: 'persist:byazen-sites',
+      partition: isPrivate?`byazen-private-${id}`:'persist:byazen-sites',
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true
     }
   });
   win.contentView.addChildView(view);
+  view.byazenPrivate=!!isPrivate;
   view.setVisible(false);
   const guest = view.webContents;
-  configureSiteSession(guest.session);
+  configureSiteSession(guest.session,isPrivate,isPrivate?id:null);
   guest.on('before-input-event',(event,input)=>{
-    if(input.type==='keyDown'&&(input.control||input.meta)&&String(input.key).toLowerCase()==='f'){
-      event.preventDefault();sendSiteEvent(id,'shortcut',{key:'find'});
-    }
+    if(input.type!=='keyDown')return;
+    const key=String(input.key||'').toLowerCase(),ctrl=!!(input.control||input.meta),shift=!!input.shift,alt=!!input.alt;
+    let shortcut='';
+    if(ctrl&&shift&&key==='r')shortcut='hard-reload';
+    else if(ctrl&&shift&&key==='n')shortcut='private-tab';
+    else if(ctrl&&key==='f')shortcut='find';
+    else if(ctrl&&key==='t')shortcut='new-tab';
+    else if(ctrl&&key==='w')shortcut='close-tab';
+    else if(ctrl&&key==='l')shortcut='focus-address';
+    else if(ctrl&&key==='tab')shortcut=shift?'previous-tab':'next-tab';
+    else if(ctrl&&key==='r')shortcut='reload';
+    else if(ctrl&&key==='0')shortcut='zoom-reset';
+    else if(ctrl&&(key==='+'||key==='='))shortcut='zoom-in';
+    else if(ctrl&&key==='-')shortcut='zoom-out';
+    else if(alt&&key==='arrowleft')shortcut='back';
+    else if(alt&&key==='arrowright')shortcut='forward';
+    if(shortcut){event.preventDefault();sendSiteEvent(id,'shortcut',{key:shortcut});}
   });
   guest.on('found-in-page',(_event,result)=>sendSiteEvent(id,'find-result',result));
+  guest.on('update-target-url',(_event,url)=>sendSiteEvent(id,'link-hover',{url:String(url||'').slice(0,2048)}));
+  guest.on('context-menu',(event,params)=>{
+    event.preventDefault();
+    sendSiteEvent(id,'page-context-menu',{x:Number(params.x)||0,y:Number(params.y)||0,linkURL:String(params.linkURL||'').slice(0,2048),srcURL:String(params.srcURL||'').slice(0,2048),mediaType:String(params.mediaType||''),selectionText:String(params.selectionText||'').slice(0,1000),isEditable:!!params.isEditable});
+  });
 
+  const openOutsidePrivateSession=url=>{
+    if(isPrivate){const insecure=/^http:\/\//i.test(url),choice=dialog.showMessageBoxSync(win,{type:'warning',buttons:['Отмена','Открыть'],defaultId:0,cancelId:0,title:insecure?'Незащищённое соединение':'Переход из приватной вкладки',message:insecure?'Эта ссылка откроется вне приватной сессии ByAzen и передаст данные по незашифрованному HTTP-соединению. Продолжить?':'Эта ссылка откроется во внешнем приложении вне приватной сессии ByAzen. Продолжить?'});if(choice!==1)return;}
+    shell.openExternal(url).catch(()=>{});
+  };
   guest.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) openOutsidePrivateSession(url);
     return { action: 'deny' };
   });
   guest.on('will-navigate', (event, url) => {
     if (!/^https?:\/\//i.test(url) && url !== 'about:blank') {
       event.preventDefault();
-      if (/^(mailto:|tel:)/i.test(url)) shell.openExternal(url);
+      if (/^(mailto:|tel:)/i.test(url)) openOutsidePrivateSession(url);
     }
   });
   guest.on('did-navigate', (_event, url) => sendSiteEvent(id, 'navigate', { url }));
@@ -176,7 +200,10 @@ ipcMain.on('byazen:site-open', (event, payload = {}) => {
   const id = Number(payload.id);
   const url = String(payload.url || '');
   if (!Number.isSafeInteger(id) || !/^https?:\/\//i.test(url)) return;
-  const view = siteViews.get(id) || createSiteView(id);
+  const privateMode=payload.private===true;
+  let view=siteViews.get(id);
+  if(view&&view.byazenPrivate!==privateMode){const oldSession=view.byazenPrivate?view.webContents.session:null;win.contentView.removeChildView(view);view.webContents.close();siteViews.delete(id);if(oldSession){oldSession.clearStorageData().catch(()=>{});oldSession.clearCache().catch(()=>{});}view=null;}
+  view=view||createSiteView(id,privateMode);
   view.webContents.loadURL(url).catch(error => {
     sendSiteEvent(id, 'failure', { errorDescription: error.message, url });
   });
@@ -186,7 +213,7 @@ ipcMain.on('byazen:site-open', (event, payload = {}) => {
 function trustedUi(event) { return !!(win && !win.isDestroyed() && event.sender === win.webContents); }
 ipcMain.handle('byazen:permission-log',event=>trustedUi(event)?websitePermissionLog.slice(0,100):[]);
 ipcMain.handle('byazen:permission-log-clear',event=>{if(!trustedUi(event))return false;websitePermissionLog.length=0;return true;});
-ipcMain.handle('byazen:downloads-list',event=>trustedUi(event)?downloadRecords.map(x=>({...x})):[]);
+ipcMain.handle('byazen:downloads-list',event=>trustedUi(event)?downloadRecords.filter(x=>!x.privateOwnerId).map(x=>({...x})):[]);
 ipcMain.handle('byazen:downloads-cancel',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||item.isCanceled())return {ok:false};item.cancel();if(record)patchDownload(record,{status:'cancelled'});downloadItems.delete(numeric);return {ok:true};});
 ipcMain.handle('byazen:downloads-clear',event=>{if(!trustedUi(event))return false;for(let i=downloadRecords.length-1;i>=0;i--)if(!['awaiting','downloading'].includes(downloadRecords[i].status))downloadRecords.splice(i,1);return true;});
 ipcMain.handle('byazen:downloads-open',async(event,id)=>{if(!trustedUi(event))return {ok:false};const item=downloadRecords.find(x=>x.id===Number(id));if(!item||item.status!=='completed'||!item.path)return {ok:false};try{const error=await shell.openPath(item.path);return {ok:!error,error:error||''};}catch{return {ok:false,error:'Не удалось открыть файл'};}});
@@ -220,6 +247,7 @@ ipcMain.handle('byazen:page-zoom', async (event,payload={})=>{
   const factor=Math.max(.5,Math.min(2,Number(payload.factor)||1));
   try{contents.setZoomFactor(factor);return {ok:true,factor};}catch{return {ok:false};}
 });
+ipcMain.handle('byazen:page-hard-reload',(event,idValue)=>{if(!trustedUi(event))return {ok:false};const contents=pageView(idValue);if(!contents)return {ok:false};try{contents.reloadIgnoringCache();return {ok:true};}catch{return {ok:false};}});
 ipcMain.handle('byazen:page-mute',async(event,idValue)=>{
   if(!trustedUi(event))return {ok:false};const contents=pageView(idValue);if(!contents)return {ok:false};
   try{const muted=!contents.isAudioMuted();contents.setAudioMuted(muted);return {ok:true,muted};}catch{return {ok:false};}
@@ -231,6 +259,7 @@ ipcMain.handle('byazen:page-find',async(event,payload={})=>{
   try{return {ok:true,requestId:contents.findInPage(text,{forward:payload.forward!==false,findNext:payload.findNext===true,matchCase:false})};}catch{return {ok:false};}
 });
 ipcMain.handle('byazen:page-find-stop',(event,idValue)=>{if(!trustedUi(event))return false;const contents=pageView(idValue);if(!contents)return false;try{contents.stopFindInPage('clearSelection');return true;}catch{return false;}});
+ipcMain.handle('byazen:page-edit-command',(event,payload={})=>{if(!trustedUi(event)||!['copy','cut','paste'].includes(payload.command))return {ok:false};const contents=pageView(payload.id);if(!contents)return {ok:false};try{contents[payload.command]();return {ok:true};}catch{return {ok:false};}});
 
 ipcMain.handle('byazen:page-print', async (event,idValue)=>{
   if(!trustedUi(event))return {ok:false,error:'Недоверенный источник'};
@@ -293,9 +322,12 @@ ipcMain.on('byazen:site-close', (event, idValue) => {
   const id = Number(idValue);
   const view = siteViews.get(id);
   if (!view) return;
+  const privateSession=view.byazenPrivate?view.webContents.session:null;
+  if(view.byazenPrivate)for(let i=downloadRecords.length-1;i>=0;i--)if(downloadRecords[i].privateOwnerId===id){const record=downloadRecords[i],item=downloadItems.get(record.id);if(item&&!item.isCanceled())item.cancel();downloadItems.delete(record.id);downloadRecords.splice(i,1);}
   win.contentView.removeChildView(view);
   view.webContents.close();
   siteViews.delete(id);
+  if(privateSession){privateSession.clearStorageData().catch(()=>{});privateSession.clearCache().catch(()=>{});}
 });
 
 // Один запущенный экземпляр

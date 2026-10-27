@@ -209,6 +209,9 @@ kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;col
 .tab-fav svg{width:14px;height:14px;color:var(--text-2)}
 .tab-title{flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tab.active .tab-title{color:var(--text)}
+.tab.private .tab-title{color:#c4b5fd}
+.tab.private .tab-title::before{content:'Приватная · ';font-size:10px;color:#a78bfa}
+.tab.private .tab-fav{color:#c4b5fd}
 .tab-close{width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:6px;color:var(--text-3);opacity:0;transition:all .14s}
 .tab:hover .tab-close,.tab.active .tab-close{opacity:1}
 .tab-close:hover{background:rgba(255,255,255,.12);color:var(--text)}
@@ -240,6 +243,14 @@ kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;col
 #findBar input{width:min(240px,34vw);height:31px;border:0;outline:0;background:transparent;color:var(--text);padding:0 9px;font-size:12px}
 #findCount{min-width:42px;text-align:center;font-size:10px;color:var(--text-3);font-variant-numeric:tabular-nums}
 #findBar .icon-btn{width:29px;height:29px}
+#linkStatus{position:absolute;z-index:55;left:12px;bottom:10px;max-width:min(65%,640px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:5px 9px;background:rgba(20,20,24,.88);border:1px solid var(--border);border-radius:7px;color:var(--text-2);font-size:10px;display:none;pointer-events:none}
+#linkStatus.show{display:block}
+#pageCtx{position:absolute;z-index:205;width:232px;background:#1A1A1F;border:1px solid var(--border-2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);padding:5px;display:none}
+#pageCtx.show{display:block;animation:pop .13s var(--ease)}
+#pageCtx button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 10px;border-radius:8px;font-size:12px;color:var(--text-2)}
+#pageCtx button:hover{background:rgba(255,255,255,.07);color:var(--text)}
+#pageCtx button svg{width:14px;height:14px;flex:none}
+#pageCtx hr{border:none;border-top:1px solid var(--border);margin:4px 6px}
 #viewport.find-open #frames,#viewport.find-open #newtab,#viewport.find-open #searchpage{top:48px;height:calc(100% - 48px)}
 .downloads-modal{max-width:680px;max-height:78vh;display:flex;flex-direction:column}
 .download-item{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--border)}
@@ -569,6 +580,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <button class="icon-btn" id="homeBtn" title="Главная"><svg><use href="#i-home"/></svg></button>
       <div class="spacer"></div>
       <button class="icon-btn hide-collapsed" id="downloadsBtn" title="Загрузки"><svg><use href="#i-download"/></svg></button>
+      <button class="icon-btn hide-collapsed" id="privateTabBtn" title="Новая приватная вкладка (Ctrl+Shift+N)"><svg><use href="#i-lock"/></svg></button>
       <button class="icon-btn hide-collapsed" id="extBtn" title="Открыть сайт в системном браузере"><svg><use href="#i-ext"/></svg></button>
     </div>
 
@@ -611,6 +623,8 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
   <!-- ============ MAIN ============ -->
   <main id="main">
     <div id="viewport">
+      <div id="linkStatus" aria-live="polite"></div>
+      <div id="pageCtx" role="menu"></div>
       <div id="findBar" role="search" aria-label="Поиск на странице">
         <input id="findInput" type="search" placeholder="Найти на странице" autocomplete="off" aria-label="Текст для поиска">
         <span id="findCount" aria-live="polite">0/0</span>
@@ -914,7 +928,7 @@ let activeFindRequestId=0,findDebounce=null,downloadEntries=[];
 const framesEl = $('#frames'), tabsEl = $('#tabs'), pinnedEl = $('#pinned');
 const urlInput = $('#urlInput');
 function persistTabs(){
-  const recent=tabs.slice(-20);
+  const recent=tabs.filter(t=>!t.private).slice(-20);
   store.set('session',recent.map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})));
   store.set('sessionActive',recent.findIndex(t=>t.id===activeId));
 }
@@ -929,11 +943,12 @@ function syncNativeBounds(){
   const tab = activeTab();
   const rect = $('#viewport').getBoundingClientRect();
   const findOffset=$('#findBar').classList.contains('show')?48:0;
+  const statusOffset=$('#linkStatus').classList.contains('show')?32:0;
   const modalOpen = !!document.querySelector('.modal-overlay.show');
   const id = !modalOpen && tab && !isInternal(tab.url) ? tab.id : null;
   window.byazenDesktop.setActiveSite(id, {
     x: Math.round(rect.left), y: Math.round(rect.top+findOffset),
-    width: Math.round(rect.width), height: Math.max(1,Math.round(rect.height-findOffset))
+    width: Math.round(rect.width), height: Math.max(1,Math.round(rect.height-findOffset-statusOffset))
   });
 }
 const viewportResizeObserver = nativeWebview && window.ResizeObserver ? new ResizeObserver(syncNativeBounds) : null;
@@ -984,7 +999,7 @@ function titleFor(url){
 }
 function createTab(url='byazen://newtab', opts={}){
   const tab = { id:++tabSeq, url, title:opts.title || titleFor(url), group:typeof opts.group==='string'?opts.group:'',
-                loading:false, muted:false, pinned:!!opts.pinned, hist: isNewTab(url)?[]:[url], hi: isNewTab(url)?-1:0, frame:null };
+                loading:false, muted:false, private:!!(opts.private&&nativeWebview), pinned:!!opts.pinned, hist: isNewTab(url)?[]:[url], hi: isNewTab(url)?-1:0, frame:null };
   if (!isInternal(url)){
     if (nativeWebview) tab.nativeView = true;
     else { tab.frame = createEmbeddedPage(tab); framesEl.appendChild(tab.frame); }
@@ -994,12 +1009,33 @@ function createTab(url='byazen://newtab', opts={}){
   if (opts.activate !== false) activateTab(tab.id); else { renderTabs(); persistTabs(); }
   return tab;
 }
+function createPrivateTab(url='byazen://newtab',opts={}){
+  if(!nativeWebview){toast('Приватные вкладки доступны только в настольной версии');return null;}
+  if(/^http:\/\//i.test(url)&&store.get('warnHttp',true)!==false&&!confirm('Этот сайт использует незашифрованное HTTP-соединение. Открыть его в приватной вкладке?'))return null;
+  const tab=createTab(url,{...opts,private:true});
+  toast('Приватная вкладка: история и сайтные данные не сохраняются; загруженные файлы останутся на диске.');
+  return tab;
+}
+function browserShortcutFromEvent(e){
+  const key=String(e.key||'').toLowerCase(),ctrl=!!(e.ctrlKey||e.metaKey),shift=!!e.shiftKey,alt=!!e.altKey;
+  if(ctrl&&shift&&key==='r')return 'hard-reload';if(ctrl&&shift&&key==='n')return 'private-tab';
+  if(ctrl&&key==='f')return 'find';if(ctrl&&key==='t')return 'new-tab';if(ctrl&&key==='w')return 'close-tab';if(ctrl&&key==='l')return 'focus-address';
+  if(ctrl&&key==='tab')return shift?'previous-tab':'next-tab';if(ctrl&&key==='r')return 'reload';if(ctrl&&key==='0')return 'zoom-reset';
+  if(ctrl&&(key==='+'||key==='='))return 'zoom-in';if(ctrl&&key==='-')return 'zoom-out';
+  if(alt&&key==='arrowleft')return 'back';if(alt&&key==='arrowright')return 'forward';return '';
+}
 function createEmbeddedPage(tab){
   const f = document.createElement('iframe');
   f.setAttribute('allow','autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; picture-in-picture');
   f.addEventListener('load', ()=>{
     if(tab.loading){ tab.loading=false; renderTabs(); syncChrome(); }
-    try{f.contentDocument.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();if(activeId===tab.id)openFindBar();}});}catch{}
+    applySavedPageZoom(tab);
+    try{
+      f.contentDocument.addEventListener('keydown',e=>{const shortcut=browserShortcutFromEvent(e);if(shortcut){e.preventDefault();if(activeId===tab.id)runBrowserShortcut(shortcut);}});
+      f.contentDocument.addEventListener('contextmenu',e=>{e.preventDefault();const anchor=e.target.closest?.('a[href]'),image=e.target.closest?.('img,video,audio');showPageContextMenu({x:e.clientX,y:e.clientY,linkURL:anchor?.href||'',srcURL:image?.src||'',mediaType:image?.tagName==='IMG'?'image':'',selectionText:String(f.contentWindow.getSelection()?.toString()||'').slice(0,1000),isEditable:!!(e.target.isContentEditable||['INPUT','TEXTAREA'].includes(e.target.tagName))},tab);});
+      f.contentDocument.addEventListener('mouseover',e=>{const anchor=e.target.closest?.('a[href]');showLinkStatus(anchor?.href||'');});
+      f.contentDocument.addEventListener('mouseout',e=>{if(!e.relatedTarget?.closest?.('a[href]'))showLinkStatus('');});
+    }catch{}
   });
   tab.frame=f;
   return f;
@@ -1016,7 +1052,7 @@ function updateNativeTab(tab,url,title){
     if (tab.hist[tab.hi] !== url){ tab.hist=tab.hist.slice(0,tab.hi+1); tab.hist.push(url); tab.hi=tab.hist.length-1; }
   }
   if (title && title.trim()) tab.title=title.trim();
-  if (tab.url) addHistory(tab.url,tab.title);
+  if (tab.url) addHistory(tab.url,tab.title,tab.private);
   persistTabs();
   renderTabs();
   if (tab.id===activeId){ syncChrome(); document.title=tab.title+' — ByAzen'; }
@@ -1029,15 +1065,24 @@ if (nativeWebview) window.byazenDesktop.onSiteEvent(data=>{
     return;
   }
   if(data.type==='shortcut'){
-    if(tab.id===activeId&&data.key==='find')openFindBar();
+    if(tab.id===activeId)runBrowserShortcut(data.key);
     return;
   }
-  if(data.type==='navigate') updateNativeTab(tab,data.url);
+  if(data.type==='link-hover'){
+    if(tab.id===activeId)showLinkStatus(data.url);
+    return;
+  }
+  if(data.type==='page-context-menu'){
+    if(tab.id===activeId)showPageContextMenu(data,tab);
+    return;
+  }
+  if(data.type==='navigate'){showLinkStatus('');updateNativeTab(tab,data.url);}
   else if(data.type==='title') updateNativeTab(tab,null,data.title);
   else if(data.type==='loading'){
     tab.loading=!!data.loading;
     renderTabs();
     if(tab.id===activeId) syncChrome();
+    if(!tab.loading)applySavedPageZoom(tab);
   } else if(data.type==='failure'){
     tab.loading=false;
     renderTabs();
@@ -1065,7 +1110,7 @@ function loadFrame(tab, url){
   tab.loading = true;
   if (nativeWebview){
     tab.nativeView = true;
-    window.byazenDesktop.openSite(tab.id,url);
+    window.byazenDesktop.openSite(tab.id,url,tab.private);
   } else {
     const f = ensureFrame(tab);
     f.src = '/proxy?url='+encodeURIComponent(url);
@@ -1084,7 +1129,7 @@ function navigateTab(tab, url, pushHist=true){
   tab.url = url;
   if (pushHist){ tab.hist = tab.hist.slice(0, tab.hi+1); tab.hist.push(url); tab.hi = tab.hist.length-1; tab.title = hostOf(url) || url; }
   $('#ntSearch').value = ''; $('#ntDrop').classList.remove('show'); $('#omniDrop').classList.remove('show');
-  addHistory(url, hostOf(url));
+  addHistory(url, hostOf(url),tab.private);
   loadFrame(tab, url); renderTabs(); syncChrome(); updateView(); persistTabs();
 }
 function navigateActive(raw){
@@ -1095,6 +1140,7 @@ function navigateActive(raw){
 }
 function activeTab(){ return tabs.find(t=>t.id===activeId); }
 function activateTab(id){
+  if(activeId!==id)showLinkStatus('');
   if(activeId!==id&&$('#findBar').classList.contains('show'))closeFindBar();
   if(activeId!==id&&tabs.some(t=>t.id===activeId))lastActiveId=activeId;
   activeId = id;
@@ -1104,21 +1150,31 @@ function activateTab(id){
   renderTabs(); syncChrome(); renderRecent(); persistTabs();
   if (tab && isNewTab(tab.url)) setTimeout(()=> $('#ntSearch').focus(), 60);
 }
+function switchNextTab(){
+  if(tabs.length<2)return;const index=tabs.findIndex(t=>t.id===activeId);activateTab(tabs[(index+1+tabs.length)%tabs.length].id);
+}
 function switchPreviousTab(){
   const previous=tabs.find(t=>t.id===lastActiveId);
   if(previous){const current=activeId;activateTab(previous.id);lastActiveId=current;return;}
   if(tabs.length>1){const index=tabs.findIndex(t=>t.id===activeId);activateTab(tabs[(index-1+tabs.length)%tabs.length].id);}
 }
+function duplicateTab(id=activeId){
+  const source=tabs.find(item=>item.id===Number(id));if(!source)return null;
+  const options={title:source.title,pinned:source.pinned,group:source.group||''};
+  const copy=source.private?createPrivateTab(source.url,options):createTab(source.url,options);
+  copy.hist=source.hist.slice();copy.hi=source.hi;persistTabs();renderTabs();return copy;
+}
 function closeTab(id){
   if(id===activeId&&$('#findBar').classList.contains('show'))closeFindBar();
   const i = tabs.findIndex(t=>t.id===id); if(i<0) return;
   const [tab] = tabs.splice(i,1);
-  if (!isNewTab(tab.url)) { closedTabs.unshift({url:tab.url,title:tab.title,pinned:tab.pinned,group:tab.group||'',closedAt:Date.now()}); closedTabs=closedTabs.slice(0,12); store.set('closedTabs',closedTabs); }
+  if (!tab.private&&!isNewTab(tab.url)) { closedTabs.unshift({url:tab.url,title:tab.title,pinned:tab.pinned,group:tab.group||'',closedAt:Date.now()}); closedTabs=closedTabs.slice(0,12); store.set('closedTabs',closedTabs); }
   if (tab.frame) tab.frame.remove();
   if (tab.nativeView) window.byazenDesktop.closeSite(tab.id);
   if (!tabs.length){ persistTabs(); createTab(); return; }
   if (activeId === id) activateTab(tabs[Math.max(0,i-1)].id); else { renderTabs(); persistTabs(); }
 }
+function openInSystemBrowser(tab){if(!tab||isInternal(tab.url))return;if(tab.private&&!confirm('Системный браузер не входит в приватную сессию ByAzen. Продолжить?'))return;window.open(tab.url,'_blank','noopener');}
 async function toggleTabMute(id){
   const tab=tabs.find(item=>item.id===Number(id));if(!tab)return;
   try{
@@ -1129,6 +1185,7 @@ async function toggleTabMute(id){
 }
 function tabFavHTML(tab){
   if (tab.loading) return '<span class="spinner"></span>';
+  if (tab.private) return '<svg><use href="#i-lock"/></svg>';
   if (isNewTab(tab.url)) return '<svg><use href="#i-spark"/></svg>';
   if (isSearch(tab.url)) return '<svg><use href="#i-search"/></svg>';
   return `<img src="${faviconOf(tab.url)}" alt="" onerror="this.outerHTML='<svg><use href=&quot;#i-globe&quot;/></svg>'">`;
@@ -1137,9 +1194,9 @@ function tabGroupColor(name){let hash=0;for(const ch of name)hash=(hash*31+ch.ch
 function renderTabs(){
   $('#tabCount').textContent = tabs.length;
   pinnedEl.innerHTML = tabs.filter(t=>t.pinned).map(t=>
-    `<button class="pin-btn ${t.id===activeId?'active':''} ${t.muted?'muted':''}" data-id="${t.id}" ${t.group?`style="--tab-group-color:${tabGroupColor(t.group)}"`:''} title="${t.muted?'Звук выключен · ':''}${t.group?escapeHtml(t.group)+' · ':''}${escapeHtml(t.title)}">${tabFavHTML(t)}</button>`).join('');
+    `<button class="pin-btn ${t.id===activeId?'active':''} ${t.muted?'muted':''} ${t.private?'private':''}" data-id="${t.id}" ${t.group?`style="--tab-group-color:${tabGroupColor(t.group)}"`:''} title="${t.private?'Приватная вкладка · ':''}${t.muted?'Звук выключен · ':''}${t.group?escapeHtml(t.group)+' · ':''}${escapeHtml(t.title)}">${tabFavHTML(t)}</button>`).join('');
   tabsEl.innerHTML = tabs.filter(t=>!t.pinned).map(t=>`
-    <div class="tab ${t.id===activeId?'active':''} ${t.muted?'muted':''}" data-id="${t.id}" ${t.group?`data-group="${escapeHtml(t.group)}" style="--tab-group-color:${tabGroupColor(t.group)}"`:''} draggable="true" title="${t.muted?'Звук выключен · ':''}${t.group?escapeHtml(t.group)+' · ':''}${escapeHtml(t.title)}">
+    <div class="tab ${t.id===activeId?'active':''} ${t.muted?'muted':''} ${t.private?'private':''}" data-id="${t.id}" ${t.group?`data-group="${escapeHtml(t.group)}" style="--tab-group-color:${tabGroupColor(t.group)}"`:''} draggable="true" title="${t.private?'Приватная вкладка · ':''}${t.muted?'Звук выключен · ':''}${t.group?escapeHtml(t.group)+' · ':''}${escapeHtml(t.title)}">
       <span class="tab-fav">${tabFavHTML(t)}</span>
       <span class="tab-title">${escapeHtml(t.title)}${t.muted?'<small class="mute-indicator">🔇</small>':''}${t.group?`<small class="tab-group-label">${escapeHtml(t.group)}</small>`:''}</span>
       <button class="tab-close" data-close="${t.id}" title="Закрыть"><svg><use href="#i-x"/></svg></button>
@@ -1185,15 +1242,15 @@ function syncChrome(){
 
 /* ---------- history / bookmarks ---------- */
 function normUrl(u){ try{ return decodeURI(u); }catch{ return u; } }
-function addHistory(url, title){
-  if (isInternal(url)) return;
+function addHistory(url, title, privateMode=false){
+  if (isInternal(url)||privateMode) return;
   const prev = historyLog.find(h=> normUrl(h.url) === normUrl(url));
   historyLog = historyLog.filter(h=> normUrl(h.url) !== normUrl(url));
   historyLog.unshift({url, title: (title && title!==hostOf(url)) ? title : (prev && prev.title!==hostOf(url) ? prev.title : (title||hostOf(url))), time: Date.now()});
   historyLog = historyLog.slice(0, 300); store.set('history', historyLog);
 }
 function renderRecent(){
-  const show = settings.showRecent && historyLog.length;
+  const show = settings.showRecent && historyLog.length && !activeTab()?.private;
   $('#recentSection').style.display = show ? 'block' : 'none';
   if (!show) return;
   const seen = new Set(), items = [];
@@ -1217,37 +1274,46 @@ window.addEventListener('message', e=>{
     if (tab.hist[tab.hi] !== url){ tab.hist = tab.hist.slice(0, tab.hi+1); tab.hist.push(url); tab.hi = tab.hist.length-1; }
   }
   if (title) tab.title = title;
-  addHistory(tab.url, tab.title);
+  addHistory(tab.url, tab.title,tab.private);
   renderTabs(); if (tab.id===activeId){ syncChrome(); document.title = tab.title + ' — ByAzen'; }
 });
 
 /* ---------- suggestions ---------- */
+function localOmniSuggestions(query){
+  const q=query.toLocaleLowerCase('ru'),matches=[];
+  const add=(value,label,kind,rank=0,id=null)=>{if(matches.some(x=>x.value===value&&x.kind===kind))return;if((label+' '+value).toLocaleLowerCase('ru').includes(q))matches.push({value,label,kind,rank,id});};
+  for(const tab of tabs)add(tab.url,tab.title+' · '+hostOf(tab.url),'tab',200,tab.id);
+  for(const mark of bookmarks)add(mark.url,(mark.title||hostOf(mark.url))+' · закладка','bookmark',150);
+  if(!activeTab()?.private)for(const item of historyLog.slice(0,80))add(item.url,(item.title||hostOf(item.url))+' · '+hostOf(item.url),'history',100+Math.min(40,(Number(item.time)||0)/1e12));
+  return matches.sort((a,b)=>b.rank-a.rank).slice(0,5);
+}
 function attachSuggest(input, drop, onPick){
   let timer, sel = -1, items = [];
   function close(){ drop.classList.remove('show'); sel=-1; }
   function render(){
     if(!items.length){ close(); return; }
-    drop.innerHTML = items.map((s,i)=>`<button class="suggest-item ${i===sel?'sel':''}" data-i="${i}"><svg><use href="#i-search"/></svg><span>${escapeHtml(s)}</span>${i===sel?'<span class="hint">↵</span>':''}</button>`).join('');
+    drop.innerHTML = items.map((item,i)=>`<button class="suggest-item ${i===sel?'sel':''}" data-i="${i}"><svg><use href="#${item.kind==='tab'?'i-globe':item.kind==='bookmark'?'i-bookmark':item.kind==='history'?'i-history':'i-search'}"/></svg><span>${escapeHtml(item.label)}</span>${item.kind!=='search'?`<small>${item.kind==='tab'?'Вкладка':item.kind==='bookmark'?'Закладка':'История'}</small>`:''}${i===sel?'<span class="hint">↵</span>':''}</button>`).join('');
     drop.classList.add('show');
-    drop.querySelectorAll('.suggest-item').forEach(el=> el.onmousedown = ev=>{ ev.preventDefault(); close(); onPick(items[+el.dataset.i]); });
+    drop.querySelectorAll('.suggest-item').forEach(el=>el.onmousedown=ev=>{ev.preventDefault();const item=items[+el.dataset.i];close();onPick(item);});
   }
-  input.addEventListener('input', ()=>{
-    clearTimeout(timer); const q = input.value.trim();
-    if (q.length < 2 || /^https?:|^[\w-]+(\.[\w-]+)+/.test(q)){ items=[]; close(); return; }
-    timer = setTimeout(async ()=>{
-      try{ const r = await fetch('/api/suggest?q='+encodeURIComponent(q)); items = await r.json(); sel=-1; render(); }catch{}
-    }, 160);
+  input.addEventListener('input',()=>{
+    clearTimeout(timer);const q=input.value.trim();if(!q){items=[];close();return;}
+    const local=input===urlInput?localOmniSuggestions(q):[];items=local;sel=-1;render();
+    if(q.length<2||/^https?:/i.test(q)||/^[^\s]+\.[a-z]{2,}([/?#].*)?$/i.test(q)){return;}
+    timer=setTimeout(async()=>{
+      try{const response=await fetch('/api/suggest?q='+encodeURIComponent(q));const remote=(await response.json()).map(value=>({value,label:value,kind:'search',rank:0}));const seen=new Set(local.map(x=>x.value));items=[...local,...remote.filter(x=>!seen.has(x.value))].slice(0,8);sel=-1;render();}catch{}
+    },160);
   });
-  input.addEventListener('keydown', e=>{
-    if (e.key==='ArrowDown' || e.key==='ArrowUp'){ e.preventDefault(); if(!items.length) return; sel = (sel + (e.key==='ArrowDown'?1:-1) + items.length) % items.length; render(); }
-    else if (e.key==='Enter'){ e.preventDefault(); clearTimeout(timer); const v = sel>=0 ? items[sel] : input.value; items=[]; close(); onPick(v); }
-    else if (e.key==='Escape') close();
+  input.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!items.length)return;sel=(sel+(e.key==='ArrowDown'?1:-1)+items.length)%items.length;render();}
+    else if(e.key==='Enter'){e.preventDefault();clearTimeout(timer);const item=sel>=0?items[sel]:{value:input.value,kind:'search'};items=[];close();onPick(item);}
+    else if(e.key==='Escape')close();
   });
-  input.addEventListener('blur', ()=> setTimeout(close, 120));
+  input.addEventListener('blur',()=>setTimeout(close,120));
 }
-attachSuggest(urlInput, $('#omniDrop'), v=>{ navigateActive(v); urlInput.blur(); });
-attachSuggest($('#ntSearch'), $('#ntDrop'), v=> navigateActive(v));
-attachSuggest($('#spSearch'), $('#spDrop'), v=> navigateActive(v));
+attachSuggest(urlInput, $('#omniDrop'), item=>{if(item.kind==='tab')activateTab(item.id);else navigateActive(item.value);urlInput.blur();});
+attachSuggest($('#ntSearch'), $('#ntDrop'), item=> navigateActive(item.value));
+attachSuggest($('#spSearch'), $('#spDrop'), item=> navigateActive(item.value));
 
 /* ---------- ByAzen Search page ---------- */
 let lastSearchQ = '', searchToken = 0;
@@ -1309,9 +1375,10 @@ function goHist(tab, dir){
   renderTabs(); syncChrome();
 }
 $('#reloadBtn').onclick = ()=>{ const t=activeTab(); if(!t) return; if(isSearch(t.url)){ lastSearchQ='__reset__'; runSearch(searchQueryOf(t.url)); } else if(!isInternal(t.url)){ loadFrame(t, t.url); renderTabs(); } };
+async function hardReloadActive(){const tab=activeTab();if(!tab||isInternal(tab.url))return;if(nativeWebview){const result=await window.byazenDesktop.hardReloadPage(tab.id);if(!result?.ok)toast('Не удалось выполнить полную перезагрузку');}else try{tab.frame.contentWindow.location.reload();}catch{loadFrame(tab,tab.url);} }
 $('#backBtn').onclick = ()=>{ const t=activeTab(); if(t) goHist(t,-1); };
 $('#fwdBtn').onclick = ()=>{ const t=activeTab(); if(t) goHist(t, 1); };
-$('#extBtn').onclick = ()=>{ const t=activeTab(); if(t && !isInternal(t.url)) window.open(t.url,'_blank','noopener'); };
+$('#extBtn').onclick = ()=>openInSystemBrowser(activeTab());
 $('#collapseBtn').onclick = ()=> $('#sidebar').classList.toggle('collapsed');
 $('#starBtn').onclick = ()=>{
   const t = activeTab(); if(!t || isInternal(t.url)) return;
@@ -1487,7 +1554,7 @@ $('#sidebarSide').onchange=()=>{store.set('sidebarSide',$('#sidebarSide').value)
 window.__byazenPrepareToClose=()=>{if(store.get('clearHistoryOnExit',false)){historyLog=[];store.set('history',[]);renderRecent();}return true;};
 $('#clearHist').onclick = ()=>{ historyLog=[]; store.set('history',historyLog); renderRecent(); toast('История очищена'); };
 $('#clearBm').onclick = ()=>{ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); renderBookmarkBar(); toast('Закладки очищены'); };
-const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantInputLang','assistantVoice','assistantWindow','aiPageActionsAllowed','assistantChats','contrastMode','compactMode','uiScale','sidebarSide','clearHistoryOnExit','warnHttp'];
+const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantInputLang','assistantVoice','assistantWindow','aiPageActionsAllowed','assistantChats','contrastMode','compactMode','uiScale','sidebarSide','clearHistoryOnExit','warnHttp','siteZoomPreferences'];
 function downloadTextFile(name,text,type){
   const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');
   link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1514,7 +1581,8 @@ $('#bookmarkFile').onchange=async e=>{
   }catch(err){toast('Не удалось импортировать: '+err.message);}
 };
 $('#exportBackup').onclick=()=>{
-  const defaults={settings,hotkeys,bookmarks,bookmarkFolders,bookmarkSort:$('#bookmarkSort').value||'newest',collections,history:historyLog,shortcuts,closedTabs,session:tabs.slice(-20).map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})),sessionActive:Math.max(0,tabs.slice(-20).findIndex(t=>t.id===activeId)),assistantModel:aiModel,assistantSpeak:$('#aiSpeak').checked,assistantVoiceStyle:$('#aiVoiceStyle').value,assistantVoiceRate:$('#aiVoiceRate').value,assistantInputLang:$('#aiInputLang').value,assistantVoice:$('#aiVoice').value,assistantWindow:store.get('assistantWindow',null),aiPageActionsAllowed:store.get('aiPageActionsAllowed',true),assistantChats:savedAiChats,contrastMode:store.get('contrastMode',false),compactMode:store.get('compactMode',false),uiScale:store.get('uiScale','1'),sidebarSide:store.get('sidebarSide','left'),clearHistoryOnExit:store.get('clearHistoryOnExit',false),warnHttp:store.get('warnHttp',true)};
+  const restorableTabs=tabs.filter(t=>!t.private).slice(-20);
+  const defaults={settings,hotkeys,bookmarks,bookmarkFolders,bookmarkSort:$('#bookmarkSort').value||'newest',collections,history:historyLog,shortcuts,closedTabs,session:restorableTabs.map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})),sessionActive:Math.max(0,restorableTabs.findIndex(t=>t.id===activeId)),assistantModel:aiModel,assistantSpeak:$('#aiSpeak').checked,assistantVoiceStyle:$('#aiVoiceStyle').value,assistantVoiceRate:$('#aiVoiceRate').value,assistantInputLang:$('#aiInputLang').value,assistantVoice:$('#aiVoice').value,assistantWindow:store.get('assistantWindow',null),aiPageActionsAllowed:store.get('aiPageActionsAllowed',true),assistantChats:savedAiChats,contrastMode:store.get('contrastMode',false),compactMode:store.get('compactMode',false),uiScale:store.get('uiScale','1'),sidebarSide:store.get('sidebarSide','left'),clearHistoryOnExit:store.get('clearHistoryOnExit',false),warnHttp:store.get('warnHttp',true),siteZoomPreferences};
   const data={};
   for(const key of BACKUP_KEYS){const raw=localStorage.getItem('byazen:'+key);if(raw!==null){try{data[key]=JSON.parse(raw);}catch{data[key]=defaults[key];}}else if(Object.hasOwn(defaults,key))data[key]=defaults[key];}
   downloadTextFile(`ByAzen-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({format:'byazen-backup',schemaVersion:1,createdAt:new Date().toISOString(),data},null,2),'application/json;charset=utf-8');
@@ -1528,6 +1596,7 @@ function validBackupValue(key,value){
   if(['aiPageActionsAllowed','contrastMode','compactMode','clearHistoryOnExit','warnHttp'].includes(key))return typeof value==='boolean';
   if(key==='uiScale')return ['0.9','1','1.1','1.2'].includes(String(value));
   if(key==='sidebarSide')return ['left','right'].includes(value);
+  if(key==='siteZoomPreferences')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=200&&Object.entries(value).every(([host,scale])=>/^[a-z0-9.-]{1,253}$/i.test(host)&&[.5,.6,.7,.8,.9,1,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2].includes(Number(scale)));
   if(key==='assistantChats')return Array.isArray(value)&&value.length<=50&&value.every(c=>c&&typeof c.name==='string'&&c.name.length<=80&&Array.isArray(c.messages)&&c.messages.length<=100&&c.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'&&m.content.length<=12000));
   if(key==='collections')return Array.isArray(value)&&value.length<=100&&value.every(x=>x&&typeof x.name==='string'&&x.name.length<=80&&Array.isArray(x.tabs)&&x.tabs.length<=100&&x.tabs.every(t=>t&&typeof t.url==='string'&&/^https?:\/\//i.test(t.url)));
   if(['bookmarks','history','shortcuts','closedTabs','session'].includes(key))return Array.isArray(value)&&value.length<=5000&&value.every(x=>x&&typeof x.url==='string'&&(/^(https?:\/\/|byazen:\/\/)/i.test(x.url)));
@@ -1564,18 +1633,24 @@ function openCtx(x, y, id){
   ctx.innerHTML = `
     <button data-a="reload"><svg><use href="#i-reload"/></svg>Перезагрузить</button>
     <button data-a="dup"><svg><use href="#i-copy"/></svg>Дублировать</button>
+    ${nativeWebview&&!tab.private?'<button data-a="privateCopy"><svg><use href="#i-lock"/></svg>Открыть копию приватно</button>':''}
+    <button data-a="copyUrl"><svg><use href="#i-copy"/></svg>Копировать адрес</button>
+    ${!isInternal(tab.url)?'<button data-a="external"><svg><use href="#i-ext"/></svg>Открыть в системном браузере</button>':''}
     <button data-a="pin"><svg><use href="#i-pin"/></svg>${tab.pinned?'Открепить':'Закрепить'}</button>
     <button data-a="group"><svg><use href="#i-bookmark"/></svg>${tab.group?'Изменить группу':'Добавить в группу'}</button>
     <button data-a="mute">${tab.muted?'🔊 Включить звук':'🔇 Выключить звук'}</button>
     <hr>
     <button data-a="closeOthers"><svg><use href="#i-x"/></svg>Закрыть другие</button>
     <button data-a="close" class="danger"><svg><use href="#i-trash"/></svg>Закрыть вкладку</button>`;
-  ctx.style.left = Math.min(x, innerWidth-224)+'px'; ctx.style.top = Math.min(y, innerHeight-270)+'px';
+  ctx.style.left = Math.min(x, innerWidth-224)+'px'; ctx.style.top = Math.min(y, innerHeight-380)+'px';
   ctx.classList.add('show');
   ctx.querySelectorAll('button').forEach(b=> b.onclick = ()=>{
     ctx.classList.remove('show'); const a=b.dataset.a;
     if(a==='close') closeTab(id);
-    if(a==='dup') createTab(tab.url);
+    if(a==='dup') duplicateTab(id);
+    if(a==='privateCopy')createPrivateTab(tab.url);
+    if(a==='copyUrl')copyPlainText(tab.url);
+    if(a==='external')openInSystemBrowser(tab);
     if(a==='pin'){ tab.pinned=!tab.pinned; renderTabs(); persistTabs(); }
     if(a==='group'){const name=prompt('Название группы вкладок (оставьте пустым, чтобы убрать):',tab.group||'');if(name!==null){tab.group=name.trim().slice(0,36);renderTabs();persistTabs();}}
     if(a==='mute')toggleTabMute(id);
@@ -1583,10 +1658,69 @@ function openCtx(x, y, id){
     if(a==='closeOthers'){ [...tabs].forEach(t=>{ if(t.id!==id) closeTab(t.id); }); activateTab(id); }
   });
 }
-document.addEventListener('click', e=>{ if(!ctx.contains(e.target)) ctx.classList.remove('show'); });
+document.addEventListener('click',e=>{if(!ctx.contains(e.target))ctx.classList.remove('show');if(!$('#pageCtx').contains(e.target))closePageContextMenu();});
 
+let pageContextState=null;
+function showLinkStatus(raw){
+  const status=$('#linkStatus'),url=String(raw||'');const visible=/^https?:\/\//i.test(url)&&activeTab()&&!isInternal(activeTab().url);
+  const wasVisible=status.classList.contains('show');status.textContent=visible?url:'';status.title=visible?url:'';status.classList.toggle('show',!!visible);if(nativeWebview&&wasVisible!==!!visible)syncNativeBounds();
+}
+function closePageContextMenu(){
+  if(!$('#pageCtx').classList.contains('show'))return;
+  $('#pageCtx').classList.remove('show');pageContextState=null;if(nativeWebview)syncNativeBounds();
+}
+function showPageContextMenu(data,tab){
+  if(!tab)return;showLinkStatus('');const menu=$('#pageCtx'),link=/^https?:\/\//i.test(String(data.linkURL||''))?String(data.linkURL):'',image=data.mediaType==='image'&&/^https?:\/\//i.test(String(data.srcURL||''))?String(data.srcURL):'',selection=String(data.selectionText||'').trim().slice(0,1000);
+  pageContextState={tabId:tab.id,private:!!tab.private,url:tab.url,link,image,selection,editable:!!data.isEditable};
+  const items=[['reload','i-reload','Перезагрузить страницу']];
+  if(data.isEditable)items.push(['edit-copy','i-copy','Копировать'],['edit-cut','i-copy','Вырезать'],['edit-paste','i-copy','Вставить']);
+  if(link){items.push([tab.private?'open-private':'open-link','i-ext',tab.private?'Открыть ссылку приватно':'Открыть ссылку в новой вкладке'],['copy-link','i-copy','Копировать адрес ссылки']);}
+  if(image){items.push([tab.private?'open-image-private':'open-image','i-globe','Открыть изображение в новой вкладке'],['copy-image','i-copy','Копировать адрес изображения']);}
+  if(selection){items.push(['copy-selection','i-copy','Копировать выделение'],[tab.private?'search-private':'search-selection','i-search','Искать выделенный текст']);}
+  items.push(['copy-page','i-copy','Копировать адрес страницы']);if(!isInternal(tab.url))items.push(['open-external','i-ext','Открыть в системном браузере']);
+  menu.innerHTML=items.map(([action,icon,label])=>`<button role="menuitem" data-page-action="${action}"><svg><use href="#${icon}"/></svg>${label}</button>`).join('');
+  const offset=$('#findBar').classList.contains('show')?48:0,viewport=$('#viewport');
+  const left=Math.max(6,Math.min(Number(data.x)||0,viewport.clientWidth-238)),top=Math.max(6,Math.min((Number(data.y)||0)+offset,viewport.clientHeight-items.length*36-14));
+  menu.style.left=left+'px';menu.style.top=top+'px';menu.classList.add('show');
+  menu.querySelectorAll('[data-page-action]').forEach(button=>button.onclick=()=>runPageContextAction(button.dataset.pageAction));
+  if(nativeWebview)window.byazenDesktop.setActiveSite(null);
+}
+function openContextUrl(url,privateMode=false){
+  if(!/^https?:\/\//i.test(url))return toast('Адрес ссылки не поддерживается');
+  if(!privateMode&&/^http:\/\//i.test(url)&&store.get('warnHttp',true)!==false&&!confirm('Ссылка использует незашифрованное HTTP-соединение. Продолжить?'))return;
+  if(privateMode)createPrivateTab(url);else createTab(url);
+}
+async function runPageContextAction(action){
+  const state=pageContextState;if(!state)return;const tab=tabs.find(item=>item.id===state.tabId);closePageContextMenu();if(!tab)return;
+  if(action==='reload'){activateTab(tab.id);$('#reloadBtn').click();return;}
+  if(['edit-copy','edit-cut','edit-paste'].includes(action)){
+    const command=action.slice(5);if(nativeWebview){const result=await window.byazenDesktop.editPageSelection(tab.id,command);if(!result?.ok)toast('Действие с текстом не выполнено');}
+    else try{tab.frame.contentDocument.execCommand(command);}catch{toast('Действие недоступно в этой странице');}return;
+  }
+  if(action==='copy-link')return copyPlainText(state.link);
+  if(action==='copy-image')return copyPlainText(state.image);
+  if(action==='copy-selection')return copyPlainText(state.selection);
+  if(action==='copy-page')return copyPlainText(isSearch(state.url)?searchQueryOf(state.url):state.url);
+  if(action==='open-external')return openInSystemBrowser(tab);
+  if(action==='open-link')return openContextUrl(state.link,false);
+  if(action==='open-private')return openContextUrl(state.link,true);
+  if(action==='open-image')return openContextUrl(state.image,false);
+  if(action==='open-image-private')return openContextUrl(state.image,true);
+  if(action==='search-selection'||action==='search-private'){
+    const target=resolveInput(state.selection);if(!target)return;
+    if(action==='search-private')createPrivateTab(target);else createTab(target);
+  }
+}
 /* ---------- page utilities ---------- */
-let pageZooms=new Map();let readerFontSize=Number(store.get('readerFontSize',19))||19;
+let pageZooms=new Map();
+let siteZoomPreferences=Object.fromEntries(Object.entries(store.get('siteZoomPreferences',{})).filter(([host,scale])=>/^[a-z0-9.-]{1,253}$/i.test(host)&&Number(scale)>=.5&&Number(scale)<=2));
+let readerFontSize=Number(store.get('readerFontSize',19))||19;
+function siteZoom(tab){if(tab?.private)return pageZooms.get(tab.id)??1;const host=hostOf(tab?.url||'');const factor=Number(siteZoomPreferences[host]);return Number.isFinite(factor)&&factor>=.5&&factor<=2?factor:1;}
+async function applySavedPageZoom(tab){
+  if(!tab||isInternal(tab.url))return;const factor=siteZoom(tab);pageZooms.set(tab.id,factor);
+  if(nativeWebview){if(window.byazenDesktop)await window.byazenDesktop.setPageZoom(tab.id,factor);}
+  else if(tab.frame)tab.frame.style.zoom=String(factor);
+}
 async function activePageData(){
   const tab=activeTab();if(!tab||isInternal(tab.url))throw new Error('Откройте веб-страницу сначала');
   if(nativeWebview){const data=await window.byazenDesktop.getPageContext(tab.id);if(data?.error)throw new Error(data.error);return {title:data.title||tab.title,url:data.url||tab.url,text:data.text||''};}
@@ -1619,10 +1753,11 @@ async function translateCurrentPage(){
 async function searchSelectedText(){const text=await selectedPageText();if(!text){toast('Сначала выделите текст на странице');return;}createTab(resolveInput(text));}
 async function speakSelectedText(){const text=await selectedPageText();if(!text){toast('Сначала выделите фрагмент на странице');return;}speakAi(text.slice(0,1500));}
 async function copyCurrentPageText(){try{const page=await activePageData();await copyPlainText(page.text.slice(0,100000));}catch(e){toast(e.message);}}
+async function copyCurrentAddress(){const tab=activeTab();if(!tab||isNewTab(tab.url)){toast('Нет адреса для копирования');return;}await copyPlainText(isSearch(tab.url)?searchQueryOf(tab.url):tab.url);}
 async function saveCurrentPageOffline(){try{const page=await activePageData();const html='<!doctype html><meta charset="utf-8"><title>'+escapeHtml(page.title)+'</title><h1>'+escapeHtml(page.title)+'</h1><p>Источник: <a href="'+escapeHtml(page.url)+'">'+escapeHtml(page.url)+'</a></p><pre style="white-space:pre-wrap;font:16px/1.6 sans-serif">'+escapeHtml(page.text.slice(0,100000))+'</pre>';downloadTextFile((page.title||'page').replace(/[\\/:*?"<>|]/g,'_').slice(0,80)+'.html',html,'text/html;charset=utf-8');toast('Текстовая копия страницы сохранена');}catch(e){toast(e.message);}}
 async function showPageInfo(){try{const page=await activePageData();alert(`Заголовок: ${page.title}\nАдрес: ${page.url}\nДомен: ${hostOf(page.url)}\nСимволов текста: ${page.text.length}`);}catch(e){toast(e.message);}}
-async function zoomActivePage(delta=0){const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Масштаб доступен на веб-странице');return;}const next=Math.max(.5,Math.min(2,Math.round(((pageZooms.get(tab.id)||1)+delta)*10)/10));pageZooms.set(tab.id,next);if(nativeWebview){const r=await window.byazenDesktop.setPageZoom(tab.id,next);if(!r?.ok)toast('Не удалось изменить масштаб');}else if(tab.frame)tab.frame.style.zoom=String(next);toast(`Масштаб страницы: ${Math.round(next*100)}%`);}
-async function resetZoomActivePage(){const tab=activeTab();if(!tab||isInternal(tab.url))return;if(nativeWebview)await window.byazenDesktop.setPageZoom(tab.id,1);else if(tab.frame)tab.frame.style.zoom='1';pageZooms.set(tab.id,1);toast('Масштаб страницы сброшен');}
+async function zoomActivePage(delta=0){const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Масштаб доступен на веб-странице');return;}const host=hostOf(tab.url),current=pageZooms.get(tab.id)??siteZoom(tab),next=Math.max(.5,Math.min(2,Math.round((current+delta)*10)/10));pageZooms.set(tab.id,next);if(!tab.private){siteZoomPreferences[host]=next;store.set('siteZoomPreferences',siteZoomPreferences);}if(nativeWebview){const r=await window.byazenDesktop.setPageZoom(tab.id,next);if(!r?.ok)toast('Не удалось изменить масштаб');}else if(tab.frame)tab.frame.style.zoom=String(next);toast(`Масштаб ${host}: ${Math.round(next*100)}%`);}
+async function resetZoomActivePage(){const tab=activeTab();if(!tab||isInternal(tab.url))return;const host=hostOf(tab.url);if(!tab.private){delete siteZoomPreferences[host];store.set('siteZoomPreferences',siteZoomPreferences);}if(nativeWebview)await window.byazenDesktop.setPageZoom(tab.id,1);else if(tab.frame)tab.frame.style.zoom='1';pageZooms.set(tab.id,1);toast(`Масштаб ${host} сброшен`);}
 async function printCurrentPage(){const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Откройте страницу для печати');return;}if(nativeWebview){const r=await window.byazenDesktop.printPage(tab.id);if(!r?.ok)toast('Печать не выполнена: '+(r?.error||'ошибка'));}else try{tab.frame.contentWindow.print();}catch{toast('Печать недоступна для этой страницы');}}
 function openFindBar(){
   const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Откройте веб-страницу для поиска по ней');return;}
@@ -1659,6 +1794,7 @@ function renderDownloads(){
 }
 $('#clearDownloads').onclick=async()=>{if(nativeWebview){await window.byazenDesktop.clearDownloads();downloadEntries=downloadEntries.filter(x=>['awaiting','downloading'].includes(x.status));renderDownloads();}};
 $('#downloadsBtn').onclick=openDownloads;
+$('#privateTabBtn').onclick=()=>createPrivateTab();if(!nativeWebview){$('#privateTabBtn').disabled=true;$('#privateTabBtn').title='Доступно только в настольной версии';}
 $('#findInput').addEventListener('focus',()=>$('#findInput').select());
 
 /* ---------- command palette ---------- */
@@ -1683,6 +1819,9 @@ function buildCmdk(q){
   q = q.trim().toLowerCase();
   const actions = [
     {label:'Новая вкладка', icon:'i-plus', tag:'Действие', run:()=>createTab()},
+    {label:'Дублировать вкладку',icon:'i-copy',tag:'Вкладка',run:()=>duplicateTab()},
+    {label:'Копировать адрес страницы',icon:'i-copy',tag:'Страница',run:()=>copyCurrentAddress()},
+    {label:'Открыть приватную вкладку',icon:'i-lock',tag:'Конфиденциальность',run:()=>createPrivateTab()},
     {label:'Восстановить закрытую вкладку', icon:'i-history', tag:'Действие', run:()=>reopenLastTab()},
     {label:'Недавно закрытые вкладки', icon:'i-history', tag:'Список', run:()=>openPanel('closed')},
     {label:'Открыть коллекции вкладок', icon:'i-bookmark', tag:'Список', run:()=>openPanel('collections')},
@@ -1906,7 +2045,7 @@ async function executeAiActions(actions){
         if(match) activateTab(match.id); else result={ok:false,error:'Не нашла открытую вкладку: '+q};
         break;
       }
-      case 'duplicate_tab': { const t=activeTab(); if(t) createTab(t.url,{title:t.title}); else result={ok:false,error:'Нет вкладки для копирования.'}; break; }
+      case 'duplicate_tab': { const t=activeTab(); if(t) duplicateTab(t.id); else result={ok:false,error:'Нет вкладки для копирования.'}; break; }
       case 'reopen_closed_tab': { const before=tabs.length; reopenLastTab(); if(tabs.length===before) result={ok:false,error:'Нет закрытых вкладок.'}; break; }
       case 'pin_tab': { const t=activeTab(); if(t){t.pinned=a.pinned!==false;renderTabs();persistTabs();} else result={ok:false,error:'Нет активной вкладки.'}; break; }
       case 'open_bookmarks': openPanel('bookmarks'); break;
@@ -2079,6 +2218,15 @@ $('#aiMic').onclick=()=>{
 
 /* ---------- keyboard ---------- */
 function toggleFocusMode(){const app=$('#app');app.classList.toggle('focus-mode');toast(app.classList.contains('focus-mode')?'Режим фокуса включён · Esc для выхода':'Режим фокуса выключен');}
+function runBrowserShortcut(key){
+  const tab=activeTab();
+  if(key==='find')openFindBar();else if(key==='new-tab')createTab();else if(key==='private-tab')createPrivateTab();else if(key==='close-tab'&&tab)closeTab(tab.id);
+  else if(key==='focus-address'){$('#sidebar').classList.remove('collapsed');urlInput.focus();}
+  else if(key==='next-tab')switchNextTab();else if(key==='previous-tab')switchPreviousTab();
+  else if(key==='reload')$('#reloadBtn').click();else if(key==='hard-reload')hardReloadActive();
+  else if(key==='zoom-reset')resetZoomActivePage();else if(key==='zoom-in')zoomActivePage(.1);else if(key==='zoom-out')zoomActivePage(-.1);
+  else if(key==='back'&&tab)goHist(tab,-1);else if(key==='forward'&&tab)goHist(tab,1);
+}
 function eventHotkey(e){
   const parts=[];if(e.ctrlKey||e.metaKey)parts.push('Ctrl');if(e.altKey)parts.push('Alt');if(e.shiftKey)parts.push('Shift');
   let key=e.key;if(key.length===1)key=key.toUpperCase();if(['Control','Alt','Shift','Meta'].includes(key))return '';
@@ -2089,8 +2237,9 @@ function runHotkey(name){
   actions[name]?.();
 }
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&$('#pageCtx').classList.contains('show')){e.preventDefault();closePageContextMenu();return;}
   if(e.key==='Escape'&&$('#findBar').classList.contains('show')){e.preventDefault();closeFindBar();return;}
-  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();openFindBar();return;}
+  const browserAction=browserShortcutFromEvent(e);if(browserAction){e.preventDefault();runBrowserShortcut(browserAction);return;}
   const combo=eventHotkey(e),action=Object.keys(hotkeys).find(k=>hotkeys[k]===combo);
   if(action){e.preventDefault();runHotkey(action);return;}
   const mod=e.ctrlKey||e.metaKey;

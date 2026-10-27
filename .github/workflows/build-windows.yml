@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.18 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.18 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.19 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.19 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.18 release/ByAzen.exe \
-              --title 'ByAzen 1.0.18 — поиск, загрузки и звук вкладок' \
-              --notes 'Windows x64 build: in-page search with match navigation and counts, Ctrl+F from web pages, session download manager with progress/cancel/open/reveal/clear actions, and per-tab audio mute controls.' \
+            gh release create v1.0.19 release/ByAzen.exe \
+              --title 'ByAzen 1.0.19 — приватность, вкладки и контекстные действия' \
+              --notes 'Windows x64 build: private tabs with isolated in-memory site storage and no history/session restore, standard browser shortcuts, per-domain zoom preferences, richer omnibox suggestions, page/tab context actions and private-session safeguards.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi
