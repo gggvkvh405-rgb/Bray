@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "app": "electron .",
-    "dist:win": "electron-builder --win --x64"
+    "dist:win": "electron-builder --win nsis portable --x64"
   },
   "dependencies": {
     "express": "^4.19.2",
