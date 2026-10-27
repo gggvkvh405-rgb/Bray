@@ -41,13 +41,14 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/arena/f944c286-bray'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.26
-          name: ByAzen 1.0.26 — SVG-интерфейс
+          tag_name: v1.0.27
+          name: ByAzen 1.0.27 — Фото по коду
           body: >-
-            Windows x64 build: replaces interface emoji with bundled SVG controls and original vector pet illustrations. Keeps existing pet and costume selections through a one-time settings migration. Also includes the project workspace, local Piper voice downloads, page-aware AI tools, and the persistent/resumable download manager.
+            Windows x64 build: includes the code-triggered photo viewer, bundled local photos, SVG controls, original vector pet illustrations, local Piper voice downloads, page-aware AI tools, and the persistent/resumable download manager.
           prerelease: true
           files: release/ByAzen.exe
           fail_on_unmatched_files: true
           overwrite_files: false
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}

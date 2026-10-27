@@ -458,6 +458,14 @@ body.electron #linkStatus{display:none!important}
 .hotkey-input{width:130px;flex:none;text-align:center;font-size:11px;cursor:pointer}
 .ui-setting-select{width:100px;flex:none;height:32px;padding:0 8px;font-size:11px}
 .field::placeholder{color:var(--text-3)}
+.photo-code-help{font-size:11.5px;color:var(--text-3);line-height:1.5;margin:0 0 10px}
+.photo-code-form{display:flex;gap:9px;align-items:center}.photo-code-form .field{flex:1;min-width:0}.photo-code-form .btn{flex:none}
+#photoCodeStatus{min-height:16px;margin-top:7px}
+.photo-code-dialog{max-width:min(820px,94vw);overflow:hidden}
+.photo-code-dialog .modal-head{padding:16px 18px 10px}
+.photo-code-stage{display:grid;place-items:center;padding:0 18px 18px;max-height:calc(86vh - 60px)}
+#photoCodeImage{display:block;max-width:100%;max-height:calc(86vh - 95px);width:auto;height:auto;object-fit:contain;border-radius:12px}
+@media(max-width:560px){.photo-code-form{align-items:stretch;flex-direction:column}.photo-code-form .btn{width:100%}.photo-code-stage{padding:0 10px 10px}}
 label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;margin:0 0 6px 1px}
 .about{display:flex;gap:13px;align-items:center;background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:13px;padding:14px}
 .about p{font-size:11.5px;color:var(--text-3);line-height:1.55;margin-top:2px}
@@ -771,6 +779,15 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
         <div class="set-row"><div class="tx"><b>Разрешения сайтов</b><span>По умолчанию запросы веб-сайтов на доступ блокируются</span></div><button class="btn" id="openPermissionLog">Просмотреть журнал</button></div>
       </div>
       <div class="set-group">
+        <h4>Фото по коду</h4>
+        <p class="photo-code-help">Введи код и нажми «Показать фото». Изображения встроены в приложение и не отправляются на сервер.</p>
+        <form id="photoCodeForm" class="photo-code-form">
+          <input class="field" id="photoCodeInput" type="text" maxlength="48" autocomplete="off" spellcheck="false" placeholder="Введи код" aria-label="Код для показа фотографии">
+          <button class="btn primary" type="submit">Показать фото</button>
+        </form>
+        <div id="photoCodeStatus" class="ai-status" role="status" aria-live="polite"></div>
+      </div>
+      <div class="set-group">
         <h4>Горячие клавиши</h4>
         <p style="font-size:11.5px;color:var(--text-3);line-height:1.5">Нажмите на поле и задайте сочетание с Ctrl, Alt или Shift.</p>
         <div id="hotkeyList"></div>
@@ -791,10 +808,17 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.25</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.27</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
+</div>
+
+<div class="modal-overlay" id="photoCodeModal" aria-hidden="true">
+  <section class="modal photo-code-dialog" role="dialog" aria-modal="true" aria-labelledby="photoCodeTitle">
+    <div class="modal-head"><h2 id="photoCodeTitle">Фото</h2><button class="icon-btn" type="button" data-close="photoCodeModal" aria-label="Закрыть"><svg><use href="#i-x"/></svg></button></div>
+    <div class="photo-code-stage"><img id="photoCodeImage" alt="Фото по введённому коду"></div>
+  </section>
 </div>
 
 <!-- ============ ADD SHORTCUT ============ -->
@@ -1584,8 +1608,8 @@ $('#histBtn').onclick = ()=> openPanel('history');
 $('#openHistory').onclick = ()=> openPanel('history');
 
 /* ---------- modals / settings ---------- */
-function openModal(id){ $('#'+id).classList.add('show'); syncNativeBounds(); if(id==='assistantModal') initAssistantWindow(); }
-function closeModal(id){ if(id==='assistantModal') saveAssistantWindow(); $('#'+id).classList.remove('show'); syncNativeBounds(); }
+function openModal(id){ const modal=$('#'+id);modal.classList.add('show');modal.setAttribute('aria-hidden','false');syncNativeBounds();if(id==='assistantModal')initAssistantWindow(); }
+function closeModal(id){ if(id==='assistantModal') saveAssistantWindow(); const modal=$('#'+id);modal.classList.remove('show');modal.setAttribute('aria-hidden','true');if(id==='photoCodeModal')$('#photoCodeImage').removeAttribute('src');syncNativeBounds(); }
 $$('.modal-overlay').forEach(o=> o.addEventListener('mousedown', e=>{ if(e.target===o) closeModal(o.id); }));
 $$('[data-close]').forEach(b=> b.onclick = ()=> closeModal(b.dataset.close));
 $('#setBtn').onclick = ()=> openModal('settingsModal');
@@ -1620,6 +1644,27 @@ function renderSettings(){
   $$('#swatches .swatch').forEach(s=> s.onclick = ()=>{ settings.accent=s.dataset.c; saveSettings(); renderSettings(); });
   renderHotkeys();
 }
+const CODE_PHOTOS=new Map([
+  ['цейер',{title:'Цейер',src:'/code-photos/tseyer.png'}],
+  ['мишаня',{title:'Мишаня',src:'/code-photos/mishanya.png'}],
+  ['конь',{title:'Конь',src:'/code-photos/kon.png'}],
+  ['витал',{title:'Витал',src:'/code-photos/vital.png'}],
+  ['медведь',{title:'Медведь',src:'/code-photos/medved.png'}],
+  ['опущенные',{title:'Опущенные',src:'/code-photos/opushchennye.png'}]
+]);
+$('#photoCodeForm').addEventListener('submit',event=>{
+  event.preventDefault();
+  const entered=$('#photoCodeInput').value.trim().normalize('NFKC').toLocaleLowerCase('ru-RU');
+  const photo=CODE_PHOTOS.get(entered);
+  const status=$('#photoCodeStatus');
+  if(!photo){status.textContent='Такого кода нет в списке.';$('#photoCodeInput').focus();return;}
+  status.textContent='';
+  $('#photoCodeTitle').textContent=photo.title;
+  const image=$('#photoCodeImage');image.alt=`Фото: ${photo.title}`;image.src=photo.src;
+  openModal('photoCodeModal');
+  $('#photoCodeModal [data-close]').focus({preventScroll:true});
+});
+$('#photoCodeImage').addEventListener('error',()=>{$('#photoCodeStatus').textContent='Не удалось загрузить фотографию.';closeModal('photoCodeModal');});
 // Direct loading is disabled because third-party pages reject iframe embedding.
 $('#swRecent').onclick = ()=>{ settings.showRecent=!settings.showRecent; saveSettings(); renderSettings(); renderRecent(); };
 $('#swAiPageActions').onclick=()=>{store.set('aiPageActionsAllowed',store.get('aiPageActionsAllowed',true)===false);renderSettings();};
