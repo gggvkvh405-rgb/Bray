@@ -470,40 +470,12 @@ body.electron #linkStatus{display:none!important}
 .photo-code-stage{display:flex;align-items:center;justify-content:center;padding:0 18px 18px;max-height:calc(86vh - 60px);overflow:hidden}
 .photo-code-art{position:relative;display:inline-block;max-width:100%;max-height:calc(86vh - 95px);isolation:isolate;line-height:0;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.38)}
 #photoCodeImage{position:relative;z-index:0;display:block;max-width:100%;max-height:calc(86vh - 95px);width:auto;height:auto;object-fit:contain;border-radius:12px}
-.photo-code-fx-a,.photo-code-fx-b{position:absolute;z-index:1;inset:0;display:block;overflow:hidden;border-radius:12px;opacity:0;pointer-events:none}
-.photo-code-sticker{position:absolute;z-index:2;left:10px;bottom:10px;max-width:calc(100% - 20px);padding:7px 11px;border:1px solid #ffffff80;border-radius:9px;background:#080810dc;color:#fff;font:800 11px/1.1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 0 9px currentColor;box-shadow:0 5px 20px #0008;opacity:0;transform:translateY(8px) rotate(-2deg) scale(.8);pointer-events:none;white-space:nowrap}
-.photo-code-art[data-effect] .photo-code-sticker{opacity:1;animation:photoStickerIn .35s cubic-bezier(.18,.9,.28,1.35) both}
-.photo-code-art[data-effect="laser"] .photo-code-fx-a{opacity:1;mix-blend-mode:screen;background:linear-gradient(90deg,transparent 0 37%,#ff244e 43%,#fff 49%,#ff244e 52%,transparent 59%) left 34%/100% 5px no-repeat,linear-gradient(90deg,transparent 0 42%,#00eaff 47%,#fff 50%,#00eaff 53%,transparent 59%) left 36%/100% 4px no-repeat;filter:drop-shadow(0 0 7px #ff174f);animation:photoLaser .55s steps(2,end) infinite}
-.photo-code-art[data-effect="laser"] .photo-code-fx-b{opacity:.8;background:radial-gradient(ellipse at 50% 35%,#ff164855,transparent 34%);animation:photoGlow .8s ease-in-out infinite alternate}
-.photo-code-art[data-effect="flame"] .photo-code-fx-a{opacity:1;overflow:visible}
-.photo-code-art[data-effect="flame"] .photo-code-fx-a::before,.photo-code-art[data-effect="flame"] .photo-code-fx-a::after{content:"";position:absolute;top:8%;bottom:0;width:22%;background:linear-gradient(0deg,#7f1d1d 0%,#ef4444 32%,#f97316 62%,#fde047 86%,#fff3a4 100%);filter:blur(3px) drop-shadow(0 0 12px #f97316);clip-path:polygon(0 100%,0 37%,22% 53%,24% 20%,42% 43%,55% 0,68% 42%,82% 13%,81% 53%,100% 31%,100% 100%);animation:photoFlame .42s ease-in-out infinite alternate}
-.photo-code-art[data-effect="flame"] .photo-code-fx-a::before{left:-2%;transform-origin:bottom left}
-.photo-code-art[data-effect="flame"] .photo-code-fx-a::after{right:-2%;transform:scaleX(-1);transform-origin:bottom right;animation-delay:-.24s}
-.photo-code-art[data-effect="flame"] .photo-code-fx-b{opacity:.42;background:radial-gradient(ellipse at 0 78%,#ff5a1f99,transparent 37%),radial-gradient(ellipse at 100% 78%,#ff5a1f99,transparent 37%);animation:photoGlow .6s ease-in-out infinite alternate}
-.photo-code-art[data-effect="lightning"] .photo-code-fx-a{opacity:1;overflow:visible}
-.photo-code-art[data-effect="lightning"] .photo-code-fx-a::before,.photo-code-art[data-effect="lightning"] .photo-code-fx-a::after{content:"";position:absolute;top:4%;width:18%;height:80%;background:linear-gradient(180deg,#fff,#c4f1ff 45%,#60a5fa);clip-path:polygon(55% 0,100% 0,57% 40%,91% 40%,12% 100%,37% 53%,0 53%);filter:drop-shadow(0 0 8px #38bdf8);animation:photoBolt .75s steps(2,end) infinite}
-.photo-code-art[data-effect="lightning"] .photo-code-fx-a::before{left:7%}
-.photo-code-art[data-effect="lightning"] .photo-code-fx-a::after{right:6%;transform:scaleX(-1);animation-delay:-.3s}
-.photo-code-art[data-effect="lightning"] .photo-code-fx-b{opacity:0;background:#e0f7ff;animation:photoThunder .9s steps(1,end) infinite}
-.photo-code-art[data-effect="neon"] .photo-code-fx-a{opacity:.82;border:5px solid #ff43e6;box-shadow:inset 0 0 18px #ff43e6,0 0 20px #ff43e6;animation:photoNeon 1s linear infinite}
-.photo-code-art[data-effect="neon"] .photo-code-fx-b{opacity:.28;background:repeating-linear-gradient(180deg,transparent 0 10px,#10eaff 11px 13px,transparent 14px 23px);mix-blend-mode:screen;animation:photoGlitch .55s steps(3,end) infinite}
-.photo-code-art[data-effect="ice"] .photo-code-fx-a{opacity:.55;border:5px solid #bae6fd;box-shadow:inset 0 0 28px #38bdf8,0 0 24px #67e8f9;animation:photoFrost 1.8s ease-in-out infinite alternate}
-.photo-code-art[data-effect="ice"] .photo-code-fx-b{opacity:.9;background:radial-gradient(circle at 12% 20%,#fff 0 1px,transparent 2px),radial-gradient(circle at 85% 29%,#fff 0 1px,transparent 2px),radial-gradient(circle at 26% 74%,#fff 0 1.5px,transparent 2.5px),radial-gradient(circle at 73% 82%,#fff 0 1px,transparent 2px),radial-gradient(circle at 57% 13%,#dffaff 0 1px,transparent 2px),radial-gradient(circle at 91% 62%,#dffaff 0 1.5px,transparent 2.5px);filter:drop-shadow(0 0 4px #a5f3fc);animation:photoSnow 2s linear infinite}
-.photo-code-art[data-effect="disco"] .photo-code-fx-a{opacity:.42;background:conic-gradient(from 0deg at 50% 50%,transparent 0 18deg,#ff35c880 25deg,transparent 42deg,#35eaff80 65deg,transparent 82deg,#ffff4180 105deg,transparent 124deg,#b452ff80 148deg,transparent 166deg);mix-blend-mode:screen;animation:photoDisco 1.8s linear infinite}
-.photo-code-art[data-effect="disco"] .photo-code-fx-b{opacity:.9;border:5px solid #fff;box-shadow:inset 0 0 18px #fff,0 0 22px #fff;animation:photoParty 1.1s steps(2,end) infinite}
-@keyframes photoStickerIn{to{opacity:1;transform:translateY(0) rotate(-2deg) scale(1)}}
-@keyframes photoLaser{0%,100%{opacity:.55;filter:drop-shadow(0 0 4px #ff174f)}50%{opacity:1;filter:drop-shadow(0 0 12px #00eaff)}}
-@keyframes photoGlow{to{opacity:.25;transform:scale(1.04)}}
-@keyframes photoFlame{to{transform:scaleY(1.12) skewX(-4deg);filter:blur(2px) drop-shadow(0 0 17px #fb923c)}}
-@keyframes photoBolt{0%,100%{opacity:.18;transform:scaleY(.88)}50%{opacity:1;transform:scaleY(1)}}
-@keyframes photoThunder{0%,78%,100%{opacity:0}80%,83%{opacity:.45}81%,84%{opacity:0}}
-@keyframes photoNeon{to{filter:hue-rotate(360deg);border-color:#43f5ff;box-shadow:inset 0 0 20px #43f5ff,0 0 24px #43f5ff}}
-@keyframes photoGlitch{0%,100%{transform:translateY(0);opacity:.15}45%{transform:translateY(8px);opacity:.4}50%{transform:translateY(-5px);opacity:.75}}
-@keyframes photoFrost{to{filter:hue-rotate(18deg) brightness(1.3);box-shadow:inset 0 0 40px #38bdf8,0 0 36px #67e8f9}}
-@keyframes photoSnow{to{transform:translateY(5px) rotate(3deg);opacity:.55}}
-@keyframes photoDisco{to{transform:rotate(360deg) scale(1.08)}}
-@keyframes photoParty{0%,100%{filter:hue-rotate(0) brightness(1)}50%{filter:hue-rotate(180deg) brightness(1.4)}}
-@media(prefers-reduced-motion:reduce){.photo-code-art[data-effect] .photo-code-fx-a,.photo-code-art[data-effect] .photo-code-fx-b,.photo-code-art[data-effect] .photo-code-sticker{animation:none!important}}
+.photo-code-canvas{position:absolute;z-index:1;inset:0;display:block;max-width:100%;max-height:100%;pointer-events:none;opacity:0;mix-blend-mode:screen;border-radius:12px;transition:opacity .2s ease}
+.photo-code-canvas.running{opacity:1}
+.photo-code-sticker{position:absolute;z-index:2;left:10px;bottom:10px;max-width:calc(100% - 20px);padding:8px 12px;border:1px solid #fff;border-radius:7px;background:linear-gradient(100deg,#090909ec,#171019e8);color:#fff;font:950 12px/1.1 system-ui,sans-serif;letter-spacing:.11em;text-transform:uppercase;text-shadow:0 0 5px currentColor,0 0 15px currentColor;box-shadow:0 0 0 2px #0008,0 0 22px currentColor;opacity:0;transform:translateY(10px) rotate(-3deg) scale(.72);pointer-events:none;white-space:nowrap}
+.photo-code-art[data-effect] .photo-code-sticker{opacity:1;animation:photoStickerIn .36s cubic-bezier(.18,.9,.28,1.35) both}
+@keyframes photoStickerIn{to{opacity:1;transform:translateY(0) rotate(-3deg) scale(1)}}
+@media(prefers-reduced-motion:reduce){.photo-code-art[data-effect] .photo-code-sticker{animation:none!important;opacity:1;transform:none}}
 
 @media(max-width:560px){.photo-code-form{align-items:stretch;flex-direction:column}.photo-code-form .btn{width:100%}.photo-code-stage{padding:0 10px 10px}}
 label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;margin:0 0 6px 1px}
@@ -822,7 +794,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="set-group">
         <h4>Фото по коду</h4>
-        <p class="photo-code-help">Введи код и нажми «Показать фото». Изображения встроены в приложение и не отправляются на сервер.</p>
+        <p class="photo-code-help">Введи код и нажми «Показать фото». Фото и эффекты встроены в приложение; спрайты эффектов из CC0 Particle Pack от Kenney и работают локально.</p>
         <form id="photoCodeForm" class="photo-code-form">
           <input class="field" id="photoCodeInput" type="text" maxlength="48" autocomplete="off" spellcheck="false" placeholder="Введи код" aria-label="Код для показа фотографии">
           <button class="btn primary" type="submit">Показать фото</button>
@@ -850,7 +822,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.30</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.31</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -859,7 +831,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 <div class="modal-overlay" id="photoCodeModal" aria-hidden="true">
   <section class="modal photo-code-dialog" role="dialog" aria-modal="true" aria-labelledby="photoCodeTitle">
     <div class="modal-head"><h2 id="photoCodeTitle">Фото</h2><button class="icon-btn" type="button" data-close="photoCodeModal" aria-label="Закрыть"><svg><use href="#i-x"/></svg></button></div>
-    <div class="photo-code-stage"><div class="photo-code-art" id="photoCodeArt" data-effect=""><img id="photoCodeImage" alt="Фото по введённому коду"><span class="photo-code-fx-a" aria-hidden="true"></span><span class="photo-code-fx-b" aria-hidden="true"></span><span class="photo-code-sticker" id="photoCodeSticker" aria-hidden="true"></span></div></div>
+    <div class="photo-code-stage"><div class="photo-code-art" id="photoCodeArt" data-effect=""><img id="photoCodeImage" alt="Фото по введённому коду"><canvas class="photo-code-canvas" id="photoCodeCanvas" aria-hidden="true"></canvas><span class="photo-code-sticker" id="photoCodeSticker" aria-hidden="true"></span></div></div>
   </section>
 </div>
 
@@ -1681,7 +1653,7 @@ $('#openHistory').onclick = ()=> openPanel('history');
 
 /* ---------- modals / settings ---------- */
 function openModal(id){ const modal=$('#'+id);modal.classList.add('show');modal.setAttribute('aria-hidden','false');syncNativeBounds();if(id==='assistantModal')initAssistantWindow(); }
-function closeModal(id){ if(id==='assistantModal') saveAssistantWindow(); const modal=$('#'+id);modal.classList.remove('show');modal.setAttribute('aria-hidden','true');if(id==='photoCodeModal'){$('#photoCodeImage').removeAttribute('src');$('#photoCodeArt').dataset.effect='';$('#photoCodeSticker').textContent='';}syncNativeBounds(); }
+function closeModal(id){ if(id==='assistantModal') saveAssistantWindow(); const modal=$('#'+id);modal.classList.remove('show');modal.setAttribute('aria-hidden','true');if(id==='photoCodeModal'){window.stopPhotoCodeVfx?.();$('#photoCodeImage').removeAttribute('src');$('#photoCodeArt').dataset.effect='';$('#photoCodeSticker').textContent='';}syncNativeBounds(); }
 $$('.modal-overlay').forEach(o=> o.addEventListener('mousedown', e=>{ if(e.target===o) closeModal(o.id); }));
 $$('[data-close]').forEach(b=> b.onclick = ()=> closeModal(b.dataset.close));
 $('#setBtn').onclick = ()=> openModal('settingsModal');
@@ -1730,12 +1702,12 @@ $('#historyRetentionForm').addEventListener('submit',event=>{
   status.textContent=days===0?'Автоочистка отключена.':`Удаляются записи старше ${days} дн.${removed?` Очищено записей: ${removed}.`:''}`;
 });
 const CODE_PHOTOS=new Map([
-  ['цейер',{title:'Цейер',src:'/code-photos/tseyer.png',effect:'laser',sticker:'ЛАЗЕРНЫЙ РЕЖИМ'}],
-  ['мишаня',{title:'Мишаня',src:'/code-photos/mishanya.png',effect:'flame',sticker:'ПЛАМЯ ВКЛЮЧЕНО'}],
-  ['конь',{title:'Конь',src:'/code-photos/kon.png',effect:'lightning',sticker:'ГРОЗА В ЭФИРЕ'}],
-  ['витал',{title:'Витал',src:'/code-photos/vital.png',effect:'neon',sticker:'НЕОНОВЫЙ БУСТ'}],
-  ['медведь',{title:'Медведь',src:'/code-photos/medved.png',effect:'ice',sticker:'ЛЕДЯНОЙ РЕЖИМ'}],
-  ['опущенные',{title:'Опущенные',src:'/code-photos/opushchennye.png',effect:'disco',sticker:'ДИСКОТЕКА'}]
+  ['цейер',{title:'Цейер',src:'/code-photos/tseyer.png',effect:'laser',sticker:'ЛАЗЕРНЫЙ ВЗГЛЯД · 9000 IQ'}],
+  ['мишаня',{title:'Мишаня',src:'/code-photos/mishanya.png',effect:'flame',sticker:'ПЛАМЯ · БЕЗ ШАНСОВ'}],
+  ['конь',{title:'Конь',src:'/code-photos/kon.png',effect:'lightning',sticker:'ПОВЕЛИТЕЛЬ ГРОЗЫ'}],
+  ['витал',{title:'Витал',src:'/code-photos/vital.png',effect:'neon',sticker:'МАКСИМАЛЬНЫЙ СТИЛЬ'}],
+  ['медведь',{title:'Медведь',src:'/code-photos/medved.png',effect:'ice',sticker:'ЛЕДЯНОЙ КОРОЛЬ'}],
+  ['опущенные',{title:'Опущенные',src:'/code-photos/opushchennye.png',effect:'disco',sticker:'ДИСКО · ДО ТРЕХ НОЧИ'}]
 ]);
 $('#photoCodeForm').addEventListener('submit',event=>{
   event.preventDefault();
@@ -1750,6 +1722,7 @@ $('#photoCodeForm').addEventListener('submit',event=>{
   openModal('photoCodeModal');
   $('#photoCodeModal [data-close]').focus({preventScroll:true});
 });
+$('#photoCodeImage').addEventListener('load',()=>window.startPhotoCodeVfx?.($('#photoCodeArt').dataset.effect));
 $('#photoCodeImage').addEventListener('error',()=>{$('#photoCodeStatus').textContent='Не удалось загрузить фотографию.';closeModal('photoCodeModal');});
 // Direct loading is disabled because third-party pages reject iframe embedding.
 $('#swRecent').onclick = ()=>{ settings.showRecent=!settings.showRecent; saveSettings(); renderSettings(); renderRecent(); };
@@ -2586,6 +2559,7 @@ setTimeout(hideSplash, 1950);
 setTimeout(hideSplash, 4200); /* страховка */
 setTimeout(()=> toast('Добро пожаловать в ByAzen'), 2250);
 </script>
+<script src="photo-vfx.js"></script>
 <script src="features.js"></script>
 </body>
 </html>

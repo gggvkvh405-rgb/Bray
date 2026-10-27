@@ -41,10 +41,10 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/arena/f944c286-bray'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.30
-          name: ByAzen 1.0.30 — Регистрация браузера Windows
+          tag_name: v1.0.31
+          name: ByAzen 1.0.31 — Анимированные фотоэффекты
           body: >-
-            Windows x64 portable build: registers ByAzen as an available HTTP/HTTPS browser when launched and forwards external links into ByAzen tabs. Choose ByAzen in Windows Default apps to handle web links.
+            Windows x64 portable build: adds locally bundled CC0 particle sprites and dramatic animated canvas effects for the code-triggered photo viewer, alongside Windows HTTP/HTTPS registration and internal tab handling for external links.
           prerelease: true
           files: release/ByAzen.exe
           fail_on_unmatched_files: true
