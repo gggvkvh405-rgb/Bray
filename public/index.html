@@ -445,6 +445,10 @@ body.electron #linkStatus{display:none!important}
 .swatch.sel{outline-color:currentColor}
 .set-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
 .set-row:last-child{border-bottom:none}
+.history-retention-setting{padding:11px 0;border-bottom:1px solid var(--border)}
+.history-retention-setting .tx{margin-bottom:8px}.history-retention-setting .tx b{font-size:13px;font-weight:550;display:block}.history-retention-setting .tx span{font-size:11.5px;color:var(--text-3);line-height:1.45}
+#historyRetentionForm{display:flex;align-items:center;gap:8px}#historyRetentionForm .field{width:82px;height:32px;padding:0 8px}#historyRetentionForm>span{font-size:11px;color:var(--text-2)}#historyRetentionStatus{min-height:14px;margin-top:7px}
+@media(max-width:560px){#historyRetentionForm{flex-wrap:wrap}}
 .set-row .tx{flex:1}
 .set-row .tx b{font-size:13px;font-weight:550;display:block}
 .set-row .tx span{font-size:11.5px;color:var(--text-3);line-height:1.45}
@@ -769,6 +773,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
         <h4>Браузер</h4>
         <div class="set-row"><div class="tx"><b>Встроенная загрузка сайтов</b><span>Приложение использует отдельную изолированную Chromium-поверхность; веб-версия — локальный прокси</span></div><button class="switch" id="swProxy" disabled title="Встроенная загрузка включена"></button></div>
         <div class="set-row"><div class="tx"><b>Недавние на стартовой</b><span>Показывать последние посещённые сайты на новой вкладке</span></div><button class="switch" id="swRecent"></button></div>
+        <div class="history-retention-setting"><div class="tx"><b>Срок хранения истории</b><span>Удалять записи о посещённых страницах старше заданного числа дней. Ноль отключает автоочистку.</span></div><form id="historyRetentionForm"><input class="field" id="historyRetentionDays" type="number" min="0" max="3650" step="1" inputmode="numeric" aria-label="Срок хранения истории в днях"><span>дней</span><button class="btn" type="submit">Применить</button></form><div id="historyRetentionStatus" class="ai-status" role="status" aria-live="polite"></div></div>
         <div class="set-row"><div class="tx"><b>Действия ИИ на страницах</b><span>Разрешить ИИ читать видимый текст и использовать безопасные действия браузера</span></div><button class="switch" id="swAiPageActions"></button></div>
         <div class="set-row"><div class="tx"><b>Высокая контрастность</b><span>Усилить контраст текста и границ</span></div><button class="switch" id="swContrast"></button></div>
         <div class="set-row"><div class="tx"><b>Компактный интерфейс</b><span>Уменьшить отступы и высоту элементов</span></div><button class="switch" id="swCompact"></button></div>
@@ -808,7 +813,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.27</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.28</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -979,7 +984,8 @@ const ACCENTS = ['#FAFAFA','#FF6B4A','#F5C044','#7BD88F','#4CC3FF','#B79CFF'];
 const asArray = (v, d) => Array.isArray(v) ? v : d;
 const DEFAULT_HOTKEYS={palette:'Ctrl+K',newTab:'Alt+T',closeTab:'Alt+W',focusAddress:'Alt+L',assistant:'Ctrl+J',previousTab:'Ctrl+Shift+Tab',reopenClosed:'Ctrl+Shift+T',sidebar:'Ctrl+B',voiceInput:'Ctrl+Shift+M'};
 let hotkeys=Object.assign({},DEFAULT_HOTKEYS,store.get('hotkeys',{})||{});
-let settings  = Object.assign({engine:'duck', accent:'#FAFAFA', proxy:true, showRecent:true}, store.get('settings',{}) || {});
+let settings  = Object.assign({engine:'duck', accent:'#FAFAFA', proxy:true, showRecent:true, historyRetentionDays:0}, store.get('settings',{}) || {});
+settings.historyRetentionDays=Number.isInteger(Number(settings.historyRetentionDays))?Math.max(0,Math.min(3650,Number(settings.historyRetentionDays))):0;
 // Web builds need the local proxy because ordinary iframes are blocked by many sites.
 // Migrate any old direct-mode preference in the web build; Electron uses native webviews instead.
 if (!nativeWebview && settings.proxy !== true) { settings.proxy = true; store.set('settings', settings); }
@@ -990,6 +996,7 @@ if(!bookmarkFolders.includes('Общие'))bookmarkFolders.unshift('Общие')
 let collections=asArray(store.get('collections',[]),[]).filter(x=>x&&typeof x.name==='string'&&Array.isArray(x.tabs));
 let editingBookmarkUrl=null;
 let historyLog= asArray(store.get('history', []), []).filter(x => x && typeof x.url === 'string');
+let historyCleanupTimer=null;
 let searchHistory=asArray(store.get('searchHistory',[]),[]).filter(x=>typeof x==='string'&&x.trim()).slice(0,40);
 let shortcuts = asArray(store.get('shortcuts', DEFAULT_SHORTCUTS), DEFAULT_SHORTCUTS).filter(x => x && typeof x.url === 'string');
 let closedTabs = asArray(store.get('closedTabs', []), []).filter(x => x && typeof x.url === 'string');
@@ -1312,12 +1319,35 @@ function syncChrome(){
 
 /* ---------- history / bookmarks ---------- */
 function normUrl(u){ try{ return decodeURI(u); }catch{ return u; } }
+const HISTORY_DAY_MS=24*60*60*1000;
+function pruneExpiredHistory(){
+  const days=Number(settings.historyRetentionDays)||0;if(days<=0)return 0;
+  const cutoff=Date.now()-days*HISTORY_DAY_MS,before=historyLog.length;
+  historyLog=historyLog.filter(item=>{const time=Number(item.time);return !Number.isFinite(time)||time>=cutoff;});
+  const removed=before-historyLog.length;if(removed)store.set('history',historyLog);return removed;
+}
+function scheduleHistoryCleanup(){
+  clearTimeout(historyCleanupTimer);historyCleanupTimer=null;
+  pruneExpiredHistory();
+  const days=Number(settings.historyRetentionDays)||0;if(days<=0)return;
+  const now=Date.now();let nextExpiry=Infinity;
+  for(const item of historyLog){const time=Number(item.time);if(!Number.isFinite(time))continue;const expiry=time+days*HISTORY_DAY_MS;if(expiry>now&&expiry<nextExpiry)nextExpiry=expiry;}
+  if(!Number.isFinite(nextExpiry))return;
+  const delay=Math.max(1000,Math.min(nextExpiry-now,2147483647));
+  historyCleanupTimer=setTimeout(()=>{
+    historyCleanupTimer=null;const removed=pruneExpiredHistory();
+    if(removed){renderRecent();if($('#panelTitle')?.textContent==='История')renderPanel($('#panelSearch').value);}
+    scheduleHistoryCleanup();
+  },delay);
+}
+scheduleHistoryCleanup();
 function addHistory(url, title, privateMode=false){
+
   if (isInternal(url)||privateMode) return;
   const prev = historyLog.find(h=> normUrl(h.url) === normUrl(url));
   historyLog = historyLog.filter(h=> normUrl(h.url) !== normUrl(url));
   historyLog.unshift({url, title: (title && title!==hostOf(url)) ? title : (prev && prev.title!==hostOf(url) ? prev.title : (title||hostOf(url))), time: Date.now()});
-  historyLog = historyLog.slice(0, 300); store.set('history', historyLog);
+  historyLog = historyLog.slice(0, 300); store.set('history', historyLog);scheduleHistoryCleanup();
 }
 function renderRecent(){
   const show = settings.showRecent && historyLog.length && !activeTab()?.private;
@@ -1592,7 +1622,7 @@ function renderPanel(filter){
     });
   }
   $('#panelFoot').innerHTML=src.length?`<button class="btn danger block" id="panelClear">${panelMode==='closed'?'Очистить список':'Очистить всё'}</button>`:'';
-  const clear=$('#panelClear');if(clear)clear.onclick=()=>{if(panelMode==='bookmarks'){bookmarks=[];store.set('bookmarks',bookmarks);syncChrome();renderBookmarkBar();}else if(panelMode==='closed'){closedTabs=[];store.set('closedTabs',closedTabs);}else{historyLog=[];searchHistory=[];store.set('history',historyLog);store.set('searchHistory',searchHistory);renderRecent();}renderPanel('');toast('Очищено');};
+  const clear=$('#panelClear');if(clear)clear.onclick=()=>{if(panelMode==='bookmarks'){bookmarks=[];store.set('bookmarks',bookmarks);syncChrome();renderBookmarkBar();}else if(panelMode==='closed'){closedTabs=[];store.set('closedTabs',closedTabs);}else{historyLog=[];searchHistory=[];store.set('history',historyLog);store.set('searchHistory',searchHistory);scheduleHistoryCleanup();renderRecent();}renderPanel('');toast('Очищено');};
 }
 $('#panelSearch').addEventListener('input',e=>renderPanel(e.target.value));
 $('#bookmarkFolderFilter').onchange=()=>{ $('#bookmarkFolderFilter').dataset.wanted=$('#bookmarkFolderFilter').value;renderPanel($('#panelSearch').value); };
@@ -1639,11 +1669,19 @@ function renderSettings(){
   $('#swCompact').classList.toggle('on',store.get('compactMode',false)===true);
   $('#swClearHistoryExit').classList.toggle('on',store.get('clearHistoryOnExit',false)===true);
   $('#swWarnHttp').classList.toggle('on',store.get('warnHttp',true)!==false);
-  $('#uiScale').value=String(store.get('uiScale','1'));$('#sidebarSide').value=store.get('sidebarSide','left');applyUiPreferences();
+  $('#uiScale').value=String(store.get('uiScale','1'));$('#sidebarSide').value=store.get('sidebarSide','left');$('#historyRetentionDays').value=String(settings.historyRetentionDays);$('#historyRetentionStatus').textContent=settings.historyRetentionDays?`Автоочистка включена: ${settings.historyRetentionDays} дн.`:'Автоочистка отключена';applyUiPreferences();
   $('#swatches').innerHTML = ACCENTS.map(c=>`<button class="swatch ${c===settings.accent?'sel':''}" data-c="${c}" style="background:${c};color:${c};border-color:rgba(255,255,255,.15)" title="${c}"></button>`).join('');
   $$('#swatches .swatch').forEach(s=> s.onclick = ()=>{ settings.accent=s.dataset.c; saveSettings(); renderSettings(); });
   renderHotkeys();
 }
+$('#historyRetentionForm').addEventListener('submit',event=>{
+  event.preventDefault();
+  const input=$('#historyRetentionDays'),days=Number(input.value),status=$('#historyRetentionStatus');
+  if(!Number.isInteger(days)||days<0||days>3650){status.textContent='Укажи целое число от 0 до 3650 дней.';input.focus();return;}
+  settings.historyRetentionDays=days;saveSettings();
+  const removed=pruneExpiredHistory();scheduleHistoryCleanup();renderRecent();
+  status.textContent=days===0?'Автоочистка отключена.':`Удаляются записи старше ${days} дн.${removed?` Очищено записей: ${removed}.`:''}`;
+});
 const CODE_PHOTOS=new Map([
   ['цейер',{title:'Цейер',src:'/code-photos/tseyer.png'}],
   ['мишаня',{title:'Мишаня',src:'/code-photos/mishanya.png'}],
@@ -1677,7 +1715,7 @@ $('#clearPermissionLog').onclick=async()=>{if(nativeWebview)await window.byazenD
 $('#uiScale').onchange=()=>{store.set('uiScale',$('#uiScale').value);applyUiPreferences();};
 $('#sidebarSide').onchange=()=>{store.set('sidebarSide',$('#sidebarSide').value);applyUiPreferences();};
 window.__byazenPrepareToClose=()=>{if(store.get('clearHistoryOnExit',false)){historyLog=[];searchHistory=[];store.set('history',[]);store.set('searchHistory',[]);renderRecent();}return true;};
-$('#clearHist').onclick = ()=>{ historyLog=[]; searchHistory=[]; store.set('history',historyLog); store.set('searchHistory',searchHistory); renderRecent(); toast('История очищена'); };
+$('#clearHist').onclick = ()=>{ historyLog=[]; searchHistory=[]; store.set('history',historyLog); store.set('searchHistory',searchHistory); scheduleHistoryCleanup(); renderRecent(); toast('История очищена'); };
 $('#clearBm').onclick = ()=>{ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); renderBookmarkBar(); toast('Закладки очищены'); };
 const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','searchHistory','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantInputLang','assistantVoice','assistantWindow','aiPageActionsAllowed','assistantChats','contrastMode','compactMode','uiScale','sidebarSide','clearHistoryOnExit','warnHttp','siteZoomPreferences'];
 function downloadTextFile(name,text,type){
@@ -1715,7 +1753,7 @@ $('#exportBackup').onclick=()=>{
 $('#importBackup').onclick=()=>$('#backupFile').click();
 function validBackupValue(key,value){
   if(key==='hotkeys')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=9&&Object.entries(value).every(([k,v])=>{if(!Object.hasOwn(DEFAULT_HOTKEYS,k)||typeof v!=='string')return false;const parts=v.split('+'),keyPart=parts.pop();return parts.length>0&&parts.every(x=>['Ctrl','Alt','Shift'].includes(x))&&/^[A-Za-z0-9]+$/.test(keyPart);});
-  if(key==='settings')return value&&typeof value==='object'&&!Array.isArray(value)&&(!('engine'in value)||!!ENGINES[value.engine])&&(!('accent'in value)||/^#[0-9A-F]{6}$/i.test(value.accent))&&(!('proxy'in value)||typeof value.proxy==='boolean')&&(!('showRecent'in value)||typeof value.showRecent==='boolean');
+  if(key==='settings')return value&&typeof value==='object'&&!Array.isArray(value)&&(!('engine'in value)||!!ENGINES[value.engine])&&(!('accent'in value)||/^#[0-9A-F]{6}$/i.test(value.accent))&&(!('proxy'in value)||typeof value.proxy==='boolean')&&(!('showRecent'in value)||typeof value.showRecent==='boolean')&&(!('historyRetentionDays'in value)||(Number.isInteger(value.historyRetentionDays)&&value.historyRetentionDays>=0&&value.historyRetentionDays<=3650));
   if(key==='bookmarkFolders')return Array.isArray(value)&&value.length<=100&&value.every(x=>typeof x==='string'&&x.length<=48);
   if(key==='bookmarkSort')return ['newest','name','domain','folder'].includes(value);
   if(['aiPageActionsAllowed','contrastMode','compactMode','clearHistoryOnExit','warnHttp'].includes(key))return typeof value==='boolean';

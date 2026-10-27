@@ -41,10 +41,10 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/arena/f944c286-bray'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.27
-          name: ByAzen 1.0.27 — Фото по коду
+          tag_name: v1.0.28
+          name: ByAzen 1.0.28 — Автоочистка истории
           body: >-
-            Windows x64 build: includes the code-triggered photo viewer, bundled local photos, SVG controls, original vector pet illustrations, local Piper voice downloads, page-aware AI tools, and the persistent/resumable download manager.
+            Windows x64 build: adds configurable age-based history cleanup and includes the code-triggered photo viewer, bundled local photos, SVG controls, original vector pet illustrations, local Piper voice downloads, page-aware AI tools, and the persistent/resumable download manager.
           prerelease: true
           files: release/ByAzen.exe
           fail_on_unmatched_files: true
