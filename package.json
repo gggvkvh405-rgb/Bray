@@ -1,6 +1,6 @@
 {
   "name": "byazen",
-  "version": "1.0.31",
+  "version": "1.0.32",
   "description": "ByAzen — минималистичный тёмный браузер",
   "author": "ByAzen",
   "private": true,
@@ -27,6 +27,13 @@
       {
         "from": "resources/piper",
         "to": "piper",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "resources/whisper",
+        "to": "whisper",
         "filter": [
           "**/*"
         ]

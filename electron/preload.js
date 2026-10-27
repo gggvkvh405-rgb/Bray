@@ -22,6 +22,15 @@ if (window.top === window.self) {
         ipcRenderer.on('byazen:piper-progress', listener);
         return () => ipcRenderer.removeListener('byazen:piper-progress', listener);
       },
+      getWhisperCatalog: () => ipcRenderer.invoke('byazen:whisper-catalog'),
+      downloadWhisperModel: () => ipcRenderer.invoke('byazen:whisper-download'),
+      deleteWhisperModel: () => ipcRenderer.invoke('byazen:whisper-delete'),
+      transcribeWhisper: (audio, language) => ipcRenderer.invoke('byazen:whisper-transcribe', { audio, language }),
+      onWhisperProgress: callback => {
+        const listener = (_event, data) => callback(data);
+        ipcRenderer.on('byazen:whisper-progress', listener);
+        return () => ipcRenderer.removeListener('byazen:whisper-progress', listener);
+      },
       openSite: (id, url, isPrivate=false) => ipcRenderer.send('byazen:site-open', { id, url, private:!!isPrivate }),
       setActiveSite: (id, bounds) => ipcRenderer.send('byazen:site-active', { id, bounds }),
       closeSite: id => ipcRenderer.send('byazen:site-close', id),

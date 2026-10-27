@@ -822,7 +822,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.31</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.32</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -890,6 +890,18 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 </div>
 
 <!-- ============ LOCAL OLLAMA ASSISTANT ============ -->
+<div class="modal-overlay" id="whisperModelModal">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="whisperModelTitle" style="max-width:560px">
+    <div class="modal-head"><div><h2 id="whisperModelTitle">Офлайн-распознавание речи</h2><div class="ai-status">Whisper.cpp · MIT · распознавание остаётся на устройстве</div></div><button class="icon-btn" data-close="whisperModelModal" title="Закрыть"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body" style="display:grid;gap:12px">
+      <div class="voice-card" style="border:1px solid var(--border);border-radius:12px;padding:13px;background:rgba(255,255,255,.025)"><div><strong>Whisper Base · русский и английский</strong><div class="ai-status">Загрузка около 148 МБ · работает офлайн после установки. Модель из репозитория ggerganov/whisper.cpp, лицензия MIT.</div><a href="https://huggingface.co/ggerganov/whisper.cpp/blob/main/ggml-base.bin" target="_blank" rel="noreferrer">Источник модели и SHA-256</a> · <a href="https://github.com/ggml-org/whisper.cpp/tree/v1.9.5" target="_blank" rel="noreferrer">Исходники движка</a></div></div>
+      <div class="ai-status" id="whisperModelStatus" aria-live="polite">Проверяю модель…</div>
+      <progress id="whisperModelProgress" max="100" value="0" style="width:100%;display:none"></progress>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn danger" id="whisperDeleteModel" hidden>Удалить модель</button><button class="btn primary" id="whisperDownloadModel" disabled>Скачать и проверить SHA-256</button></div>
+    </div>
+    <div class="modal-foot"><span class="ai-status">Аудио не отправляется в интернет. Загрузка модели запускается только этой кнопкой.</span><button class="btn" data-close="whisperModelModal">Готово</button></div>
+  </section>
+</div>
 <div class="modal-overlay" id="voiceDownloadModal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="voiceDownloadTitle">
     <div class="modal-head"><div><h2 id="voiceDownloadTitle">Офлайн-голоса</h2><div class="ai-status">Piper TTS · GPL-3.0-or-later · каталог Hugging Face</div></div><button class="icon-btn" data-close="voiceDownloadModal" title="Закрыть"><svg><use href="#i-x"/></svg></button></div>
@@ -923,6 +935,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
         <optgroup id="aiSystemVoices" label="Голоса Windows"></optgroup>
         <optgroup id="aiPiperVoices" label="Скачанные голоса · офлайн" hidden></optgroup>
       </select>
+      <button class="btn" id="aiManageAsr" title="Установить офлайн-распознавание речи">Распознавание…</button>
       <button class="btn" id="aiManageVoices" title="Скачать или удалить офлайн-голоса">Голоса…</button>
       <label for="aiVoiceStyle">Манера</label>
       <select id="aiVoiceStyle" aria-label="Манера речи">
@@ -939,11 +952,11 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <div class="ai-msg system">Скажите или напишите команду: «Открой YouTube», «Новая вкладка», «Назад».</div>
     </div>
     <div class="ai-composer">
-      <button class="icon-btn" id="aiMic" title="Сказать команду"><svg><use href="#i-mic"/></svg></button>
+      <button class="icon-btn" id="aiMic" title="Записать офлайн-команду (Whisper)"><svg><use href="#i-mic"/></svg></button>
       <textarea id="aiInput" rows="2" placeholder="Напишите команду или задайте вопрос…"></textarea>
       <button class="btn primary" id="aiSend"><svg style="width:15px;height:15px"><use href="#i-send"/></svg> Отправить</button>
     </div>
-    <div class="ai-footnote">Чат и модель работают локально через Ollama. Скачанные голоса Piper и голоса Windows озвучивают текст на устройстве; русские голоса Edge TTS работают через интернет и отправляют Microsoft только текст ответа. Распознавание речи Chromium также может требовать интернет.</div>
+    <div class="ai-footnote">Чат и модель работают локально через Ollama. Офлайн-ввод речи использует Whisper (однократная загрузка модели около 148 МБ); аудио не покидает устройство. Piper и голоса Windows озвучивают локально; Edge TTS работает через интернет и отправляет Microsoft только текст ответа.</div>
   </section>
 </div>
 
@@ -2069,7 +2082,7 @@ $('#cmdkInput').addEventListener('keydown', e=>{
 $('#cmdBtn').onclick = openCmdk;
 
 /* ---------- Local Ollama assistant ---------- */
-let aiHistory = [], aiBusy = false, aiRecognition = null;
+let aiHistory = [], aiBusy = false, aiRecording = null;
 let savedAiChats=asArray(store.get('assistantChats',[]),[]).filter(c=>c&&typeof c.name==='string'&&Array.isArray(c.messages)&&c.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string')).slice(0,50);
 let aiCompareContexts=null,aiUndoAction=null;
 let aiModel = store.get('assistantModel', 'qwen2.5:3b');
@@ -2162,6 +2175,40 @@ async function renderPiperVoiceCatalog(){
   }
 }
 $('#aiManageVoices').onclick=()=>{renderPiperVoiceCatalog();$('#voiceDownloadModal').classList.add('show');};
+let whisperModelState=null,whisperDownloading=false;
+function formatModelBytes(bytes){return `${(bytes/1024/1024).toFixed(0)} МБ`;}
+async function refreshWhisperCatalog(){
+  const status=$('#whisperModelStatus'),download=$('#whisperDownloadModel'),remove=$('#whisperDeleteModel');
+  if(!window.byazenDesktop?.getWhisperCatalog){status.textContent='Офлайн Whisper доступен в настольной сборке ByAzen для Windows.';download.disabled=true;remove.hidden=true;return null;}
+  status.textContent='Проверяю модель…';download.disabled=true;
+  try{
+    whisperModelState=await window.byazenDesktop.getWhisperCatalog();
+    if(!whisperModelState?.available){status.textContent='Офлайн-распознавание пока доступно только в сборке Windows.';download.disabled=true;remove.hidden=true;return whisperModelState;}
+    const model=whisperModelState.model;
+    if(model?.installed){status.textContent=`Модель установлена · ${formatModelBytes(model.sizeBytes)} · SHA-256 проверяется перед распознаванием.`;download.textContent='Модель установлена';download.disabled=true;remove.hidden=false;}
+    else{status.textContent=`Модель ещё не скачана · ${formatModelBytes(model?.sizeBytes||147951465)}.`;download.textContent='Скачать и проверить SHA-256';download.disabled=whisperDownloading;remove.hidden=true;}
+    return whisperModelState;
+  }catch(e){status.textContent='Не удалось проверить модель Whisper.';download.disabled=true;remove.hidden=true;return null;}
+}
+$('#aiManageAsr').onclick=async()=>{$('#whisperModelModal').classList.add('show');await refreshWhisperCatalog();};
+$('#whisperDownloadModel').onclick=async()=>{
+  if(whisperDownloading)return;
+  if(!confirm('Скачать Whisper Base (около 148 МБ) из проверенного источника Hugging Face? Файл будет установлен в папку данных ByAzen и проверен по SHA-256.'))return;
+  whisperDownloading=true;$('#whisperModelProgress').style.display='block';$('#whisperModelProgress').value=0;$('#whisperDownloadModel').disabled=true;$('#whisperModelStatus').textContent='Загрузка модели…';
+  try{const result=await window.byazenDesktop.downloadWhisperModel();if(!result?.ok)throw new Error(result?.error||'Не удалось загрузить модель');toast('Офлайн-распознавание готово');}
+  catch(e){$('#whisperModelStatus').textContent=e.message||'Не удалось загрузить модель';toast(e.message||'Ошибка загрузки Whisper');}
+  finally{whisperDownloading=false;$('#whisperModelProgress').style.display='none';await refreshWhisperCatalog();}
+};
+$('#whisperDeleteModel').onclick=async()=>{
+  if(!confirm('Удалить локальную модель распознавания речи? Это не затронет Piper-голоса или Ollama.'))return;
+  const result=await window.byazenDesktop.deleteWhisperModel();if(result?.ok){toast('Модель Whisper удалена');await refreshWhisperCatalog();}
+};
+if(window.byazenDesktop?.onWhisperProgress)window.byazenDesktop.onWhisperProgress(progress=>{
+  if(progress.status==='downloading'){
+    $('#whisperModelStatus').textContent=`Скачиваю офлайн-модель… ${formatModelBytes(progress.received||0)} / ${formatModelBytes(progress.total||147951465)}`;
+    $('#whisperModelProgress').value=Math.min(100,Math.round((progress.received||0)/(progress.total||147951465)*100));
+  }else if(progress.status==='error')$('#whisperModelStatus').textContent=progress.error||'Ошибка загрузки модели';
+});
 if(window.byazenDesktop?.onPiperProgress)window.byazenDesktop.onPiperProgress(progress=>{
   const finished=progress.status==='installed'||progress.status==='error';
   if(finished)piperProgressById.delete(progress.id);else piperProgressById.set(progress.id,progress);
@@ -2258,7 +2305,7 @@ $('#aiModel').onchange=()=>{ aiModel=$('#aiModel').value; store.set('assistantMo
 $('#aiSpeak').onchange=()=>store.set('assistantSpeak',$('#aiSpeak').checked);
 $('#aiClose').onclick=()=>closeModal('assistantModal');
 $('#assistantBtn').onclick=openAssistant;
-function aiActionLabel(a){ return ({new_tab:'Новая вкладка',home:'Главная',back:'Назад',forward:'Вперёд',reload:'Обновить страницу',close_tab:'Закрыть вкладку',bookmark:'Добавить в закладки',navigate:'Открыть сайт',search:'Искать',search_site:'Искать на сайте',switch_tab:'Переключить вкладку',duplicate_tab:'Дублировать вкладку',reopen_closed_tab:'Восстановить закрытую вкладку',pin_tab:a.pinned===false?'Открепить вкладку':'Закрепить вкладку',open_bookmarks:'Открыть закладки',open_history:'Открыть историю',page_read:'Прочитать страницу',page_click:'Нажать элемент страницы',page_fill:'Заполнить поле',page_select:'Выбрать вариант',page_press:'Нажать клавишу',page_scroll:'Прокрутить страницу'})[a.type]||'Действие браузера'; }
+function aiActionLabel(a){ return ({new_tab:'Новая вкладка',open_tabs:'Открыть сайты',home:'Главная',back:'Назад',forward:'Вперёд',reload:'Обновить страницу',close_tab:'Закрыть вкладку',bookmark:'Добавить в закладки',navigate:'Открыть сайт',search:'Искать',search_site:'Искать на сайте',switch_tab:'Переключить вкладку',duplicate_tab:'Дублировать вкладку',reopen_closed_tab:'Восстановить закрытую вкладку',pin_tab:a.pinned===false?'Открепить вкладку':'Закрепить вкладку',open_bookmarks:'Открыть закладки',open_history:'Открыть историю',page_read:'Прочитать страницу',page_find:'Найти на странице',page_download:'Скачать файл',set_zoom:'Изменить масштаб',page_click:'Нажать элемент страницы',page_fill:'Заполнить поле',page_select:'Выбрать вариант',page_press:'Нажать клавишу',page_scroll:'Прокрутить страницу'})[a.type]||'Действие браузера'; }
 async function getAiPageContext(){
   const tab=activeTab();let context;
   if(!tab)context={url:'',title:'Нет активной вкладки'};
@@ -2266,7 +2313,8 @@ async function getAiPageContext(){
   else if(store.get('aiPageActionsAllowed',true)===false)context={url:tab.url,title:tab.title,text:'Чтение контекста страницы отключено пользователем в настройках.'};
   else if(nativeWebview&&tab.nativeView){try{context=await window.byazenDesktop.getPageContext(tab.id);}catch(e){context={url:tab.url,title:tab.title,error:String(e.message||e)};}}
   else context={url:tab.url,title:tab.title,error:'Чтение и управление страницей доступны в настольной версии ByAzen.'};
-  return aiCompareContexts?{...context,comparisonPages:aiCompareContexts}:context;
+  const openTabs=tabs.slice(0,24).map(t=>({title:String(t.title||'Вкладка').slice(0,120),url:String(t.url||'').slice(0,500),active:t.id===activeId,pinned:!!t.pinned,private:!!t.private}));
+  return aiCompareContexts?{...context,openTabs,comparisonPages:aiCompareContexts}:{...context,openTabs};
 }
 async function runPageTool(action){
   if(store.get('aiPageActionsAllowed',true)===false)return {ok:false,error:'Действия ИИ на страницах отключены в настройках.'};
@@ -2287,6 +2335,17 @@ async function executeAiActions(actions){
     let result={ok:true,action:aiActionLabel(a)};
     switch(a.type){
       case 'new_tab': createTab(); break;
+      case 'open_tabs': {
+        const urls=Array.isArray(a.urls)?a.urls.slice(0,4).map(value=>String(value||'').trim()):[];
+        const valid=urls.map(raw=>{try{const url=new URL(raw);return /^https?:$/.test(url.protocol)?url.href:'';}catch{return '';}});
+        if(!valid.length||valid.some(url=>!url)){result={ok:false,error:'Для открытия нескольких вкладок нужны корректные HTTP(S)-адреса.'};break;}
+        const opened=[];let cancelled=false;for(const url of valid){
+          if(/^http:\/\//i.test(url)&&store.get('warnHttp',true)!==false&&!confirm(`Сайт использует незашифрованное HTTP-соединение. Открыть ${url}?`)){cancelled=true;break;}
+          const tab=createTab(url,{activate:true});if(tab)opened.push(url);
+        }
+        if(cancelled)result={ok:false,cancelled:true,opened,message:'Пользователь отменил открытие оставшихся сайтов.'};else if(opened.length)result={ok:true,opened};
+        break;
+      }
       case 'home': $('#homeBtn').click(); break;
       case 'back': { const t=activeTab(); if(t) goHist(t,-1); break; }
       case 'forward': { const t=activeTab(); if(t) goHist(t,1); break; }
@@ -2313,6 +2372,28 @@ async function executeAiActions(actions){
       }
       case 'navigate': if(typeof a.url==='string'&&/^https?:\/\//i.test(a.url)) navigateActive(a.url); else result={ok:false,error:'Недопустимый адрес.'}; break;
       case 'page_read': result=await runPageTool({type:'read'}); break;
+      case 'page_find': result=await runPageTool({type:'find',query:a.query}); break;
+      case 'page_download': {
+        const tab=activeTab();
+        result=await runPageTool({type:'download',target:a.target});
+        if(result?.ok&&result.url&&tab){
+          const download=await window.byazenDesktop.downloadLink(tab.id,result.url);
+          result=download?.ok?{ok:true,started:true,target:result.target,url:result.url}:{ok:false,error:'Браузер не смог начать загрузку файла.'};
+        }
+        break;
+      }
+      case 'set_zoom': {
+        const t=activeTab(),factor=Math.max(.5,Math.min(2,Number(a.factor)||1));
+        if(!t||isInternal(t.url))result={ok:false,error:'Откройте веб-страницу, чтобы изменить масштаб.'};
+        else{
+          const host=hostOf(t.url);pageZooms.set(t.id,factor);
+          if(!t.private){siteZoomPreferences[host]=factor;store.set('siteZoomPreferences',siteZoomPreferences);}
+          if(nativeWebview)result=await window.byazenDesktop.setPageZoom(t.id,factor);
+          else if(t.frame){t.frame.style.zoom=String(factor);result={ok:true,factor};}
+          else result={ok:false,error:'Не удалось изменить масштаб.'};
+        }
+        break;
+      }
       case 'page_click': result=await runPageTool({type:'click',target:a.target}); break;
       case 'page_fill': result=await runPageTool({type:'fill',target:a.target,value:a.value}); break;
       case 'page_select': result=await runPageTool({type:'select',target:a.target,value:a.value}); break;
@@ -2438,7 +2519,7 @@ async function sendAiMessage(text){
     if(!finalReply) finalReply='Готово.';
     pending.remove(); addAiMessage('assistant',finalReply);
     if(citedSources.length)addAiMessage('system','Источники контекста: '+citedSources.map(s=>`${s.title||'Страница'} — ${s.url}`).join(' · '));
-    const done=completed.filter(r=>r.ok&&!['page_read'].includes(r.type)).map(r=>aiActionLabel({type:r.type,...r}));
+    const done=completed.filter(r=>r.ok&&r.type!=='page_read').map(r=>r.type==='page_download'&&r.started?'Загрузка начата':aiActionLabel({type:r.type,...r}));
     if(done.length) addAiMessage('system','Выполнено: '+done.join(' · '));
     if($('#aiSpeak').checked) speakAi(finalReply);
     aiStatus(`Ответила модель ${responseModel}`,'ok');
@@ -2450,41 +2531,57 @@ $('#aiSend').onclick=()=>sendAiMessage($('#aiInput').value);
 $('#aiInput').addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAiMessage($('#aiInput').value);}
 });
-$('#aiMic').onclick=()=>{
-  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!Recognition){ addAiMessage('system','Распознавание речи недоступно в этой сборке Chromium. Введите команду текстом.'); return; }
-  if(aiRecognition){ aiRecognition.stop(); return; }
-  const mic=$('#aiMic');
+async function stopOfflineRecording(){
+  const recording=aiRecording;if(!recording)return;
+  aiRecording=null;clearTimeout(recording.limitTimer);
+  const mic=$('#aiMic');mic.classList.remove('listening');mic.disabled=true;aiStatus('Распознаю речь офлайн…','ok');
   try{
-    // Let Chromium own the single microphone capture session; a separate getUserMedia probe
-    // can keep the Windows audio device busy and make SpeechRecognition fail to start.
-    const rec=new Recognition(); aiRecognition=rec; rec.lang=$('#aiInputLang').value||'ru-RU'; rec.interimResults=false; rec.maxAlternatives=1; rec.continuous=false;
-    mic.classList.add('listening'); aiStatus('Слушаю… скажите команду','ok');
-    rec.onresult=e=>{ const text=e.results?.[0]?.[0]?.transcript||''; if(text) sendAiMessage(text); };
-    rec.onerror=e=>{
-      if(e.error==='no-speech') return;
-      const message=e.error==='audio-capture'
-        ? 'Chromium не смог открыть аудиовход. Закройте программы, которые используют микрофон, и проверьте выбранное устройство в Параметры Windows → Система → Звук → Ввод.'
-        : e.error==='not-allowed'
-          ? 'Доступ к микрофону запрещён. Включите доступ к микрофону для классических приложений в параметрах конфиденциальности Windows и перезапустите ByAzen.'
-          : e.error==='network'
-            ? 'Служба распознавания речи Chromium недоступна. Проверьте подключение к интернету.'
-            : 'Распознавание речи: '+e.error;
-      addAiMessage('system',message); aiStatus('Ошибка распознавания речи','err');
-    };
-    rec.onend=()=>{aiRecognition=null;mic.classList.remove('listening');mic.disabled=false;};
-    rec.start();
+    recording.processor.onaudioprocess=null;recording.source.disconnect();recording.processor.disconnect();recording.mute.disconnect();
+    recording.stream.getTracks().forEach(track=>track.stop());await recording.context.close();
+    const samples=new Float32Array(recording.length);let offset=0;for(const chunk of recording.chunks){samples.set(chunk,offset);offset+=chunk.length;}
+    const outputLength=Math.floor(samples.length*16000/recording.sampleRate);
+    if(outputLength<1600)throw new Error('Запись слишком короткая. Попробуйте сказать фразу ещё раз.');
+    const pcm=new Int16Array(outputLength),ratio=recording.sampleRate/16000;
+    for(let i=0;i<outputLength;i++){
+      const source=i*ratio,left=Math.floor(source),fraction=source-left;
+      const a=samples[Math.min(left,samples.length-1)]||0,b=samples[Math.min(left+1,samples.length-1)]||0;
+      const value=Math.max(-1,Math.min(1,a+(b-a)*fraction));pcm[i]=value<0?Math.round(value*32768):Math.round(value*32767);
+    }
+    const result=await window.byazenDesktop.transcribeWhisper(pcm.buffer,$('#aiInputLang').value||'ru-RU');
+    if(!result?.ok)throw new Error(result?.error||'Не удалось распознать речь.');
+    const text=String(result.text||'').trim();if(!text)throw new Error('Whisper не распознал речь. Попробуйте говорить чуть медленнее.');
+    aiStatus('Речь распознана офлайн','ok');await sendAiMessage(text);
+  }catch(e){addAiMessage('system',e.message||'Не удалось обработать запись');aiStatus('Ошибка офлайн-распознавания','err');}
+  finally{mic.disabled=aiBusy;}
+}
+async function startOfflineRecording(){
+  const mic=$('#aiMic');let stream=null,context=null;mic.disabled=true;
+  if(!window.byazenDesktop?.getWhisperCatalog){mic.disabled=false;addAiMessage('system','Офлайн-ввод речи доступен в приложении ByAzen для Windows.');return;}
+  try{
+    const state=await window.byazenDesktop.getWhisperCatalog();
+    if(!state?.available){addAiMessage('system','Офлайн-распознавание речи доступно в настольной сборке ByAzen для Windows.');return;}
+    if(!state.model?.installed){$('#whisperModelModal').classList.add('show');await refreshWhisperCatalog();addAiMessage('system','Сначала скачайте офлайн-модель Whisper (около 148 МБ) в разделе «Распознавание…». Аудио не отправляется в интернет.');return;}
+    stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)throw new Error('Захват звука недоступен в этой сборке Chromium.');
+    context=new AudioContextClass({sampleRate:16000});await context.resume();
+    const source=context.createMediaStreamSource(stream),processor=context.createScriptProcessor(4096,1,1),mute=context.createGain();
+    mute.gain.value=0;const chunks=[];
+    const recording={stream,context,source,processor,mute,chunks,length:0,sampleRate:context.sampleRate,limitTimer:null};
+    processor.onaudioprocess=event=>{if(aiRecording!==recording)return;const data=event.inputBuffer.getChannelData(0);const copy=new Float32Array(data.length);copy.set(data);chunks.push(copy);recording.length+=copy.length;};
+    source.connect(processor);processor.connect(mute);mute.connect(context.destination);
+    recording.limitTimer=setTimeout(()=>stopOfflineRecording(),30000);aiRecording=recording;
+    mic.classList.add('listening');mic.disabled=false;aiStatus('Слушаю офлайн… нажмите микрофон ещё раз для отправки','ok');
   }catch(e){
-    aiRecognition=null; mic.classList.remove('listening'); mic.disabled=false;
-    const detail=String(e.message||e.name||'');
-    const message=/Could not start audio source/i.test(detail)
-      ? 'Chromium не смог запустить захват звука. Закройте программы, использующие микрофон, выберите устройство ввода Windows и перезапустите ByAzen.'
-      : e.name==='NotAllowedError'||e.name==='PermissionDeniedError'
-        ? 'Windows запретила доступ к микрофону. Включите доступ к микрофону и разрешение для классических приложений, затем перезапустите ByAzen.'
-        : 'Не удалось начать распознавание: '+detail;
-    addAiMessage('system',message); aiStatus('Микрофон недоступен','err');
-  }
-};
+    if(stream)stream.getTracks().forEach(track=>track.stop());
+    if(context)context.close().catch(()=>{});
+    const message=e.name==='NotAllowedError'||e.name==='PermissionDeniedError'
+      ?'Windows запретила доступ к микрофону. Разрешите микрофон для классических приложений в параметрах конфиденциальности Windows.'
+      :e.name==='NotFoundError'?'Не найден микрофон. Проверьте устройство ввода Windows → Система → Звук.':String(e.message||e);
+    addAiMessage('system',message);aiStatus('Микрофон недоступен','err');mic.classList.remove('listening');
+  }finally{if(!aiRecording)mic.disabled=aiBusy;}
+}
+$('#aiMic').onclick=()=>{if(aiRecording)stopOfflineRecording();else startOfflineRecording();};
 
 
 /* ---------- keyboard ---------- */

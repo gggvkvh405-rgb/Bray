@@ -3,6 +3,7 @@ const { execFileSync } = require('node:child_process');
 const path = require('path');
 const fs = require('fs');
 const { registerPiperHandlers } = require('./piper');
+const { registerWhisperHandlers } = require('./whisper');
 const { startServer } = require('../server');
 
 app.setName('ByAzen');
@@ -21,26 +22,43 @@ const PAGE_CONTEXT_SCRIPT = `(() => {
   const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'; };
   const label = el => {
     const labels=el.labels?[...el.labels].map(x=>x.innerText).join(' '):'';
-    return String(el.innerText||el.getAttribute('aria-label')||el.getAttribute('placeholder')||el.getAttribute('title')||labels||el.name||'').replace(/\\s+/g,' ').trim().slice(0,180);
+    return String(el.innerText||el.getAttribute('aria-label')||el.getAttribute('placeholder')||el.getAttribute('title')||labels||el.name||'').replace(/\s+/g,' ').trim().slice(0,180);
   };
   const controls=[...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="link"],[contenteditable="true"]')]
     .filter(el=>visible(el)&&el.type!=='password'&&el.type!=='hidden')
     .slice(0,90).map(el=>({tag:el.tagName.toLowerCase(),type:el.type||'',label:label(el),placeholder:el.getAttribute('placeholder')||'',disabled:!!el.disabled}));
-  return {title:document.title,url:location.href,text:(document.body?.innerText||'').replace(/\\n{3,}/g,'\\n\\n').slice(0,8500),controls};
+  return {title:document.title,url:location.href,text:(document.body?.innerText||'').replace(/\n{3,}/g,'\n\n').slice(0,8500),controls};
 })()`;
 
 const PAGE_ACTION_SCRIPT = `(() => {
   const a=__BYAZEN_ACTION__;
   const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'};
-  const label=el=>{const labels=el.labels?[...el.labels].map(x=>x.innerText).join(' '):'';return String(el.innerText||el.getAttribute('aria-label')||el.getAttribute('placeholder')||el.getAttribute('title')||labels||el.name||'').replace(/\\s+/g,' ').trim().slice(0,180)};
-  const norm=s=>String(s||'').normalize('NFKC').toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+  const label=el=>{const labels=el.labels?[...el.labels].map(x=>x.innerText).join(' '):'';return String(el.innerText||el.getAttribute('aria-label')||el.getAttribute('placeholder')||el.getAttribute('title')||labels||el.name||'').replace(/\s+/g,' ').trim().slice(0,180)};
+  const norm=s=>String(s||'').normalize('NFKC').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
   const match=(els,q)=>{const n=norm(q);if(!n)return null;let best=null,score=0;for(const el of els){if(!visible(el)||el.disabled)continue;const l=norm(label(el));let z=l===n?100:l.startsWith(n)?80:l.includes(n)?60:n.includes(l)&&l.length>2?40:0;if(z>score){best=el;score=z;}}return best;};
-  const sensitive=el=>/password|credit|cardnumber|cc-number|cvc|cvv|one-time-code/i.test([el.type,el.name,el.id,el.autocomplete].join(' '));
-  const dangerous=s=>/(купить|заказ|оплат|плат[её]ж|удалить|удаление|оформить|подтвердить покуп|отправить сообщ|publish|delete|purchase|buy now|checkout|pay now|place order|submit|send message)/i.test(s||'');
+  const sensitive=el=>/password|credit|cardnumber|cc-number|cvc|cvv|one-time-code|current-password|new-password/i.test([el.type,el.name,el.id,el.autocomplete].join(' '));
+  const dangerous=s=>/(купить|заказ|оплат|плат[её]ж|удалить|удаление|оформить|подтвердить покуп|отправить|публикац|зарегистр|войти|авторизац|подписат|подписк|publish|delete|purchase|buy now|checkout|pay now|place order|submit|send message|sign in|log in|register|subscribe|comment|post reply)/i.test(s||'');
+  const formRisk=el=>{const form=el?.closest?.('form');if(!form)return false;const details=[form.action||'',...form.querySelectorAll('input,textarea,select')].map(x=>typeof x==='string'?x:[x.type,x.name,x.id,x.autocomplete].join(' ')).join(' ');return /password|secret|token|otp|card|cvv|billing|payment|checkout|purchase|order|account|login|signin|register|message|comment|subscribe/i.test(details);};
   if(a.type==='read') return {ok:true,tool:'read',snapshot:(()=>{const es=[...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="link"]')].filter(el=>visible(el)&&!sensitive(el)).slice(0,90);return {title:document.title,url:location.href,text:(document.body?.innerText||'').slice(0,8500),controls:es.map(el=>({tag:el.tagName.toLowerCase(),type:el.type||'',label:label(el),placeholder:el.getAttribute('placeholder')||''}))};})()};
+  if(a.type==='find'){
+    const query=String(a.query||'').trim().slice(0,200);if(!query)return {ok:false,error:'Введите текст для поиска.'};
+    const body=document.body?.innerText||'',lower=body.toLocaleLowerCase(),needle=query.toLocaleLowerCase();let count=0,pos=-1,from=0;
+    while((from=lower.indexOf(needle,from))!==-1){if(pos<0)pos=from;count++;from+=Math.max(1,needle.length);if(count>=100)break;}
+    const found=window.find(query,false,false,true,false,false,false);
+    const start=Math.max(0,(pos<0?0:pos)-100),excerpt=pos<0?'':body.slice(start,Math.min(body.length,pos+query.length+180)).split(String.fromCharCode(10)).join(' ').trim();
+    return {ok:true,action:'find',query,found:!!found||pos>=0,count,excerpt};
+  }
+  if(a.type==='download'){
+    const el=match([...document.querySelectorAll('a[href]')],a.target);if(!el)return {ok:false,error:'Не нашла ссылку для загрузки: '+a.target};
+    let url;try{url=new URL(el.href,location.href);}catch{return {ok:false,error:'Ссылка на файл некорректна.'};}
+    if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return {ok:false,error:'Разрешены только обычные HTTP(S)-ссылки без данных для входа.'};
+    const target=label(el)||url.hostname;
+    if(!a.confirmed)return {ok:false,confirmationRequired:true,target:target+' · '+url.href,message:'Начать загрузку файла? Убедитесь, что доверяете источнику.'};
+    return {ok:true,action:'download',target,url:url.href};
+  }
   if(a.type==='click'){
     const els=[...document.querySelectorAll('a,button,input[type="submit"],input[type="button"],[role="button"],[role="link"]')];const el=match(els,a.target);if(!el)return {ok:false,error:'Не нашла подходящую кнопку или ссылку: '+a.target};const name=label(el)||el.tagName;
-    if(dangerous(name)&&!a.confirmed)return {ok:false,confirmationRequired:true,target:name,message:'Это действие может отправить данные, удалить что-либо или оформить покупку.'};
+    if((dangerous(name)||formRisk(el))&&!a.confirmed)return {ok:false,confirmationRequired:true,target:name,message:'Это действие может отправить данные, опубликовать содержимое, изменить аккаунт, оформить покупку или подтвердить подписку.'};
     el.click();return {ok:true,action:'click',target:name};
   }
   if(a.type==='fill'){
@@ -55,7 +73,7 @@ const PAGE_ACTION_SCRIPT = `(() => {
   if(a.type==='press'){
     const key=String(a.key||'');const allowed=['Enter','Escape','Tab','ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End','Backspace','Delete','Space'];if(!allowed.includes(key))return {ok:false,error:'Эта клавиша не разрешена'};
     const el=document.activeElement||document.body;
-    if(key==='Enter'&&el.form){const submit=el.form.querySelector('button[type="submit"],input[type="submit"]'),name=submit?label(submit):'';if(submit&&dangerous(name)&&!a.confirmed)return {ok:false,confirmationRequired:true,target:name,message:'Enter может подтвердить отправку или покупку.'};if(submit){el.form.requestSubmit(submit);return {ok:true,action:'submit',target:name||'форма'};}}
+    if(key==='Enter'&&el.form){const submit=el.form.querySelector('button[type="submit"],input[type="submit"]'),name=submit?label(submit):'';if(submit&&(dangerous(name)||formRisk(submit))&&!a.confirmed)return {ok:false,confirmationRequired:true,target:name||'форма',message:'Enter может отправить данные, изменить аккаунт или оформить действие.'};if(submit){el.form.requestSubmit(submit);return {ok:true,action:'submit',target:name||'форма'};}}
     const init={key:key==='Space'?' ':key,code:key==='Space'?'Space':key,bubbles:true,cancelable:true};el.dispatchEvent(new KeyboardEvent('keydown',init));el.dispatchEvent(new KeyboardEvent('keyup',init));return {ok:true,action:'press',key};
   }
   if(a.type==='scroll'){
@@ -254,6 +272,7 @@ ipcMain.on('byazen:site-open', (event, payload = {}) => {
 
 function trustedUi(event) { return !!(win && !win.isDestroyed() && event.sender === win.webContents); }
 registerPiperHandlers(ipcMain, { app, isTrusted: trustedUi, getWindow: () => win, resourcesPath: process.resourcesPath });
+registerWhisperHandlers(ipcMain, { app, isTrusted: trustedUi, getWindow: () => win, resourcesPath: process.resourcesPath });
 ipcMain.handle('byazen:register-browser',event=>{
   if(!trustedUi(event)||process.platform!=='win32')return {ok:false,error:'Доступно только в Windows.'};
   const result=registerWindowsBrowser();
@@ -272,7 +291,7 @@ ipcMain.handle('byazen:open-language-settings',event=>{
 ipcMain.handle('byazen:permission-log',event=>trustedUi(event)?websitePermissionLog.slice(0,100):[]);
 ipcMain.handle('byazen:permission-log-clear',event=>{if(!trustedUi(event))return false;websitePermissionLog.length=0;return true;});
 ipcMain.handle('byazen:downloads-list',event=>trustedUi(event)?downloadRecords.filter(x=>!x.privateOwnerId).map(x=>({...x})):[]);
-ipcMain.handle('byazen:download-link',(event,payload={})=>{if(!trustedUi(event))return {ok:false};const id=Number(payload.id),url=String(payload.url||'');const contents=pageView(id);if(!contents||url.length>4096||!/^https?:\/\//i.test(url))return {ok:false};try{contents.downloadURL(url);return {ok:true};}catch{return {ok:false};}});
+ipcMain.handle('byazen:download-link',(event,payload={})=>{if(!trustedUi(event))return {ok:false};const id=Number(payload.id),raw=String(payload.url||'');const contents=pageView(id);if(!contents||raw.length>4096)return {ok:false};let url;try{url=new URL(raw);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return {ok:false};}catch{return {ok:false};}try{contents.downloadURL(url.href);return {ok:true};}catch{return {ok:false};}});
 ipcMain.handle('byazen:downloads-pause',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||!record||record.status!=='downloading')return {ok:false};try{item.pause();patchDownload(record,{status:'paused'});return {ok:true};}catch{return {ok:false};}});
 ipcMain.handle('byazen:downloads-resume',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||!record||!['interrupted','paused'].includes(record.status))return {ok:false};if(record.status==='interrupted'&&(typeof item.canResume!=='function'||!item.canResume()))return {ok:false};try{record.canResume=false;patchDownload(record,{status:'downloading'});item.resume();return {ok:true};}catch{return {ok:false};}});
 ipcMain.handle('byazen:downloads-folder',async event=>{if(!trustedUi(event))return {ok:false};try{const error=await shell.openPath(app.getPath('downloads'));return {ok:!error,error:error||''};}catch{return {ok:false};}});
@@ -334,10 +353,11 @@ ipcMain.handle('byazen:page-action', async (event, payload = {}) => {
   const contents=pageView(payload.id);
   if(!contents) return {ok:false,error:'Нет активной веб-страницы'};
   const input=payload.action||{};
-  const allowed=new Set(['read','click','fill','select','press','scroll']);
+  const allowed=new Set(['read','find','download','click','fill','select','press','scroll']);
   if(!allowed.has(input.type)) return {ok:false,error:'Неизвестное действие страницы'};
   const action={type:input.type,confirmed:input.confirmed===true};
-  if(['click','fill','select'].includes(action.type)) action.target=String(input.target||'').trim().slice(0,160);
+  if(['click','fill','select','download'].includes(action.type)) action.target=String(input.target||'').trim().slice(0,160);
+  if(action.type==='find') action.query=String(input.query||'').trim().slice(0,200);
   if(action.type==='fill'||action.type==='select') action.value=String(input.value||'').slice(0,1200);
   if(action.type==='press') {
     action.key=String(input.key||'');

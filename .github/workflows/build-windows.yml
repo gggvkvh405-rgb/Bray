@@ -26,6 +26,9 @@ jobs:
       - name: Build local Piper runtime and include license notices
         shell: pwsh
         run: ./scripts/build-piper-runtime.ps1
+      - name: Build offline Whisper runtime from the pinned MIT source
+        shell: pwsh
+        run: ./scripts/build-whisper-runtime.ps1
       - name: Install dependencies
         run: npm ci
       - name: Build portable executable
@@ -41,10 +44,10 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/arena/f944c286-bray'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.31
-          name: ByAzen 1.0.31 — Анимированные фотоэффекты
+          tag_name: v1.0.32
+          name: ByAzen 1.0.32 — Офлайн-речь и браузерный ИИ
           body: >-
-            Windows x64 portable build: adds locally bundled CC0 particle sprites and dramatic animated canvas effects for the code-triggered photo viewer, alongside Windows HTTP/HTTPS registration and internal tab handling for external links.
+            Windows x64 portable build: adds optional offline Whisper speech recognition (explicit model download with SHA-256 verification), retains Piper offline speech synthesis, and improves natural-language browser actions with page search, tab context, and safer confirmation for sensitive form submissions.
           prerelease: true
           files: release/ByAzen.exe
           fail_on_unmatched_files: true
