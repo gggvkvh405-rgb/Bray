@@ -43,7 +43,8 @@ jobs:
         with:
           tag_name: v1.0.26
           name: ByAzen 1.0.26 — SVG-интерфейс
-          body: Windows x64 build: replaces interface emoji with bundled SVG controls and original vector pet illustrations. Keeps existing pet and costume selections through a one-time settings migration. Also includes the project workspace, local Piper voice downloads, page-aware AI tools, and the persistent/resumable download manager.
+          body: >-
+            Windows x64 build: replaces interface emoji with bundled SVG controls and original vector pet illustrations. Keeps existing pet and costume selections through a one-time settings migration. Also includes the project workspace, local Piper voice downloads, page-aware AI tools, and the persistent/resumable download manager.
           prerelease: true
           files: release/ByAzen.exe
           fail_on_unmatched_files: true
