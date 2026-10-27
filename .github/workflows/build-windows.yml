@@ -42,14 +42,4 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view v1.0.26 --repo gggkvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.26 release/ByAzen.exe --repo gggkvh405-rgb/Bray
-          else
-            gh release create v1.0.26 release/ByAzen.exe \
-              --title 'ByAzen 1.0.26 — SVG-интерфейс' \
-              --notes 'Windows x64 build: replaces interface emoji with bundled SVG controls and original vector pet illustrations. Keeps existing pet and costume selections through a one-time settings migration. Also includes the project workspace, local Piper voice downloads, page-aware AI tools, and the persistent/resumable download manager.' \
-              --prerelease \
-              --target "$GITHUB_SHA" \
-              --repo gggkvh405-rgb/Bray
-          fi
+        run: gh release upload v1.0.26 release/ByAzen.exe --repo gggkvkvh405-rgb/Bray
