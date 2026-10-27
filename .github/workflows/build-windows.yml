@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.13 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.13 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.14 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.14 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.13 release/ByAzen.exe \
-              --title 'ByAzen 1.0.13 — перемещаемое окно ИИ' \
-              --notes 'Windows x64 build: drag the AI window by its header, resize it, and keep its position and size between openings. Includes the page-aware Ollama browser agent.' \
+            gh release create v1.0.14 release/ByAzen.exe \
+              --title 'ByAzen 1.0.14 — резервные копии и закладки' \
+              --notes 'Windows x64 build: import/export bookmarks as HTML, browse recently closed tabs, create and restore a validated local ByAzen backup, and move/resize the AI window. Backup does not contain website passwords, cookies or login data.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi

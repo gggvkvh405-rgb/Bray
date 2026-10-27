@@ -643,14 +643,21 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="set-group">
         <h4>Данные</h4>
+        <p style="font-size:11.5px;color:var(--text-3);line-height:1.5;margin:-4px 0 10px">Закладки можно переносить в HTML. Резервная копия включает настройки и данные ByAzen, но не пароли, cookies и данные входа на сайтах.</p>
         <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn" id="exportBookmarks">Экспорт закладок</button>
+          <button class="btn" id="importBookmarks">Импорт закладок</button>
+          <button class="btn" id="exportBackup">Скачать резервную копию</button>
+          <button class="btn" id="importBackup">Восстановить копию</button>
           <button class="btn danger" id="clearHist">Очистить историю</button>
           <button class="btn danger" id="clearBm">Очистить закладки</button>
         </div>
+        <input id="bookmarkFile" type="file" accept=".html,.htm,text/html" hidden>
+        <input id="backupFile" type="file" accept=".json,application/json" hidden>
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.13</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.14</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -938,7 +945,7 @@ function activateTab(id){
 function closeTab(id){
   const i = tabs.findIndex(t=>t.id===id); if(i<0) return;
   const [tab] = tabs.splice(i,1);
-  if (!isNewTab(tab.url)) { closedTabs.unshift({url:tab.url,title:tab.title,pinned:tab.pinned}); closedTabs=closedTabs.slice(0,12); store.set('closedTabs',closedTabs); }
+  if (!isNewTab(tab.url)) { closedTabs.unshift({url:tab.url,title:tab.title,pinned:tab.pinned,closedAt:Date.now()}); closedTabs=closedTabs.slice(0,12); store.set('closedTabs',closedTabs); }
   if (tab.frame) tab.frame.remove();
   if (tab.nativeView) window.byazenDesktop.closeSite(tab.id);
   if (!tabs.length){ persistTabs(); createTab(); return; }
@@ -1181,42 +1188,47 @@ document.addEventListener('click', ()=> $('#engineMenu').classList.remove('show'
 let panelMode = 'bookmarks';
 function openPanel(mode){
   panelMode = mode;
-  $('#panelTitle').textContent = mode==='bookmarks' ? 'Закладки' : 'История';
+  $('#panelTitle').textContent = mode==='bookmarks' ? 'Закладки' : mode==='closed' ? 'Недавно закрытые' : 'История';
   $('#panelSearch').value = '';
   renderPanel('');
   $('#panel').classList.add('show'); $('#panelOverlay').classList.add('show');
 }
 function closePanel(){ $('#panel').classList.remove('show'); $('#panelOverlay').classList.remove('show'); }
 function renderPanel(filter){
-  const src = panelMode==='bookmarks' ? bookmarks : historyLog;
+  const src = panelMode==='bookmarks' ? bookmarks : panelMode==='closed' ? closedTabs : historyLog;
   const list = src.filter(x=> !filter || (x.title+' '+x.url).toLowerCase().includes(filter.toLowerCase()));
   if (!list.length){
+    const label=panelMode==='bookmarks'?'Закладок пока нет':panelMode==='closed'?'Нет недавно закрытых вкладок':'История пуста';
     $('#panelBody').innerHTML = `<div class="empty"><svg><use href="#i-${panelMode==='bookmarks'?'bookmark':'history'}"/></svg>
-      <b>${filter ? 'Ничего не найдено' : (panelMode==='bookmarks' ? 'Закладок пока нет' : 'История пуста')}</b>
-      <p>${panelMode==='bookmarks' ? 'Откройте сайт и нажмите звезду в адресной строке.' : 'Посещённые сайты появятся здесь.'}</p></div>`;
+      <b>${filter ? 'Ничего не найдено' : label}</b>
+      <p>${panelMode==='bookmarks' ? 'Откройте сайт и нажмите звезду в адресной строке.' : panelMode==='closed' ? 'Закрытые сайты появятся здесь.' : 'Посещённые сайты появятся здесь.'}</p></div>`;
   } else {
     $('#panelBody').innerHTML = list.map((x,i)=>`
-      <div class="panel-item" data-url="${escapeHtml(x.url)}">
+      <div class="panel-item" data-index="${src.indexOf(x)}" data-url="${escapeHtml(x.url)}">
         <img src="${faviconOf(x.url)}" onerror="this.style.display='none'">
         <span class="t"><span class="ttl">${escapeHtml(x.title)}</span><br><span class="dom">${escapeHtml(hostOf(x.url))}</span></span>
-        <time>${timeAgo(x.time)}</time>
-        <button class="panel-del" data-del="${escapeHtml(x.url)}" title="Удалить"><svg><use href="#i-trash"/></svg></button>
+        <time>${timeAgo(x.closedAt||x.time||Date.now())}</time>
+        <button class="panel-del" data-del="${escapeHtml(x.url)}" title="${panelMode==='closed'?'Убрать из списка':'Удалить'}"><svg><use href="#i-trash"/></svg></button>
       </div>`).join('');
     $$('#panelBody .panel-item').forEach(el=> el.onclick = e=>{
+      const index=Number(el.dataset.index),u=el.dataset.url;
       if (e.target.closest('[data-del]')){
-        const u = el.dataset.url;
-        if (panelMode==='bookmarks'){ bookmarks = bookmarks.filter(b=>b.url!==u); store.set('bookmarks',bookmarks); syncChrome(); }
-        else { historyLog = historyLog.filter(h=>h.url!==u); store.set('history',historyLog); renderRecent(); }
-        renderPanel($('#panelSearch').value); return;
+        if(panelMode==='bookmarks'){bookmarks=bookmarks.filter(b=>b.url!==u);store.set('bookmarks',bookmarks);syncChrome();}
+        else if(panelMode==='closed'){closedTabs.splice(index,1);store.set('closedTabs',closedTabs);}
+        else{historyLog=historyLog.filter(h=>h.url!==u);store.set('history',historyLog);renderRecent();}
+        renderPanel($('#panelSearch').value);return;
       }
-      closePanel(); navigateActive(el.dataset.url);
+      closePanel();
+      if(panelMode==='closed'){const [item]=closedTabs.splice(index,1);store.set('closedTabs',closedTabs);if(item)createTab(item.url,{title:item.title,pinned:!!item.pinned});}
+      else navigateActive(u);
     });
   }
-  $('#panelFoot').innerHTML = src.length ? `<button class="btn danger block" id="panelClear">Очистить всё</button>` : '';
+  $('#panelFoot').innerHTML = src.length ? `<button class="btn danger block" id="panelClear">${panelMode==='closed'?'Очистить список':'Очистить всё'}</button>` : '';
   const c = $('#panelClear'); if(c) c.onclick = ()=>{
-    if (panelMode==='bookmarks'){ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); }
-    else { historyLog=[]; store.set('history',historyLog); renderRecent(); }
-    renderPanel(''); toast('Очищено');
+    if(panelMode==='bookmarks'){bookmarks=[];store.set('bookmarks',bookmarks);syncChrome();}
+    else if(panelMode==='closed'){closedTabs=[];store.set('closedTabs',closedTabs);}
+    else{historyLog=[];store.set('history',historyLog);renderRecent();}
+    renderPanel('');toast('Очищено');
   };
 }
 $('#panelSearch').addEventListener('input', e=> renderPanel(e.target.value));
@@ -1243,6 +1255,64 @@ function renderSettings(){
 $('#swRecent').onclick = ()=>{ settings.showRecent=!settings.showRecent; saveSettings(); renderSettings(); renderRecent(); };
 $('#clearHist').onclick = ()=>{ historyLog=[]; store.set('history',historyLog); renderRecent(); toast('История очищена'); };
 $('#clearBm').onclick = ()=>{ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); toast('Закладки очищены'); };
+const BACKUP_KEYS=['settings','bookmarks','history','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoice','assistantWindow'];
+function downloadTextFile(name,text,type){
+  const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');
+  link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('#exportBookmarks').onclick=()=>{
+  const rows=bookmarks.map(b=>`<DT><A HREF="${escapeHtml(b.url)}" ADD_DATE="${Math.floor((Number(b.time)||Date.now())/1000)}">${escapeHtml(b.title||b.url)}</A>`).join('\n');
+  const html='<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>ByAzen — закладки</TITLE>\n<H1>Закладки</H1>\n<DL><p>\n'+rows+'\n</DL><p>';
+  downloadTextFile('ByAzen-bookmarks.html',html,'text/html;charset=utf-8');
+};
+$('#importBookmarks').onclick=()=>$('#bookmarkFile').click();
+$('#bookmarkFile').onchange=async e=>{
+  const file=e.target.files?.[0];e.target.value='';if(!file)return;
+  try{
+    if(file.size>5*1024*1024)throw new Error('Файл слишком большой (максимум 5 МБ)');
+    const doc=new DOMParser().parseFromString(await file.text(),'text/html');
+    const imported=[...doc.querySelectorAll('a[href]')].slice(0,5000).map(a=>{
+      try{const u=new URL(a.getAttribute('href'));if(!['http:','https:'].includes(u.protocol))return null;return {url:u.href,title:(a.textContent||u.hostname).trim().slice(0,300),time:Number(a.getAttribute('ADD_DATE'))*1000||Date.now()};}catch{return null;}
+    }).filter(Boolean);
+    const known=new Set(bookmarks.map(b=>b.url)),fresh=[];
+    for(const item of imported)if(!known.has(item.url)){known.add(item.url);fresh.push(item);}
+    const accepted=fresh.slice(0,Math.max(0,5000-bookmarks.length));
+    bookmarks=[...accepted,...bookmarks];store.set('bookmarks',bookmarks);syncChrome();
+    toast(`Импортировано закладок: ${accepted.length}${accepted.length<fresh.length?' · часть не поместилась в лимит':''}`);
+  }catch(err){toast('Не удалось импортировать: '+err.message);}
+};
+$('#exportBackup').onclick=()=>{
+  const data={};
+  for(const key of BACKUP_KEYS){const raw=localStorage.getItem('byazen:'+key);if(raw!==null){try{data[key]=JSON.parse(raw);}catch{}}}
+  downloadTextFile(`ByAzen-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({format:'byazen-backup',schemaVersion:1,createdAt:new Date().toISOString(),data},null,2),'application/json;charset=utf-8');
+};
+$('#importBackup').onclick=()=>$('#backupFile').click();
+function validBackupValue(key,value){
+  if(key==='settings')return value&&typeof value==='object'&&!Array.isArray(value)&&(!('engine'in value)||!!ENGINES[value.engine])&&(!('accent'in value)||/^#[0-9A-F]{6}$/i.test(value.accent))&&(!('proxy'in value)||typeof value.proxy==='boolean')&&(!('showRecent'in value)||typeof value.showRecent==='boolean');
+  if(['bookmarks','history','shortcuts','closedTabs','session'].includes(key))return Array.isArray(value)&&value.length<=5000&&value.every(x=>x&&typeof x.url==='string'&&(/^(https?:\/\/|byazen:\/\/)/i.test(x.url)));
+  if(key==='sessionActive')return Number.isInteger(value)&&value>=0&&value<5000;
+  if(key==='assistantSpeak')return typeof value==='boolean';
+  if(['assistantModel','assistantVoiceStyle','assistantVoice'].includes(key))return typeof value==='string'&&value.length<=300;
+  if(key==='assistantWindow')return value&&typeof value==='object'&&['left','top','width','height'].every(k=>Number.isFinite(Number(value[k])));
+  return false;
+}
+$('#backupFile').onchange=async e=>{
+  const file=e.target.files?.[0];e.target.value='';if(!file)return;
+  try{
+    if(file.size>10*1024*1024)throw new Error('Файл слишком большой (максимум 10 МБ)');
+    const backup=JSON.parse(await file.text());
+    if(backup.format!=='byazen-backup'||backup.schemaVersion!==1||!backup.data||typeof backup.data!=='object')throw new Error('Это не резервная копия ByAzen');
+    const values=Object.fromEntries(Object.entries(backup.data).filter(([key])=>BACKUP_KEYS.includes(key)));
+    if(!Object.keys(values).length||Object.entries(values).some(([key,value])=>!validBackupValue(key,value)))throw new Error('В резервной копии есть некорректные данные');
+    const entries=Object.entries(values).map(([key,value])=>[key,JSON.stringify(value)]);
+    if(entries.reduce((n,[,raw])=>n+raw.length*2,0)>4*1024*1024)throw new Error('Данные копии превышают безопасный объём для локального хранилища');
+    if(!confirm('Восстановить резервную копию? Текущие настройки и данные ByAzen будут заменены.'))return;
+    const oldValues=new Map(entries.map(([key])=>[key,localStorage.getItem('byazen:'+key)]));
+    try{for(const [key,raw] of entries)localStorage.setItem('byazen:'+key,raw);}
+    catch(error){for(const [key] of entries)localStorage.removeItem('byazen:'+key);for(const [key,raw] of oldValues)if(raw!==null)localStorage.setItem('byazen:'+key,raw);throw new Error('Недостаточно места для восстановления копии');}
+    location.reload();
+  }catch(err){toast('Не удалось восстановить копию: '+err.message);}
+};
 
 /* ---------- context menu ---------- */
 const ctx = $('#ctx');
@@ -1276,6 +1346,7 @@ function buildCmdk(q){
   const actions = [
     {label:'Новая вкладка', icon:'i-plus', tag:'Действие', run:()=>createTab()},
     {label:'Восстановить закрытую вкладку', icon:'i-history', tag:'Действие', run:()=>reopenLastTab()},
+    {label:'Недавно закрытые вкладки', icon:'i-history', tag:'Список', run:()=>openPanel('closed')},
     {label:'Открыть ByAzen ИИ', icon:'i-spark', tag:'Локальная модель', run:()=>openAssistant()},
     {label:'Открыть закладки', icon:'i-bookmark', tag:'Действие', run:()=>openPanel('bookmarks')},
     {label:'Открыть историю', icon:'i-history', tag:'Действие', run:()=>openPanel('history')},
