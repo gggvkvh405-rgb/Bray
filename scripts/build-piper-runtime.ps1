@@ -48,14 +48,14 @@ foreach ($name in $unusedData) {
   if (Test-Path $candidate) { Remove-Item -Recurse -Force $candidate }
 }
 
-$licenseSource = python -c "from importlib.metadata import distribution; print(distribution('piper-tts').locate_file('licenses/COPYING'))"
+$licenseSource = python -c "from importlib.metadata import distribution; d=distribution('piper-tts'); print(d.locate_file(next(f for f in d.files if str(f).endswith('licenses/COPYING'))))"
 if ($LASTEXITCODE -ne 0 -or !(Test-Path $licenseSource)) { throw 'Не найдена лицензия Piper GPL-3.0-or-later' }
 Copy-Item -Force $licenseSource (Join-Path $resourceRoot 'PIPER-COPYING.txt')
-$g2pwLicense = python -c "from importlib.metadata import distribution; print(distribution('piper-tts').locate_file('licenses/licenses/LICENSE.g2pW-Apache-2.0'))"
+$g2pwLicense = python -c "from importlib.metadata import distribution; d=distribution('piper-tts'); print(d.locate_file(next(f for f in d.files if str(f).endswith('licenses/licenses/LICENSE.g2pW-Apache-2.0'))))"
 if ($LASTEXITCODE -eq 0 -and (Test-Path $g2pwLicense)) { Copy-Item -Force $g2pwLicense (Join-Path $resourceRoot 'G2PW-APACHE-2.0.txt') }
-$pyinstallerLicense = python -c "from importlib.metadata import distribution; print(distribution('pyinstaller').locate_file('licenses/COPYING.txt'))"
+$pyinstallerLicense = python -c "from importlib.metadata import distribution; d=distribution('pyinstaller'); print(d.locate_file(next(f for f in d.files if str(f).endswith('licenses/COPYING.txt'))))"
 if ($LASTEXITCODE -eq 0 -and (Test-Path $pyinstallerLicense)) { Copy-Item -Force $pyinstallerLicense (Join-Path $resourceRoot 'PYINSTALLER-COPYING.txt') }
-$pathvalidateLicense = python -c "from importlib.metadata import distribution; print(distribution('pathvalidate').locate_file('licenses/LICENSE'))"
+$pathvalidateLicense = python -c "from importlib.metadata import distribution; d=distribution('pathvalidate'); print(d.locate_file(next(f for f in d.files if str(f).endswith('licenses/LICENSE'))))"
 if ($LASTEXITCODE -eq 0 -and (Test-Path $pathvalidateLicense)) { Copy-Item -Force $pathvalidateLicense (Join-Path $resourceRoot 'PATHVALIDATE-LICENSE.txt') }
 $onnxruntimeDir = python -c "import onnxruntime,pathlib; print(pathlib.Path(onnxruntime.__file__).parent)"
 if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $onnxruntimeDir 'LICENSE'))) { Copy-Item -Force (Join-Path $onnxruntimeDir 'LICENSE') (Join-Path $resourceRoot 'ONNXRUNTIME-LICENSE.txt') }
