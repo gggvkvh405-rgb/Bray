@@ -419,7 +419,8 @@ function flushOpenUrls() {
 function registerWindowsBrowser() {
   if (process.platform !== 'win32') return { ok: false, error: 'Доступно только в Windows.' };
   try {
-    const exe = app.getPath('exe');
+    // Portable builds run from a temporary extraction directory; register the user's original EXE instead.
+    const exe = process.env.PORTABLE_EXECUTABLE_FILE || app.getPath('exe');
     const openCommand = `"${exe}" "%1"`;
     const add = (key, name, value) => execFileSync('reg.exe', [
       'add', key, name ? '/v' : '/ve', ...(name ? [name] : []),

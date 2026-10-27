@@ -42,13 +42,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.30
-          name: ByAzen 1.0.30 — Установка браузером Windows
+          name: ByAzen 1.0.30 — Регистрация браузера Windows
           body: >-
             Windows x64 portable build: registers ByAzen as an available HTTP/HTTPS browser when launched and forwards external links into ByAzen tabs. Choose ByAzen in Windows Default apps to handle web links.
           prerelease: true
           files: release/ByAzen.exe
           fail_on_unmatched_files: true
-          overwrite_files: false
+          overwrite_files: true
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
