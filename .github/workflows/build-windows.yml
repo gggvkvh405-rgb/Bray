@@ -39,7 +39,14 @@ jobs:
           retention-days: 30
       - name: Publish direct download
         if: github.event_name == 'push' && github.ref == 'refs/heads/arena/f944c286-bray'
-        shell: bash
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.26
+          name: ByAzen 1.0.26 — SVG-интерфейс
+          body: Windows x64 build: replaces interface emoji with bundled SVG controls and original vector pet illustrations. Keeps existing pet and costume selections through a one-time settings migration. Also includes the project workspace, local Piper voice downloads, page-aware AI tools, and the persistent/resumable download manager.
+          prerelease: true
+          files: release/ByAzen.exe
+          fail_on_unmatched_files: true
+          overwrite_files: false
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload v1.0.26 release/ByAzen.exe --repo gggkvkvh405-rgb/Bray
+          GITHUB_TOKEN: ${{ github.token }}
