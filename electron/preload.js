@@ -12,6 +12,8 @@ if (window.top === window.self) {
       getPageSelection: id => ipcRenderer.invoke('byazen:page-selection', id),
       setPageZoom: (id,factor) => ipcRenderer.invoke('byazen:page-zoom',{id,factor}),
       printPage: id => ipcRenderer.invoke('byazen:page-print',id),
+      getPermissionLog: () => ipcRenderer.invoke('byazen:permission-log'),
+      clearPermissionLog: () => ipcRenderer.invoke('byazen:permission-log-clear'),
       performPageAction: (id, action) => ipcRenderer.invoke('byazen:page-action', { id, action }),
       onSiteEvent: callback => {
         const listener = (_event, data) => callback(data);

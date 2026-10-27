@@ -56,6 +56,15 @@
   --r:10px; --ease:cubic-bezier(.32,.72,.24,1);
   color-scheme:dark;
 }
+html.high-contrast{--bg:#000;--bg-2:#050505;--panel:#080808;--panel-2:#101010;--border:rgba(255,255,255,.32);--border-2:rgba(255,255,255,.5);--text:#fff;--text-2:#e8e8e8;--text-3:#c4c4c4;--hover:rgba(255,255,255,.12);--active:rgba(255,255,255,.18)}
+#app.sidebar-right #sidebar{order:2}
+#app.sidebar-right #main{order:1;padding:10px 0 10px 10px}
+#app.focus-mode #sidebar{display:none}
+#app.focus-mode #main{padding:0}
+#app.compact-mode #sidebar{gap:8px;padding-top:9px;padding-bottom:8px}
+#app.compact-mode .tab{padding-top:4px;padding-bottom:4px}
+#app.compact-mode .nav-row{gap:3px}
+#app.compact-mode .new-tab-btn{height:31px}
 *{margin:0;padding:0;box-sizing:border-box}
 html{background:var(--bg)}
 html,body{height:100%}
@@ -381,6 +390,8 @@ kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;col
 .reader-controls label{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2)}
 .reader-controls select{background:#1b1b21;color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px}
 .reader-text{overflow:auto;max-width:800px;width:100%;margin:0 auto;padding:24px 28px 44px;font-family:Georgia,serif;font-size:19px;line-height:1.75;color:#e7e4de;white-space:pre-wrap;overflow-wrap:anywhere}
+.reader-text .reader-current{background:rgba(245,196,66,.24);color:#fff3c4;border-radius:3px}
+.reader-text.reader-speaking{outline:1px solid rgba(245,196,66,.22)}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 6px}
 .modal-head h2{font-size:17px;font-weight:650;letter-spacing:-.01em}
 .modal-body{padding:14px 22px 22px;display:flex;flex-direction:column;gap:22px}
@@ -404,6 +415,7 @@ kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;col
 .field{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;height:39px;padding:0 12px;font-size:13px;color:var(--text)}
 .field:focus{border-color:var(--border-2)}
 .hotkey-input{width:130px;flex:none;text-align:center;font-size:11px;cursor:pointer}
+.ui-setting-select{width:100px;flex:none;height:32px;padding:0 8px;font-size:11px}
 .field::placeholder{color:var(--text-3)}
 label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;margin:0 0 6px 1px}
 .about{display:flex;gap:13px;align-items:center;background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:13px;padding:14px}
@@ -673,6 +685,13 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
         <div class="set-row"><div class="tx"><b>Встроенная загрузка сайтов</b><span>Приложение использует отдельную изолированную Chromium-поверхность; веб-версия — локальный прокси</span></div><button class="switch" id="swProxy" disabled title="Встроенная загрузка включена"></button></div>
         <div class="set-row"><div class="tx"><b>Недавние на стартовой</b><span>Показывать последние посещённые сайты на новой вкладке</span></div><button class="switch" id="swRecent"></button></div>
         <div class="set-row"><div class="tx"><b>Действия ИИ на страницах</b><span>Разрешить ИИ читать видимый текст и использовать безопасные действия браузера</span></div><button class="switch" id="swAiPageActions"></button></div>
+        <div class="set-row"><div class="tx"><b>Высокая контрастность</b><span>Усилить контраст текста и границ</span></div><button class="switch" id="swContrast"></button></div>
+        <div class="set-row"><div class="tx"><b>Компактный интерфейс</b><span>Уменьшить отступы и высоту элементов</span></div><button class="switch" id="swCompact"></button></div>
+        <div class="set-row"><div class="tx"><b>Масштаб интерфейса</b></div><select class="field ui-setting-select" id="uiScale"><option value="0.9">90%</option><option value="1">100%</option><option value="1.1">110%</option><option value="1.2">120%</option></select></div>
+        <div class="set-row"><div class="tx"><b>Расположение боковой панели</b></div><select class="field ui-setting-select" id="sidebarSide"><option value="left">Слева</option><option value="right">Справа</option></select></div>
+        <div class="set-row"><div class="tx"><b>Очищать историю при выходе</b><span>Удалять локальную историю посещений после подтверждённого закрытия</span></div><button class="switch" id="swClearHistoryExit"></button></div>
+        <div class="set-row"><div class="tx"><b>Предупреждать об HTTP-сайтах</b><span>Показывать подтверждение перед незашифрованным соединением</span></div><button class="switch" id="swWarnHttp"></button></div>
+        <div class="set-row"><div class="tx"><b>Разрешения сайтов</b><span>По умолчанию запросы веб-сайтов на доступ блокируются</span></div><button class="btn" id="openPermissionLog">Просмотреть журнал</button></div>
       </div>
       <div class="set-group">
         <h4>Горячие клавиши</h4>
@@ -695,7 +714,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.16</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.17</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -725,6 +744,14 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
   </section>
 </div>
 
+<div class="modal-overlay" id="permissionLogModal">
+  <section class="modal" style="max-width:560px;max-height:78vh;display:flex;flex-direction:column">
+    <div class="modal-head"><h2>Запросы разрешений сайтов</h2><button class="icon-btn" data-close="permissionLogModal"><svg><use href="#i-x"/></svg></button></div>
+    <p style="padding:4px 20px 12px;color:var(--text-3);font-size:11px">ByAzen блокирует запросы сайтов к камере, микрофону, геолокации и другим защищённым возможностям. Это журнал только для просмотра.</p>
+    <div id="permissionLogList" class="panel-body"></div>
+    <div class="panel-foot"><button class="btn danger block" id="clearPermissionLog">Очистить журнал</button></div>
+  </section>
+</div>
 <div class="modal-overlay" id="aiChatsModal">
   <section class="modal" style="max-width:520px;max-height:78vh;display:flex;flex-direction:column">
     <div class="modal-head"><h2>Сохранённые диалоги</h2><button class="icon-btn" data-close="aiChatsModal"><svg><use href="#i-x"/></svg></button></div>
@@ -756,6 +783,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <button class="btn" id="aiSaveChat" title="Сохранить диалог">Сохранить чат</button><button class="btn" id="aiOpenChats">История чатов</button>
     </div>
     <div class="ai-voicebar">
+      <label for="aiInputLang">Язык ввода</label><select id="aiInputLang" aria-label="Язык распознавания речи"><option value="ru-RU">Русский</option><option value="en-US">English</option></select>
       <label for="aiVoice">Голос</label>
       <select id="aiVoice" aria-label="Голос озвучивания">
         <optgroup label="Русские нейросетевые (онлайн)">
@@ -832,7 +860,7 @@ const DEFAULT_SHORTCUTS = [
 const ACCENTS = ['#FAFAFA','#FF6B4A','#F5C044','#7BD88F','#4CC3FF','#B79CFF'];
 
 const asArray = (v, d) => Array.isArray(v) ? v : d;
-const DEFAULT_HOTKEYS={palette:'Ctrl+K',newTab:'Alt+T',closeTab:'Alt+W',focusAddress:'Alt+L',assistant:'Ctrl+J',previousTab:'Ctrl+Shift+Tab',reopenClosed:'Ctrl+Shift+T',sidebar:'Ctrl+B'};
+const DEFAULT_HOTKEYS={palette:'Ctrl+K',newTab:'Alt+T',closeTab:'Alt+W',focusAddress:'Alt+L',assistant:'Ctrl+J',previousTab:'Ctrl+Shift+Tab',reopenClosed:'Ctrl+Shift+T',sidebar:'Ctrl+B',voiceInput:'Ctrl+Shift+M'};
 let hotkeys=Object.assign({},DEFAULT_HOTKEYS,store.get('hotkeys',{})||{});
 let settings  = Object.assign({engine:'duck', accent:'#FAFAFA', proxy:true, showRecent:true}, store.get('settings',{}) || {});
 // Web builds need the local proxy because ordinary iframes are blocked by many sites.
@@ -1006,6 +1034,7 @@ function navigateTab(tab, url, pushHist=true){
 }
 function navigateActive(raw){
   const url = resolveInput(raw); if(!url) return;
+  if(/^http:\/\//i.test(url)&&store.get('warnHttp',true)!==false&&!confirm('Этот сайт использует незашифрованное HTTP-соединение. Открыть его?'))return;
   const tab = activeTab(); if(!tab){ createTab(url); return; }
   navigateTab(tab, url);
 }
@@ -1350,7 +1379,7 @@ $$('[data-close]').forEach(b=> b.onclick = ()=> closeModal(b.dataset.close));
 $('#setBtn').onclick = ()=> openModal('settingsModal');
 $('#profileBtn').onclick = ()=> openModal('settingsModal');
 function renderHotkeys(){
-  const labels={palette:'Командная палитра',newTab:'Новая вкладка',closeTab:'Закрыть вкладку',focusAddress:'Адресная строка',assistant:'Открыть ИИ',previousTab:'Предыдущая вкладка',reopenClosed:'Восстановить вкладку',sidebar:'Свернуть панель'};
+  const labels={palette:'Командная палитра',newTab:'Новая вкладка',closeTab:'Закрыть вкладку',focusAddress:'Адресная строка',assistant:'Открыть ИИ',previousTab:'Предыдущая вкладка',reopenClosed:'Восстановить вкладку',sidebar:'Свернуть панель',voiceInput:'Голосовой ввод ИИ'};
   $('#hotkeyList').innerHTML=Object.entries(labels).map(([key,label])=>`<div class="set-row"><div class="tx"><b>${label}</b></div><input class="field hotkey-input" data-hotkey="${key}" readonly value="${escapeHtml(hotkeys[key])}" aria-label="Сочетание: ${label}"></div>`).join('');
   $$('#hotkeyList [data-hotkey]').forEach(input=>input.addEventListener('keydown',e=>{
     e.preventDefault();e.stopPropagation();if(['Control','Alt','Shift','Meta','Escape'].includes(e.key))return;
@@ -1360,10 +1389,21 @@ function renderHotkeys(){
     hotkeys[input.dataset.hotkey]=combo;store.set('hotkeys',hotkeys);renderHotkeys();
   }));
 }
+function applyUiPreferences(){
+  document.documentElement.classList.toggle('high-contrast',store.get('contrastMode',false)===true);
+  document.documentElement.style.zoom=String(store.get('uiScale','1'));
+  $('#app').classList.toggle('compact-mode',store.get('compactMode',false)===true);
+  $('#app').classList.toggle('sidebar-right',store.get('sidebarSide','left')==='right');
+}
 function renderSettings(){
   $('#swProxy').classList.add('on');
   $('#swRecent').classList.toggle('on', settings.showRecent);
   $('#swAiPageActions').classList.toggle('on',store.get('aiPageActionsAllowed',true)!==false);
+  $('#swContrast').classList.toggle('on',store.get('contrastMode',false)===true);
+  $('#swCompact').classList.toggle('on',store.get('compactMode',false)===true);
+  $('#swClearHistoryExit').classList.toggle('on',store.get('clearHistoryOnExit',false)===true);
+  $('#swWarnHttp').classList.toggle('on',store.get('warnHttp',true)!==false);
+  $('#uiScale').value=String(store.get('uiScale','1'));$('#sidebarSide').value=store.get('sidebarSide','left');applyUiPreferences();
   $('#swatches').innerHTML = ACCENTS.map(c=>`<button class="swatch ${c===settings.accent?'sel':''}" data-c="${c}" style="background:${c};color:${c};border-color:rgba(255,255,255,.15)" title="${c}"></button>`).join('');
   $$('#swatches .swatch').forEach(s=> s.onclick = ()=>{ settings.accent=s.dataset.c; saveSettings(); renderSettings(); });
   renderHotkeys();
@@ -1371,9 +1411,18 @@ function renderSettings(){
 // Direct loading is disabled because third-party pages reject iframe embedding.
 $('#swRecent').onclick = ()=>{ settings.showRecent=!settings.showRecent; saveSettings(); renderSettings(); renderRecent(); };
 $('#swAiPageActions').onclick=()=>{store.set('aiPageActionsAllowed',store.get('aiPageActionsAllowed',true)===false);renderSettings();};
+$('#swContrast').onclick=()=>{store.set('contrastMode',!store.get('contrastMode',false));renderSettings();};
+$('#swCompact').onclick=()=>{store.set('compactMode',!store.get('compactMode',false));renderSettings();};
+$('#swClearHistoryExit').onclick=()=>{store.set('clearHistoryOnExit',!store.get('clearHistoryOnExit',false));renderSettings();};
+$('#swWarnHttp').onclick=()=>{store.set('warnHttp',store.get('warnHttp',true)===false);renderSettings();};
+$('#openPermissionLog').onclick=async()=>{openModal('permissionLogModal');const log=nativeWebview?await window.byazenDesktop.getPermissionLog():[];$('#permissionLogList').innerHTML=log.length?log.map(x=>`<div class="panel-item"><span class="t"><span class="ttl">${escapeHtml(x.origin)}</span><span class="dom">${escapeHtml(x.permission)} · ${timeAgo(x.time)}</span></span></div>`).join(''):'<div class="empty"><b>Запросов пока не было</b><p>Все разрешения сайтов по умолчанию заблокированы.</p></div>';};
+$('#clearPermissionLog').onclick=async()=>{if(nativeWebview)await window.byazenDesktop.clearPermissionLog();$('#permissionLogList').innerHTML='<div class="empty"><b>Журнал очищен</b></div>';};
+$('#uiScale').onchange=()=>{store.set('uiScale',$('#uiScale').value);applyUiPreferences();};
+$('#sidebarSide').onchange=()=>{store.set('sidebarSide',$('#sidebarSide').value);applyUiPreferences();};
+window.__byazenPrepareToClose=()=>{if(store.get('clearHistoryOnExit',false)){historyLog=[];store.set('history',[]);renderRecent();}return true;};
 $('#clearHist').onclick = ()=>{ historyLog=[]; store.set('history',historyLog); renderRecent(); toast('История очищена'); };
 $('#clearBm').onclick = ()=>{ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); renderBookmarkBar(); toast('Закладки очищены'); };
-const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantVoice','assistantWindow','aiPageActionsAllowed','assistantChats'];
+const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantInputLang','assistantVoice','assistantWindow','aiPageActionsAllowed','assistantChats','contrastMode','compactMode','uiScale','sidebarSide','clearHistoryOnExit','warnHttp'];
 function downloadTextFile(name,text,type){
   const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');
   link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1400,18 +1449,20 @@ $('#bookmarkFile').onchange=async e=>{
   }catch(err){toast('Не удалось импортировать: '+err.message);}
 };
 $('#exportBackup').onclick=()=>{
-  const defaults={settings,hotkeys,bookmarks,bookmarkFolders,bookmarkSort:$('#bookmarkSort').value||'newest',collections,history:historyLog,shortcuts,closedTabs,session:tabs.slice(-20).map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})),sessionActive:Math.max(0,tabs.slice(-20).findIndex(t=>t.id===activeId)),assistantModel:aiModel,assistantSpeak:$('#aiSpeak').checked,assistantVoiceStyle:$('#aiVoiceStyle').value,assistantVoiceRate:$('#aiVoiceRate').value,assistantVoice:$('#aiVoice').value,assistantWindow:store.get('assistantWindow',null),aiPageActionsAllowed:store.get('aiPageActionsAllowed',true),assistantChats:savedAiChats};
+  const defaults={settings,hotkeys,bookmarks,bookmarkFolders,bookmarkSort:$('#bookmarkSort').value||'newest',collections,history:historyLog,shortcuts,closedTabs,session:tabs.slice(-20).map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})),sessionActive:Math.max(0,tabs.slice(-20).findIndex(t=>t.id===activeId)),assistantModel:aiModel,assistantSpeak:$('#aiSpeak').checked,assistantVoiceStyle:$('#aiVoiceStyle').value,assistantVoiceRate:$('#aiVoiceRate').value,assistantInputLang:$('#aiInputLang').value,assistantVoice:$('#aiVoice').value,assistantWindow:store.get('assistantWindow',null),aiPageActionsAllowed:store.get('aiPageActionsAllowed',true),assistantChats:savedAiChats,contrastMode:store.get('contrastMode',false),compactMode:store.get('compactMode',false),uiScale:store.get('uiScale','1'),sidebarSide:store.get('sidebarSide','left'),clearHistoryOnExit:store.get('clearHistoryOnExit',false),warnHttp:store.get('warnHttp',true)};
   const data={};
   for(const key of BACKUP_KEYS){const raw=localStorage.getItem('byazen:'+key);if(raw!==null){try{data[key]=JSON.parse(raw);}catch{data[key]=defaults[key];}}else if(Object.hasOwn(defaults,key))data[key]=defaults[key];}
   downloadTextFile(`ByAzen-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({format:'byazen-backup',schemaVersion:1,createdAt:new Date().toISOString(),data},null,2),'application/json;charset=utf-8');
 };
 $('#importBackup').onclick=()=>$('#backupFile').click();
 function validBackupValue(key,value){
-  if(key==='hotkeys')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=8&&Object.entries(value).every(([k,v])=>{if(!Object.hasOwn(DEFAULT_HOTKEYS,k)||typeof v!=='string')return false;const parts=v.split('+'),keyPart=parts.pop();return parts.length>0&&parts.every(x=>['Ctrl','Alt','Shift'].includes(x))&&/^[A-Za-z0-9]+$/.test(keyPart);});
+  if(key==='hotkeys')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=9&&Object.entries(value).every(([k,v])=>{if(!Object.hasOwn(DEFAULT_HOTKEYS,k)||typeof v!=='string')return false;const parts=v.split('+'),keyPart=parts.pop();return parts.length>0&&parts.every(x=>['Ctrl','Alt','Shift'].includes(x))&&/^[A-Za-z0-9]+$/.test(keyPart);});
   if(key==='settings')return value&&typeof value==='object'&&!Array.isArray(value)&&(!('engine'in value)||!!ENGINES[value.engine])&&(!('accent'in value)||/^#[0-9A-F]{6}$/i.test(value.accent))&&(!('proxy'in value)||typeof value.proxy==='boolean')&&(!('showRecent'in value)||typeof value.showRecent==='boolean');
   if(key==='bookmarkFolders')return Array.isArray(value)&&value.length<=100&&value.every(x=>typeof x==='string'&&x.length<=48);
   if(key==='bookmarkSort')return ['newest','name','domain','folder'].includes(value);
-  if(key==='aiPageActionsAllowed')return typeof value==='boolean';
+  if(['aiPageActionsAllowed','contrastMode','compactMode','clearHistoryOnExit','warnHttp'].includes(key))return typeof value==='boolean';
+  if(key==='uiScale')return ['0.9','1','1.1','1.2'].includes(String(value));
+  if(key==='sidebarSide')return ['left','right'].includes(value);
   if(key==='assistantChats')return Array.isArray(value)&&value.length<=50&&value.every(c=>c&&typeof c.name==='string'&&c.name.length<=80&&Array.isArray(c.messages)&&c.messages.length<=100&&c.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'&&m.content.length<=12000));
   if(key==='collections')return Array.isArray(value)&&value.length<=100&&value.every(x=>x&&typeof x.name==='string'&&x.name.length<=80&&Array.isArray(x.tabs)&&x.tabs.length<=100&&x.tabs.every(t=>t&&typeof t.url==='string'&&/^https?:\/\//i.test(t.url)));
   if(['bookmarks','history','shortcuts','closedTabs','session'].includes(key))return Array.isArray(value)&&value.length<=5000&&value.every(x=>x&&typeof x.url==='string'&&(/^(https?:\/\/|byazen:\/\/)/i.test(x.url)));
@@ -1419,6 +1470,7 @@ function validBackupValue(key,value){
   if(key==='assistantSpeak')return typeof value==='boolean';
   if(['assistantModel','assistantVoiceStyle','assistantVoice'].includes(key))return typeof value==='string'&&value.length<=300;
   if(key==='assistantVoiceRate')return ['0.8','1','1.2'].includes(value);
+  if(key==='assistantInputLang')return ['ru-RU','en-US'].includes(value);
   if(key==='assistantWindow')return value===null||(value&&typeof value==='object'&&['left','top','width','height'].every(k=>Number.isFinite(Number(value[k]))));
   return false;
 }
@@ -1484,14 +1536,14 @@ async function copyPlainText(text){
   catch{const input=document.createElement('textarea');input.value=text;document.body.append(input);input.select();const ok=document.execCommand('copy');input.remove();toast(ok?'Текст скопирован':'Не удалось скопировать текст');}
 }
 async function openReader(){
-  try{const page=await activePageData();$('#readerTitle').textContent=page.title||'Режим чтения';$('#readerMeta').textContent=page.url;$('#readerText').textContent=page.text.slice(0,100000);$('#readerText').style.fontSize=readerFontSize+'px';$('#readerText').style.maxWidth=(store.get('readerWidth',800))+'px';$('#readerWidth').value=String(store.get('readerWidth',800));openModal('readerModal');}
+  try{const page=await activePageData();$('#readerTitle').textContent=page.title||'Режим чтения';$('#readerMeta').textContent=page.url;const sentences=page.text.slice(0,100000).split(/(?<=[.!?。！？])\s+/u);$('#readerText').innerHTML=sentences.map((s,i)=>`<span data-reader-sentence="${i}">${escapeHtml(s)}</span>`).join(' ');$('#readerText').style.fontSize=readerFontSize+'px';$('#readerText').style.maxWidth=(store.get('readerWidth',800))+'px';$('#readerWidth').value=String(store.get('readerWidth',800));openModal('readerModal');}
   catch(e){toast(e.message);}
 }
 $('#readerSmaller').onclick=()=>{readerFontSize=Math.max(14,readerFontSize-1);store.set('readerFontSize',readerFontSize);$('#readerText').style.fontSize=readerFontSize+'px';};
 $('#readerLarger').onclick=()=>{readerFontSize=Math.min(30,readerFontSize+1);store.set('readerFontSize',readerFontSize);$('#readerText').style.fontSize=readerFontSize+'px';};
 $('#readerWidth').onchange=()=>{const width=Number($('#readerWidth').value);$('#readerText').style.maxWidth=width+'px';store.set('readerWidth',width);};
 $('#readerCopy').onclick=()=>copyPlainText($('#readerText').textContent);
-$('#readerSpeak').onclick=()=>speakAi($('#readerText').textContent.slice(0,1500));
+$('#readerSpeak').onclick=()=>speakAi($('#readerText').textContent.slice(0,1500),true);
 $('#readerTranslate').onclick=()=>{const text=$('#readerText').textContent.slice(0,4500);createTab('https://translate.google.com/?sl=auto&tl=ru&text='+encodeURIComponent(text)+'&op=translate');};
 async function translateCurrentPage(){
   try{const selected=await selectedPageText(),page=selected||((await activePageData()).text.slice(0,4500));if(!page){toast('Нет текста для перевода');return;}createTab('https://translate.google.com/?sl=auto&tl=ru&text='+encodeURIComponent(page)+'&op=translate');}
@@ -1508,6 +1560,21 @@ async function printCurrentPage(){const tab=activeTab();if(!tab||isInternal(tab.
 
 /* ---------- command palette ---------- */
 let cmdkItems = [], cmdkSel = 0;
+async function openDiagnostics(){
+  let version='неизвестна';try{version=(await (await fetch('/api/version')).json()).version||version;}catch{}
+  const lines=['Диагностика ByAzen',`Версия: ${version}`,`Окружение: ${nativeWebview?'настольное приложение Electron':'веб-режим'}`,`Вкладки открыты: ${tabs.length}`,`Страница: ${activeTab()?.url||'нет активной вкладки'}`];
+  try{const response=await fetch('/api/ollama/models');const data=await response.json();lines.push(`Локальный ИИ: ${data.available?(data.models?.length?`подключён (${data.models.length} моделей)`:'подключён, моделей не найдено'):(data.error||'недоступен')}`);}catch{lines.push('Локальный ИИ: сервер диагностики недоступен');}
+  lines.push(`Журнал разрешений: ${nativeWebview?'доступен':'только в настольной версии'}`,'Загрузки: подтверждение пути, предупреждение об исполняемых файлах и лимит 250 МБ (в настольной версии)');
+  alert(lines.join('\n'));
+}
+function compareVersionNumbers(a,b){const x=String(a).split('.').map(n=>parseInt(n,10)||0),y=String(b).split('.').map(n=>parseInt(n,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)>(y[i]||0)?1:-1;}return 0;}
+async function checkForUpdates(){
+  try{const response=await fetch('/api/update-check');const data=await response.json();if(!response.ok)throw new Error(data.error||'Проверка обновлений не удалась');
+    if(compareVersionNumbers(data.latest,data.current)<=0){alert(`У вас актуальная версия ByAzen ${data.current}.`);return;}
+    let download='https://github.com/gggvkvh405-rgb/Bray/releases/latest';try{const candidate=new URL(data.download||data.url);if(candidate.protocol==='https:'&&candidate.hostname==='github.com')download=candidate.href;}catch{}
+    if(confirm(`Доступна ByAzen ${data.latest} (установлена ${data.current}).\n\nОткрыть страницу релиза для загрузки Windows EXE?`))createTab(download);
+  }catch(error){alert(`Не удалось проверить обновления: ${error.message}`);}
+}
 function openCmdk(){ openModal('cmdk'); $('#cmdkInput').value=''; buildCmdk(''); setTimeout(()=>$('#cmdkInput').focus(),60); }
 function buildCmdk(q){
   q = q.trim().toLowerCase();
@@ -1532,6 +1599,10 @@ function buildCmdk(q){
     {label:'Открыть закладки', icon:'i-bookmark', tag:'Действие', run:()=>openPanel('bookmarks')},
     {label:'Открыть историю', icon:'i-history', tag:'Действие', run:()=>openPanel('history')},
     {label:'Настройки', icon:'i-gear', tag:'Действие', run:()=>openModal('settingsModal')},
+    {label:'Режим фокуса',icon:'i-panel',tag:'Интерфейс',run:()=>toggleFocusMode()},
+    {label:'Диагностика ByAzen',icon:'i-gear',tag:'Инструменты',run:()=>openDiagnostics()},
+    {label:'Проверить обновления',icon:'i-reload',tag:'Инструменты',run:()=>checkForUpdates()},
+    {label:'Разрешения сайтов',icon:'i-shield',tag:'Безопасность',run:()=>$('#openPermissionLog').click()},
     {label:'Свернуть / развернуть панель', icon:'i-panel', tag:'Действие', run:()=>$('#sidebar').classList.toggle('collapsed')},
     {label:'Перезагрузить страницу', icon:'i-reload', tag:'Действие', run:()=>$('#reloadBtn').click()}
   ];
@@ -1563,6 +1634,8 @@ let aiCompareContexts=null,aiUndoAction=null;
 let aiModel = store.get('assistantModel', 'qwen2.5:3b');
 $('#aiModel').value = aiModel;
 $('#aiSpeak').checked = store.get('assistantSpeak', true) !== false;
+$('#aiInputLang').value=store.get('assistantInputLang','ru-RU');
+$('#aiInputLang').onchange=()=>store.set('assistantInputLang',$('#aiInputLang').value);
 $('#aiVoiceStyle').value = store.get('assistantVoiceStyle','natural');
 $('#aiVoiceRate').value = store.get('assistantVoiceRate','1');
 function aiStatus(text,kind=''){ const el=$('#aiStatus'); el.textContent=text; el.className='ai-status'+(kind?' '+kind:''); }
@@ -1753,9 +1826,17 @@ async function executeAiActions(actions){
   }
   return results;
 }
-let aiSpeechToken=0, aiAudio=null, aiAudioUrl='';
+let aiSpeechToken=0, aiAudio=null, aiAudioUrl='', readerSpeechHighlight=false;
+function updateReaderSpeechHighlight(charIndex){
+  const spans=$$('#readerText [data-reader-sentence]');if(!spans.length)return;
+  let offset=0,current=spans[spans.length-1];for(const span of spans){const end=offset+span.textContent.length;if(charIndex<=end){current=span;break;}offset=end+1;}
+  spans.forEach(span=>span.classList.toggle('reader-current',span===current));
+}
+function clearReaderSpeechHighlight(){
+  $('#readerText')?.classList.remove('reader-speaking');$$('#readerText .reader-current').forEach(span=>span.classList.remove('reader-current'));
+}
 function cancelAiSpeech(){
-  aiSpeechToken++;$('#aiSeek').disabled=true;$('#aiSeek').value='0';$('#aiPauseSpeech').textContent='Пауза';
+  aiSpeechToken++;readerSpeechHighlight=false;clearReaderSpeechHighlight();$('#aiSeek').disabled=true;$('#aiSeek').value='0';$('#aiPauseSpeech').textContent='Пауза';
   if(window.speechSynthesis) window.speechSynthesis.cancel();
   if(aiAudio){aiAudio.pause();aiAudio.src='';aiAudio.load();aiAudio=null;}
   if(aiAudioUrl){URL.revokeObjectURL(aiAudioUrl);aiAudioUrl='';}
@@ -1763,10 +1844,10 @@ function cancelAiSpeech(){
 $('#aiPauseSpeech').onclick=()=>{if(aiAudio){if(aiAudio.paused){aiAudio.play();$('#aiPauseSpeech').textContent='Пауза';}else{aiAudio.pause();$('#aiPauseSpeech').textContent='Продолжить';}}else if(window.speechSynthesis?.speaking){if(window.speechSynthesis.paused){window.speechSynthesis.resume();$('#aiPauseSpeech').textContent='Пауза';}else{window.speechSynthesis.pause();$('#aiPauseSpeech').textContent='Продолжить';}}};
 $('#aiStopSpeech').onclick=cancelAiSpeech;
 $('#aiSeek').oninput=()=>{if(aiAudio&&Number.isFinite(aiAudio.duration))aiAudio.currentTime=aiAudio.duration*(Number($('#aiSeek').value)/100);};
-async function speakAi(text){
+async function speakAi(text,highlightReader=false){
   $('#aiSeek').disabled=true;$('#aiSeek').value='0';
   if(!text)return;
-  cancelAiSpeech(); const token=++aiSpeechToken;
+  cancelAiSpeech();readerSpeechHighlight=highlightReader;if(readerSpeechHighlight)$('#readerText').classList.add('reader-speaking');const token=++aiSpeechToken;
   const voiceChoice=$('#aiVoice').value;
   const styleName=$('#aiVoiceStyle').value;
   const speed=Number($('#aiVoiceRate').value)||1;
@@ -1780,14 +1861,14 @@ async function speakAi(text){
       aiAudioUrl=URL.createObjectURL(blob); aiAudio=new Audio(aiAudioUrl);
       const audio=aiAudio, url=aiAudioUrl,seek=$('#aiSeek');seek.disabled=false;seek.value='0';
       audio.onloadedmetadata=()=>{seek.disabled=!Number.isFinite(audio.duration);};
-      audio.ontimeupdate=()=>{if(!audio.duration||seek.matches(':active'))return;seek.value=String(Math.round(audio.currentTime/audio.duration*100));};
-      audio.onended=()=>{if(token===aiSpeechToken){aiAudio=null;seek.disabled=true;seek.value='0';URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Готово';}};
-      audio.onerror=()=>{if(token===aiSpeechToken){aiAudio=null;URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Не удалось воспроизвести аудио';}};
+      audio.ontimeupdate=()=>{if(!audio.duration)return;if(!seek.matches(':active'))seek.value=String(Math.round(audio.currentTime/audio.duration*100));if(readerSpeechHighlight)updateReaderSpeechHighlight(Math.floor(text.length*audio.currentTime/audio.duration));};
+      audio.onended=()=>{if(token===aiSpeechToken){aiAudio=null;seek.disabled=true;seek.value='0';URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Готово';readerSpeechHighlight=false;clearReaderSpeechHighlight();}};
+      audio.onerror=()=>{if(token===aiSpeechToken){aiAudio=null;URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Не удалось воспроизвести аудио';readerSpeechHighlight=false;clearReaderSpeechHighlight();}};
       await audio.play(); $('#aiVoiceStatus').textContent='Говорю русским нейроголосом';
-    }catch(e){if(token===aiSpeechToken){if(aiAudio){aiAudio.pause();aiAudio.src='';aiAudio.load();aiAudio=null;}if(aiAudioUrl){URL.revokeObjectURL(aiAudioUrl);aiAudioUrl='';}$('#aiVoiceStatus').textContent=e.message||'Проверьте интернет для русского нейроголоса';aiStatus('Не удалось озвучить ответ','err');}}
+    }catch(e){if(token===aiSpeechToken){if(aiAudio){aiAudio.pause();aiAudio.src='';aiAudio.load();aiAudio=null;}if(aiAudioUrl){URL.revokeObjectURL(aiAudioUrl);aiAudioUrl='';}readerSpeechHighlight=false;clearReaderSpeechHighlight();$('#aiVoiceStatus').textContent=e.message||'Проверьте интернет для русского нейроголоса';aiStatus('Не удалось озвучить ответ','err');}}
     return;
   }
-  if(!window.speechSynthesis){ $('#aiVoiceStatus').textContent='Системное озвучивание недоступно'; return; }
+  if(!window.speechSynthesis){readerSpeechHighlight=false;clearReaderSpeechHighlight();$('#aiVoiceStatus').textContent='Системное озвучивание недоступно'; return; }
   const voices=window.speechSynthesis.getVoices()||[];
   const selected=voices.find(v=>v.voiceURI===voiceChoice);
   const voice=selected||voices.find(v=>/^ru([_-]|$)/i.test(v.lang))||voices.find(v=>v.default)||null;
@@ -1796,7 +1877,9 @@ async function speakAi(text){
   const utterance=new SpeechSynthesisUtterance(text); utterance.lang=voice?.lang||'ru-RU'; utterance.voice=voice;
   utterance.rate=Math.max(.5,Math.min(2,style.rate*speed)); utterance.pitch=style.pitch; utterance.volume=1;
   utterance.onstart=()=>updateAiVoiceStatus();
-  utterance.onerror=e=>{ $('#aiVoiceStatus').textContent='Ошибка озвучивания: '+e.error; aiStatus('Не удалось озвучить ответ','err'); };
+  utterance.onboundary=e=>{if(readerSpeechHighlight)updateReaderSpeechHighlight(e.charIndex||0);};
+  utterance.onend=()=>{if(readerSpeechHighlight){readerSpeechHighlight=false;clearReaderSpeechHighlight();}};
+  utterance.onerror=e=>{readerSpeechHighlight=false;clearReaderSpeechHighlight();$('#aiVoiceStatus').textContent='Ошибка озвучивания: '+e.error; aiStatus('Не удалось озвучить ответ','err'); };
   window.speechSynthesis.resume(); window.speechSynthesis.speak(utterance);
 }
 $('#aiUndo').onclick=()=>{const snapshot=aiUndoAction,tab=snapshot&&tabs.find(t=>t.id===snapshot.tabId);if(!tab){toast('Нет последнего изменения адреса для отмены');$('#aiUndo').disabled=true;return;}aiUndoAction=null;$('#aiUndo').disabled=true;activateTab(tab.id);navigateTab(tab,snapshot.url,true);toast('Предыдущий адрес восстановлен');};
@@ -1859,7 +1942,7 @@ $('#aiMic').onclick=()=>{
   try{
     // Let Chromium own the single microphone capture session; a separate getUserMedia probe
     // can keep the Windows audio device busy and make SpeechRecognition fail to start.
-    const rec=new Recognition(); aiRecognition=rec; rec.lang='ru-RU'; rec.interimResults=false; rec.maxAlternatives=1; rec.continuous=false;
+    const rec=new Recognition(); aiRecognition=rec; rec.lang=$('#aiInputLang').value||'ru-RU'; rec.interimResults=false; rec.maxAlternatives=1; rec.continuous=false;
     mic.classList.add('listening'); aiStatus('Слушаю… скажите команду','ok');
     rec.onresult=e=>{ const text=e.results?.[0]?.[0]?.transcript||''; if(text) sendAiMessage(text); };
     rec.onerror=e=>{
@@ -1889,20 +1972,21 @@ $('#aiMic').onclick=()=>{
 
 
 /* ---------- keyboard ---------- */
+function toggleFocusMode(){const app=$('#app');app.classList.toggle('focus-mode');toast(app.classList.contains('focus-mode')?'Режим фокуса включён · Esc для выхода':'Режим фокуса выключен');}
 function eventHotkey(e){
   const parts=[];if(e.ctrlKey||e.metaKey)parts.push('Ctrl');if(e.altKey)parts.push('Alt');if(e.shiftKey)parts.push('Shift');
   let key=e.key;if(key.length===1)key=key.toUpperCase();if(['Control','Alt','Shift','Meta'].includes(key))return '';
   if(key===' ')key='Space';return parts.length?parts.concat(key).join('+'):'';
 }
 function runHotkey(name){
-  const actions={palette:openCmdk,newTab:()=>createTab(),closeTab:()=>{if(activeId)closeTab(activeId);},focusAddress:()=>{$('#sidebar').classList.remove('collapsed');urlInput.focus();},assistant:openAssistant,previousTab:switchPreviousTab,reopenClosed:reopenLastTab,sidebar:()=>$('#sidebar').classList.toggle('collapsed')};
+  const actions={palette:openCmdk,newTab:()=>createTab(),closeTab:()=>{if(activeId)closeTab(activeId);},focusAddress:()=>{$('#sidebar').classList.remove('collapsed');urlInput.focus();},assistant:openAssistant,previousTab:switchPreviousTab,reopenClosed:reopenLastTab,sidebar:()=>$('#sidebar').classList.toggle('collapsed'),voiceInput:()=>$('#aiMic').click()};
   actions[name]?.();
 }
 document.addEventListener('keydown',e=>{
   const combo=eventHotkey(e),action=Object.keys(hotkeys).find(k=>hotkeys[k]===combo);
   if(action){e.preventDefault();runHotkey(action);return;}
   const mod=e.ctrlKey||e.metaKey;
-  if(e.key==='Escape'){closePanel();ctx.classList.remove('show');$$('.modal-overlay').forEach(m=>closeModal(m.id));}
+  if(e.key==='Escape'){if($('#app').classList.contains('focus-mode'))toggleFocusMode();closePanel();ctx.classList.remove('show');$$('.modal-overlay').forEach(m=>closeModal(m.id));}
   if(mod&&/^[1-9]$/.test(e.key)){const t=tabs[+e.key-1];if(t){e.preventDefault();activateTab(t.id);}}
 });
 

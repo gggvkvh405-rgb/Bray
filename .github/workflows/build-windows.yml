@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.16 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.16 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.17 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.17 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.16 release/ByAzen.exe \
-              --title 'ByAzen 1.0.16 — инструменты страниц и ИИ' \
-              --notes 'Windows x64 build: reader mode with typography controls, translate/search/copy/save/print/zoom page utilities, AI summaries and key points, open-page comparison, saved/searchable AI chats, action-plan preview, reversible navigation undo, selected-text read aloud and TTS pause/seek. AI page context/actions can be disabled in settings.' \
+            gh release create v1.0.17 release/ByAzen.exe \
+              --title 'ByAzen 1.0.17 — настройки, безопасность и голосовые функции' \
+              --notes 'Windows x64 build: high-contrast and compact UI modes, adjustable interface scale and sidebar position, clear history on exit, configurable speech-recognition language and hotkey, reader speech highlighting, blocked-site permission log, HTTP warnings, focus mode, diagnostics and GitHub update check. Site downloads use a save dialog, warn for executable files and are capped at 250 MB.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi

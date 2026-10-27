@@ -7,6 +7,8 @@ app.setName('ByAzen');
 let win = null;
 let server = null;
 const siteViews = new Map();
+const websitePermissionLog=[];
+const configuredSiteSessions=new WeakSet();
 
 const PAGE_CONTEXT_SCRIPT = `(() => {
   const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'; };
@@ -72,6 +74,40 @@ function sendSiteEvent(id, type, data = {}) {
   if (win && !win.isDestroyed()) win.webContents.send('byazen:site-event', { id, type, ...data });
 }
 
+function configureSiteSession(session){
+  if(configuredSiteSessions.has(session))return;
+  configuredSiteSessions.add(session);
+  session.on('will-download',(event,item)=>{
+    const maxBytes=250*1024*1024;
+    let source;
+    try{source=new URL(item.getURL());}catch{item.cancel();return;}
+    if(!['http:','https:'].includes(source.protocol)){item.cancel();return;}
+    const fileName=path.basename(String(item.getFilename()||'download').replace(/[<>:"|?*\x00-\x1f]/g,'_')).replace(/^\.+/,'').slice(0,120)||'download';
+    if(item.getTotalBytes()>maxBytes){item.cancel();if(win&&!win.isDestroyed())dialog.showMessageBox(win,{type:'warning',title:'Загрузка заблокирована',message:'Файл превышает лимит 250 МБ.'});return;}
+    if(!win||win.isDestroyed()){item.cancel();return;}
+    item.pause();
+    const dangerous=/\.(exe|msi|bat|cmd|com|scr|ps1|vbs|js|reg)$/i.test(fileName);
+    const approve=dangerous?dialog.showMessageBox(win,{type:'warning',buttons:['Продолжить','Отмена'],defaultId:1,cancelId:1,noLink:true,title:'Потенциально опасный файл',message:`Сайт предлагает загрузить «${fileName}».`,detail:'Исполняемые файлы могут повредить компьютер. Продолжайте только если доверяете источнику.'}).then(result=>result.response===0):Promise.resolve(true);
+    approve.then(async allowed=>{
+      if(!allowed||item.isCanceled())return item.cancel();
+      if(!win||win.isDestroyed()||item.isCanceled())return item.cancel();
+      const choice=await dialog.showSaveDialog(win,{title:'Сохранить загрузку',defaultPath:fileName,buttonLabel:'Сохранить'});
+      if(choice.canceled||!choice.filePath||item.isCanceled())return item.cancel();
+      item.setSavePath(choice.filePath);
+      item.on('updated',()=>{if(item.getReceivedBytes()>maxBytes)item.cancel();});
+      item.once('done',(_event,state)=>{if(state==='completed'&&win&&!win.isDestroyed())win.webContents.send('byazen:download-complete',{fileName:path.basename(choice.filePath)});});
+      item.resume();
+    }).catch(()=>item.cancel());
+  });
+  session.setPermissionRequestHandler((requester,permission,callback,details)=>{
+    let origin='unknown';try{origin=new URL(details?.requestingUrl||requester.getURL()).origin;}catch{}
+    websitePermissionLog.unshift({origin,permission,time:Date.now()});
+    if(websitePermissionLog.length>100)websitePermissionLog.length=100;
+    callback(false);
+  });
+  session.setPermissionCheckHandler(()=>false);
+}
+
 function createSiteView(id) {
   const view = new WebContentsView({
     webPreferences: {
@@ -84,6 +120,7 @@ function createSiteView(id) {
   win.contentView.addChildView(view);
   view.setVisible(false);
   const guest = view.webContents;
+  configureSiteSession(guest.session);
 
   guest.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
@@ -125,6 +162,8 @@ ipcMain.on('byazen:site-open', (event, payload = {}) => {
 
 
 function trustedUi(event) { return !!(win && !win.isDestroyed() && event.sender === win.webContents); }
+ipcMain.handle('byazen:permission-log',event=>trustedUi(event)?websitePermissionLog.slice(0,100):[]);
+ipcMain.handle('byazen:permission-log-clear',event=>{if(!trustedUi(event))return false;websitePermissionLog.length=0;return true;});
 function pageView(id) {
   const view=siteViews.get(Number(id));
   if(!view||view.webContents.isDestroyed()) return null;
@@ -294,6 +333,7 @@ if (!app.requestSingleInstanceLock()) {
           const answer=await dialog.showMessageBox(win,{type:'question',buttons:['Закрыть окно','Отмена'],defaultId:1,cancelId:1,noLink:true,title:'Закрыть ByAzen?',message:`Открыто вкладок: ${count}. Закрыть браузер?`,detail:'Сессия вкладок будет сохранена и восстановлена при следующем запуске.'});
           if(answer.response!==0)return;
         }
+        try{if(win&&!win.isDestroyed())await win.webContents.executeJavaScript('window.__byazenPrepareToClose?.()');}catch{}
         allowWindowClose=true;
         if(win&&!win.isDestroyed())win.close();
       }).catch(async()=>{

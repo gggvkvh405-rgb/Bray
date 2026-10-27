@@ -47,6 +47,8 @@ const AI_TOOLS = [
   type:'function',function:{name,description,parameters:{type:'object',properties,required}}
 }));
 
+app.get('/api/version',(_req,res)=>res.json({version:require('./package.json').version}));
+
 app.get('/api/ollama/models', async (_req, res) => {
   try {
     const r = await fetch(OLLAMA_HOST + '/api/tags', { signal: AbortSignal.timeout(3500) });
@@ -56,6 +58,18 @@ app.get('/api/ollama/models', async (_req, res) => {
   } catch {
     res.status(503).json({ available: false, models: [], error: 'Ollama не найдена на этом компьютере' });
   }
+});
+
+app.get('/api/update-check', async (_req,res)=>{
+  try{
+    const response=await fetch('https://api.github.com/repos/gggvkvh405-rgb/Bray/releases?per_page=20',{headers:{Accept:'application/vnd.github+json','User-Agent':'ByAzen-Update-Check'},signal:AbortSignal.timeout(8000)});
+    if(!response.ok)return res.status(502).json({error:`GitHub вернул HTTP ${response.status}`});
+    const releases=await response.json();
+    const release=Array.isArray(releases)?releases.find(item=>!item.draft&&item.tag_name):null;
+    if(!release)return res.status(404).json({error:'Опубликованный релиз не найден'});
+    const asset=Array.isArray(release.assets)?release.assets.find(file=>file.name==='ByAzen.exe'):null;
+    res.json({current:require('./package.json').version,latest:String(release.tag_name).replace(/^v/i,''),name:String(release.name||release.tag_name).slice(0,160),url:release.html_url,download:asset?.browser_download_url||''});
+  }catch{return res.status(503).json({error:'Не удалось связаться с GitHub. Проверьте интернет и повторите попытку.'});}
 });
 
 // Online Russian neural TTS voices; the browser uses this only when the user selects an Edge voice.
