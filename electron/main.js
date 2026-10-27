@@ -143,6 +143,23 @@ ipcMain.handle('byazen:page-context', async (event, idValue) => {
   } catch(error) { return {error:'Не удалось прочитать страницу: '+String(error.message||error).slice(0,180)}; }
 });
 
+ipcMain.handle('byazen:page-selection', async (event,idValue)=>{
+  if(!trustedUi(event))return '';
+  const contents=pageView(idValue);if(!contents)return '';
+  try{return String(await contents.executeJavaScript('String(window.getSelection()?.toString()||"").trim()')).slice(0,3000);}catch{return '';}
+});
+ipcMain.handle('byazen:page-zoom', async (event,payload={})=>{
+  if(!trustedUi(event))return {ok:false};
+  const contents=pageView(payload.id);if(!contents)return {ok:false};
+  const factor=Math.max(.5,Math.min(2,Number(payload.factor)||1));
+  try{contents.setZoomFactor(factor);return {ok:true,factor};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:page-print', async (event,idValue)=>{
+  if(!trustedUi(event))return {ok:false,error:'Недоверенный источник'};
+  const contents=pageView(idValue);if(!contents)return {ok:false,error:'Нет веб-страницы для печати'};
+  return new Promise(resolve=>contents.print({},(success,failureReason)=>resolve({ok:success,error:failureReason||''})));
+});
+
 ipcMain.handle('byazen:page-action', async (event, payload = {}) => {
   if(!trustedUi(event)) return {ok:false,error:'Недоверенный источник'};
   const contents=pageView(payload.id);

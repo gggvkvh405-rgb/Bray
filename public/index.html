@@ -376,6 +376,11 @@ kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;col
 .modal-overlay.show{display:grid}
 .modal{width:100%;max-width:540px;max-height:86vh;overflow-y:auto;background:#131317;border:1px solid var(--border-2);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:modalIn .22s var(--ease)}
 @keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+.reader-modal{width:min(900px,calc(100vw - 32px));max-width:900px;height:min(86vh,900px);display:flex;flex-direction:column;overflow:hidden}
+.reader-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 20px;border-bottom:1px solid var(--border)}
+.reader-controls label{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2)}
+.reader-controls select{background:#1b1b21;color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px}
+.reader-text{overflow:auto;max-width:800px;width:100%;margin:0 auto;padding:24px 28px 44px;font-family:Georgia,serif;font-size:19px;line-height:1.75;color:#e7e4de;white-space:pre-wrap;overflow-wrap:anywhere}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 6px}
 .modal-head h2{font-size:17px;font-weight:650;letter-spacing:-.01em}
 .modal-body{padding:14px 22px 22px;display:flex;flex-direction:column;gap:22px}
@@ -435,6 +440,10 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 .ai-voicebar select{height:28px;max-width:190px;min-width:115px;padding:0 8px;background:#1D1D22;color:var(--text-2);border:1px solid var(--border-2);border-radius:7px;font-size:10.5px}
 .ai-voicebar .icon-btn{width:28px;height:28px;flex:none}
 .ai-voice-status{min-width:0;flex:1;color:var(--text-3);font-size:9.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#aiSeek{width:90px;accent-color:var(--accent)}
+.ai-quick{display:flex;gap:6px;flex-wrap:wrap;padding:7px 16px;border-bottom:1px solid var(--border)}
+.ai-quick button{font-size:10.5px;color:var(--text-2);border:1px solid var(--border);border-radius:99px;padding:5px 9px}
+.ai-quick button:hover{background:var(--hover);color:var(--text)}
 .ai-messages{flex:1;min-height:0;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:12px}
 .ai-msg{max-width:88%;padding:11px 13px;border-radius:13px;font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .ai-msg.user{align-self:flex-end;background:#24242A;color:var(--text)}
@@ -663,6 +672,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
         <h4>Браузер</h4>
         <div class="set-row"><div class="tx"><b>Встроенная загрузка сайтов</b><span>Приложение использует отдельную изолированную Chromium-поверхность; веб-версия — локальный прокси</span></div><button class="switch" id="swProxy" disabled title="Встроенная загрузка включена"></button></div>
         <div class="set-row"><div class="tx"><b>Недавние на стартовой</b><span>Показывать последние посещённые сайты на новой вкладке</span></div><button class="switch" id="swRecent"></button></div>
+        <div class="set-row"><div class="tx"><b>Действия ИИ на страницах</b><span>Разрешить ИИ читать видимый текст и использовать безопасные действия браузера</span></div><button class="switch" id="swAiPageActions"></button></div>
       </div>
       <div class="set-group">
         <h4>Горячие клавиши</h4>
@@ -685,7 +695,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.15</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.16</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -715,6 +725,21 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
   </section>
 </div>
 
+<div class="modal-overlay" id="aiChatsModal">
+  <section class="modal" style="max-width:520px;max-height:78vh;display:flex;flex-direction:column">
+    <div class="modal-head"><h2>Сохранённые диалоги</h2><button class="icon-btn" data-close="aiChatsModal"><svg><use href="#i-x"/></svg></button></div>
+    <div class="panel-search"><svg><use href="#i-search"/></svg><input id="aiChatsSearch" placeholder="Найти диалог..."></div>
+    <div id="aiChatsList" class="panel-body"></div>
+  </section>
+</div>
+<div class="modal-overlay" id="readerModal">
+  <section class="modal reader-modal" role="dialog" aria-modal="true" aria-labelledby="readerTitle">
+    <div class="modal-head"><div><h2 id="readerTitle">Режим чтения</h2><div class="ai-status" id="readerMeta"></div></div><button class="icon-btn" data-close="readerModal" title="Закрыть"><svg><use href="#i-x"/></svg></button></div>
+    <div class="reader-controls"><button class="btn" id="readerSmaller">А−</button><button class="btn" id="readerLarger">А+</button><label>Ширина <select id="readerWidth"><option value="640">Узкая</option><option value="800">Средняя</option><option value="1000">Широкая</option></select></label><button class="btn" id="readerCopy">Копировать текст</button><button class="btn" id="readerTranslate">Перевести</button><button class="btn" id="readerSpeak">Читать вслух</button></div>
+    <article id="readerText" class="reader-text"></article>
+  </section>
+</div>
+
 <!-- ============ LOCAL OLLAMA ASSISTANT ============ -->
 <div class="modal-overlay" id="assistantModal">
   <section class="modal ai-modal" role="dialog" aria-modal="true" aria-labelledby="assistantTitle">
@@ -728,6 +753,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <button class="icon-btn" id="aiRefresh" title="Обновить список моделей"><svg><use href="#i-reload"/></svg></button>
       <span class="spacer"></span>
       <label title="Ответ будет прочитан голосом системы"><input id="aiSpeak" type="checkbox"> Озвучивать ответ</label>
+      <button class="btn" id="aiSaveChat" title="Сохранить диалог">Сохранить чат</button><button class="btn" id="aiOpenChats">История чатов</button>
     </div>
     <div class="ai-voicebar">
       <label for="aiVoice">Голос</label>
@@ -745,8 +771,11 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </select>
       <label for="aiVoiceRate">Скорость</label><select id="aiVoiceRate" aria-label="Скорость речи"><option value="0.8">Медленно</option><option value="1" selected>Обычно</option><option value="1.2">Быстро</option></select>
       <button class="icon-btn" id="aiVoiceTest" title="Прослушать голос"><svg><use href="#i-volume"/></svg></button>
+      <button class="btn" id="aiPauseSpeech" title="Пауза / продолжить озвучивание">Пауза</button><button class="btn" id="aiStopSpeech" title="Остановить озвучивание">Стоп</button><input type="range" id="aiSeek" min="0" max="100" value="0" aria-label="Перемотка озвучивания" disabled>
+      <button class="btn" id="aiUndo" title="Отменить последнее изменение адреса" disabled>Отменить</button>
       <span id="aiVoiceStatus" class="ai-voice-status"></span>
     </div>
+    <div class="ai-quick"><button data-ai-prompt="Кратко перескажи текущую страницу и назови главный вывод.">Краткий пересказ</button><button data-ai-prompt="Составь список ключевых тезисов текущей страницы.">Ключевые тезисы</button><button data-ai-prompt="Найди таблицы на текущей странице и аккуратно извлеки их содержимое.">Извлечь таблицы</button><button id="aiComparePages">Сравнить открытые страницы</button><button data-ai-prompt="Объясни содержание этой страницы простыми словами и укажи её адрес как источник.">Объяснить страницу</button></div>
     <div class="ai-messages" id="aiMessages" role="log" aria-live="polite">
       <div class="ai-msg system">Скажите или напишите команду: «Открой YouTube», «Новая вкладка», «Назад».</div>
     </div>
@@ -1334,15 +1363,17 @@ function renderHotkeys(){
 function renderSettings(){
   $('#swProxy').classList.add('on');
   $('#swRecent').classList.toggle('on', settings.showRecent);
+  $('#swAiPageActions').classList.toggle('on',store.get('aiPageActionsAllowed',true)!==false);
   $('#swatches').innerHTML = ACCENTS.map(c=>`<button class="swatch ${c===settings.accent?'sel':''}" data-c="${c}" style="background:${c};color:${c};border-color:rgba(255,255,255,.15)" title="${c}"></button>`).join('');
   $$('#swatches .swatch').forEach(s=> s.onclick = ()=>{ settings.accent=s.dataset.c; saveSettings(); renderSettings(); });
   renderHotkeys();
 }
 // Direct loading is disabled because third-party pages reject iframe embedding.
 $('#swRecent').onclick = ()=>{ settings.showRecent=!settings.showRecent; saveSettings(); renderSettings(); renderRecent(); };
+$('#swAiPageActions').onclick=()=>{store.set('aiPageActionsAllowed',store.get('aiPageActionsAllowed',true)===false);renderSettings();};
 $('#clearHist').onclick = ()=>{ historyLog=[]; store.set('history',historyLog); renderRecent(); toast('История очищена'); };
 $('#clearBm').onclick = ()=>{ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); renderBookmarkBar(); toast('Закладки очищены'); };
-const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantVoice','assistantWindow'];
+const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantVoice','assistantWindow','aiPageActionsAllowed','assistantChats'];
 function downloadTextFile(name,text,type){
   const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');
   link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1369,7 +1400,7 @@ $('#bookmarkFile').onchange=async e=>{
   }catch(err){toast('Не удалось импортировать: '+err.message);}
 };
 $('#exportBackup').onclick=()=>{
-  const defaults={settings,hotkeys,bookmarks,bookmarkFolders,bookmarkSort:$('#bookmarkSort').value||'newest',collections,history:historyLog,shortcuts,closedTabs,session:tabs.slice(-20).map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})),sessionActive:Math.max(0,tabs.slice(-20).findIndex(t=>t.id===activeId)),assistantModel:aiModel,assistantSpeak:$('#aiSpeak').checked,assistantVoiceStyle:$('#aiVoiceStyle').value,assistantVoiceRate:$('#aiVoiceRate').value,assistantVoice:$('#aiVoice').value,assistantWindow:store.get('assistantWindow',null)};
+  const defaults={settings,hotkeys,bookmarks,bookmarkFolders,bookmarkSort:$('#bookmarkSort').value||'newest',collections,history:historyLog,shortcuts,closedTabs,session:tabs.slice(-20).map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})),sessionActive:Math.max(0,tabs.slice(-20).findIndex(t=>t.id===activeId)),assistantModel:aiModel,assistantSpeak:$('#aiSpeak').checked,assistantVoiceStyle:$('#aiVoiceStyle').value,assistantVoiceRate:$('#aiVoiceRate').value,assistantVoice:$('#aiVoice').value,assistantWindow:store.get('assistantWindow',null),aiPageActionsAllowed:store.get('aiPageActionsAllowed',true),assistantChats:savedAiChats};
   const data={};
   for(const key of BACKUP_KEYS){const raw=localStorage.getItem('byazen:'+key);if(raw!==null){try{data[key]=JSON.parse(raw);}catch{data[key]=defaults[key];}}else if(Object.hasOwn(defaults,key))data[key]=defaults[key];}
   downloadTextFile(`ByAzen-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({format:'byazen-backup',schemaVersion:1,createdAt:new Date().toISOString(),data},null,2),'application/json;charset=utf-8');
@@ -1380,6 +1411,8 @@ function validBackupValue(key,value){
   if(key==='settings')return value&&typeof value==='object'&&!Array.isArray(value)&&(!('engine'in value)||!!ENGINES[value.engine])&&(!('accent'in value)||/^#[0-9A-F]{6}$/i.test(value.accent))&&(!('proxy'in value)||typeof value.proxy==='boolean')&&(!('showRecent'in value)||typeof value.showRecent==='boolean');
   if(key==='bookmarkFolders')return Array.isArray(value)&&value.length<=100&&value.every(x=>typeof x==='string'&&x.length<=48);
   if(key==='bookmarkSort')return ['newest','name','domain','folder'].includes(value);
+  if(key==='aiPageActionsAllowed')return typeof value==='boolean';
+  if(key==='assistantChats')return Array.isArray(value)&&value.length<=50&&value.every(c=>c&&typeof c.name==='string'&&c.name.length<=80&&Array.isArray(c.messages)&&c.messages.length<=100&&c.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'&&m.content.length<=12000));
   if(key==='collections')return Array.isArray(value)&&value.length<=100&&value.every(x=>x&&typeof x.name==='string'&&x.name.length<=80&&Array.isArray(x.tabs)&&x.tabs.length<=100&&x.tabs.every(t=>t&&typeof t.url==='string'&&/^https?:\/\//i.test(t.url)));
   if(['bookmarks','history','shortcuts','closedTabs','session'].includes(key))return Array.isArray(value)&&value.length<=5000&&value.every(x=>x&&typeof x.url==='string'&&(/^(https?:\/\/|byazen:\/\/)/i.test(x.url)));
   if(key==='sessionActive')return Number.isInteger(value)&&value>=0&&value<5000;
@@ -1433,6 +1466,46 @@ function openCtx(x, y, id){
 }
 document.addEventListener('click', e=>{ if(!ctx.contains(e.target)) ctx.classList.remove('show'); });
 
+/* ---------- page utilities ---------- */
+let pageZooms=new Map();let readerFontSize=Number(store.get('readerFontSize',19))||19;
+async function activePageData(){
+  const tab=activeTab();if(!tab||isInternal(tab.url))throw new Error('Откройте веб-страницу сначала');
+  if(nativeWebview){const data=await window.byazenDesktop.getPageContext(tab.id);if(data?.error)throw new Error(data.error);return {title:data.title||tab.title,url:data.url||tab.url,text:data.text||''};}
+  try{const doc=tab.frame?.contentDocument;if(doc)return {title:doc.title||tab.title,url:tab.url,text:doc.body?.innerText||''};}catch{}
+  throw new Error('Не удалось прочитать содержимое сайта в веб-версии');
+}
+async function selectedPageText(){
+  const tab=activeTab();if(!tab||isInternal(tab.url))return '';
+  if(nativeWebview)return await window.byazenDesktop.getPageSelection(tab.id);
+  try{return String(tab.frame?.contentWindow.getSelection()?.toString()||'').trim().slice(0,3000);}catch{return '';}
+}
+async function copyPlainText(text){
+  try{await navigator.clipboard.writeText(text);toast('Текст скопирован');}
+  catch{const input=document.createElement('textarea');input.value=text;document.body.append(input);input.select();const ok=document.execCommand('copy');input.remove();toast(ok?'Текст скопирован':'Не удалось скопировать текст');}
+}
+async function openReader(){
+  try{const page=await activePageData();$('#readerTitle').textContent=page.title||'Режим чтения';$('#readerMeta').textContent=page.url;$('#readerText').textContent=page.text.slice(0,100000);$('#readerText').style.fontSize=readerFontSize+'px';$('#readerText').style.maxWidth=(store.get('readerWidth',800))+'px';$('#readerWidth').value=String(store.get('readerWidth',800));openModal('readerModal');}
+  catch(e){toast(e.message);}
+}
+$('#readerSmaller').onclick=()=>{readerFontSize=Math.max(14,readerFontSize-1);store.set('readerFontSize',readerFontSize);$('#readerText').style.fontSize=readerFontSize+'px';};
+$('#readerLarger').onclick=()=>{readerFontSize=Math.min(30,readerFontSize+1);store.set('readerFontSize',readerFontSize);$('#readerText').style.fontSize=readerFontSize+'px';};
+$('#readerWidth').onchange=()=>{const width=Number($('#readerWidth').value);$('#readerText').style.maxWidth=width+'px';store.set('readerWidth',width);};
+$('#readerCopy').onclick=()=>copyPlainText($('#readerText').textContent);
+$('#readerSpeak').onclick=()=>speakAi($('#readerText').textContent.slice(0,1500));
+$('#readerTranslate').onclick=()=>{const text=$('#readerText').textContent.slice(0,4500);createTab('https://translate.google.com/?sl=auto&tl=ru&text='+encodeURIComponent(text)+'&op=translate');};
+async function translateCurrentPage(){
+  try{const selected=await selectedPageText(),page=selected||((await activePageData()).text.slice(0,4500));if(!page){toast('Нет текста для перевода');return;}createTab('https://translate.google.com/?sl=auto&tl=ru&text='+encodeURIComponent(page)+'&op=translate');}
+  catch(e){toast(e.message);}
+}
+async function searchSelectedText(){const text=await selectedPageText();if(!text){toast('Сначала выделите текст на странице');return;}createTab(resolveInput(text));}
+async function speakSelectedText(){const text=await selectedPageText();if(!text){toast('Сначала выделите фрагмент на странице');return;}speakAi(text.slice(0,1500));}
+async function copyCurrentPageText(){try{const page=await activePageData();await copyPlainText(page.text.slice(0,100000));}catch(e){toast(e.message);}}
+async function saveCurrentPageOffline(){try{const page=await activePageData();const html='<!doctype html><meta charset="utf-8"><title>'+escapeHtml(page.title)+'</title><h1>'+escapeHtml(page.title)+'</h1><p>Источник: <a href="'+escapeHtml(page.url)+'">'+escapeHtml(page.url)+'</a></p><pre style="white-space:pre-wrap;font:16px/1.6 sans-serif">'+escapeHtml(page.text.slice(0,100000))+'</pre>';downloadTextFile((page.title||'page').replace(/[\\/:*?"<>|]/g,'_').slice(0,80)+'.html',html,'text/html;charset=utf-8');toast('Текстовая копия страницы сохранена');}catch(e){toast(e.message);}}
+async function showPageInfo(){try{const page=await activePageData();alert(`Заголовок: ${page.title}\nАдрес: ${page.url}\nДомен: ${hostOf(page.url)}\nСимволов текста: ${page.text.length}`);}catch(e){toast(e.message);}}
+async function zoomActivePage(delta=0){const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Масштаб доступен на веб-странице');return;}const next=Math.max(.5,Math.min(2,Math.round(((pageZooms.get(tab.id)||1)+delta)*10)/10));pageZooms.set(tab.id,next);if(nativeWebview){const r=await window.byazenDesktop.setPageZoom(tab.id,next);if(!r?.ok)toast('Не удалось изменить масштаб');}else if(tab.frame)tab.frame.style.zoom=String(next);toast(`Масштаб страницы: ${Math.round(next*100)}%`);}
+async function resetZoomActivePage(){const tab=activeTab();if(!tab||isInternal(tab.url))return;if(nativeWebview)await window.byazenDesktop.setPageZoom(tab.id,1);else if(tab.frame)tab.frame.style.zoom='1';pageZooms.set(tab.id,1);toast('Масштаб страницы сброшен');}
+async function printCurrentPage(){const tab=activeTab();if(!tab||isInternal(tab.url)){toast('Откройте страницу для печати');return;}if(nativeWebview){const r=await window.byazenDesktop.printPage(tab.id);if(!r?.ok)toast('Печать не выполнена: '+(r?.error||'ошибка'));}else try{tab.frame.contentWindow.print();}catch{toast('Печать недоступна для этой страницы');}}
+
 /* ---------- command palette ---------- */
 let cmdkItems = [], cmdkSel = 0;
 function openCmdk(){ openModal('cmdk'); $('#cmdkInput').value=''; buildCmdk(''); setTimeout(()=>$('#cmdkInput').focus(),60); }
@@ -1445,6 +1518,17 @@ function buildCmdk(q){
     {label:'Открыть коллекции вкладок', icon:'i-bookmark', tag:'Список', run:()=>openPanel('collections')},
     {label:'Сохранить вкладки как коллекцию', icon:'i-bookmark', tag:'Действие', run:()=>saveTabsCollection()},
     {label:'Открыть ByAzen ИИ', icon:'i-spark', tag:'Локальная модель', run:()=>openAssistant()},
+    {label:'Режим чтения',icon:'i-bookmark',tag:'Страница',run:()=>openReader()},
+    {label:'Перевести страницу или выделение',icon:'i-search',tag:'Страница',run:()=>translateCurrentPage()},
+    {label:'Искать выделенный текст',icon:'i-search',tag:'Страница',run:()=>searchSelectedText()},
+    {label:'Прочитать выделение вслух',icon:'i-volume',tag:'Доступность',run:()=>speakSelectedText()},
+    {label:'Копировать текст страницы',icon:'i-copy',tag:'Страница',run:()=>copyCurrentPageText()},
+    {label:'Сохранить текст страницы офлайн',icon:'i-bookmark',tag:'Страница',run:()=>saveCurrentPageOffline()},
+    {label:'Сведения о странице',icon:'i-info',tag:'Страница',run:()=>showPageInfo()},
+    {label:'Увеличить страницу',icon:'i-plus',tag:'Масштаб',run:()=>zoomActivePage(.1)},
+    {label:'Уменьшить страницу',icon:'i-minus',tag:'Масштаб',run:()=>zoomActivePage(-.1)},
+    {label:'Сбросить масштаб страницы',icon:'i-reload',tag:'Масштаб',run:()=>resetZoomActivePage()},
+    {label:'Печатать страницу',icon:'i-copy',tag:'Страница',run:()=>printCurrentPage()},
     {label:'Открыть закладки', icon:'i-bookmark', tag:'Действие', run:()=>openPanel('bookmarks')},
     {label:'Открыть историю', icon:'i-history', tag:'Действие', run:()=>openPanel('history')},
     {label:'Настройки', icon:'i-gear', tag:'Действие', run:()=>openModal('settingsModal')},
@@ -1474,6 +1558,8 @@ $('#cmdBtn').onclick = openCmdk;
 
 /* ---------- Local Ollama assistant ---------- */
 let aiHistory = [], aiBusy = false, aiRecognition = null;
+let savedAiChats=asArray(store.get('assistantChats',[]),[]).filter(c=>c&&typeof c.name==='string'&&Array.isArray(c.messages)&&c.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string')).slice(0,50);
+let aiCompareContexts=null,aiUndoAction=null;
 let aiModel = store.get('assistantModel', 'qwen2.5:3b');
 $('#aiModel').value = aiModel;
 $('#aiSpeak').checked = store.get('assistantSpeak', true) !== false;
@@ -1515,6 +1601,21 @@ function addAiMessage(role,text){
   const el=document.createElement('div'); el.className='ai-msg '+role; el.textContent=text;
   $('#aiMessages').appendChild(el); $('#aiMessages').scrollTop=$('#aiMessages').scrollHeight; return el;
 }
+function saveCurrentAiChat(){
+  const messages=aiHistory.filter(m=>['user','assistant'].includes(m.role)&&!String(m.content||'').includes('browser_action_results')).slice(-80);
+  if(!messages.length){toast('Пока нечего сохранять');return;}
+  const suggested=String(messages.find(m=>m.role==='user')?.content||'Диалог').replace(/\s+/g,' ').slice(0,48);
+  const name=(prompt('Название диалога:',suggested)||'').trim().slice(0,80);if(!name)return;
+  savedAiChats.unshift({name,createdAt:Date.now(),messages});savedAiChats=savedAiChats.slice(0,50);store.set('assistantChats',savedAiChats);toast('Диалог сохранён');
+}
+function renderSavedAiChats(filter=''){
+  const list=savedAiChats.map((chat,index)=>({chat,index})).filter(x=>!filter||(x.chat.name+' '+x.chat.messages.map(m=>m.content).join(' ')).toLowerCase().includes(filter.toLowerCase()));
+  $('#aiChatsList').innerHTML=list.length?list.map(({chat,index})=>`<div class="panel-item" data-chat="${index}"><span class="t"><span class="ttl">${escapeHtml(chat.name)}</span><span class="dom">${timeAgo(chat.createdAt)} · ${chat.messages.length} сообщений</span></span><button class="panel-del" data-delete-chat="1" title="Удалить диалог"><svg><use href="#i-trash"/></svg></button></div>`).join(''):'<div class="empty"><b>Сохранённых диалогов нет</b><p>Сохраните чат кнопкой «Сохранить чат».</p></div>';
+  $$('#aiChatsList [data-chat]').forEach(row=>row.onclick=e=>{const index=Number(row.dataset.chat);if(e.target.closest('[data-delete-chat]')){savedAiChats.splice(index,1);store.set('assistantChats',savedAiChats);renderSavedAiChats($('#aiChatsSearch').value);return;}const chat=savedAiChats[index];if(!chat)return;aiHistory=chat.messages.map(m=>({...m}));$('#aiMessages').innerHTML='';aiHistory.forEach(m=>{if(['user','assistant'].includes(m.role)&&!String(m.content).includes('browser_action_results'))addAiMessage(m.role,m.content);});closeModal('aiChatsModal');openAssistant();});
+}
+$('#aiSaveChat').onclick=saveCurrentAiChat;
+$('#aiOpenChats').onclick=()=>{renderSavedAiChats();$('#aiChatsSearch').value='';openModal('aiChatsModal');};
+$('#aiChatsSearch').addEventListener('input',e=>renderSavedAiChats(e.target.value));
 let assistantResizeObserver=null;
 function saveAssistantWindow(){
   const el=$('#assistantModal .ai-modal');
@@ -1587,15 +1688,16 @@ $('#aiClose').onclick=()=>closeModal('assistantModal');
 $('#assistantBtn').onclick=openAssistant;
 function aiActionLabel(a){ return ({new_tab:'Новая вкладка',home:'Главная',back:'Назад',forward:'Вперёд',reload:'Обновить страницу',close_tab:'Закрыть вкладку',bookmark:'Добавить в закладки',navigate:'Открыть сайт',search:'Искать',search_site:'Искать на сайте',switch_tab:'Переключить вкладку',duplicate_tab:'Дублировать вкладку',reopen_closed_tab:'Восстановить закрытую вкладку',pin_tab:a.pinned===false?'Открепить вкладку':'Закрепить вкладку',open_bookmarks:'Открыть закладки',open_history:'Открыть историю',page_read:'Прочитать страницу',page_click:'Нажать элемент страницы',page_fill:'Заполнить поле',page_select:'Выбрать вариант',page_press:'Нажать клавишу',page_scroll:'Прокрутить страницу'})[a.type]||'Действие браузера'; }
 async function getAiPageContext(){
-  const tab=activeTab();
-  if(!tab)return {url:'',title:'Нет активной вкладки'};
-  if(isInternal(tab.url))return {url:tab.url,title:tab.title,text:'Внутренняя страница ByAzen'};
-  if(nativeWebview&&tab.nativeView){
-    try{return await window.byazenDesktop.getPageContext(tab.id);}catch(e){return {url:tab.url,title:tab.title,error:String(e.message||e)};}
-  }
-  return {url:tab.url,title:tab.title,error:'Чтение и управление страницей доступны в настольной версии ByAzen.'};
+  const tab=activeTab();let context;
+  if(!tab)context={url:'',title:'Нет активной вкладки'};
+  else if(isInternal(tab.url))context={url:tab.url,title:tab.title,text:'Внутренняя страница ByAzen'};
+  else if(store.get('aiPageActionsAllowed',true)===false)context={url:tab.url,title:tab.title,text:'Чтение контекста страницы отключено пользователем в настройках.'};
+  else if(nativeWebview&&tab.nativeView){try{context=await window.byazenDesktop.getPageContext(tab.id);}catch(e){context={url:tab.url,title:tab.title,error:String(e.message||e)};}}
+  else context={url:tab.url,title:tab.title,error:'Чтение и управление страницей доступны в настольной версии ByAzen.'};
+  return aiCompareContexts?{...context,comparisonPages:aiCompareContexts}:context;
 }
 async function runPageTool(action){
+  if(store.get('aiPageActionsAllowed',true)===false)return {ok:false,error:'Действия ИИ на страницах отключены в настройках.'};
   const tab=activeTab();
   if(!tab||isInternal(tab.url))return {ok:false,error:'Сначала открой сайт во вкладке.'};
   if(!nativeWebview||!tab.nativeView)return {ok:false,error:'Управление содержимым сайта доступно в настольной версии.'};
@@ -1609,6 +1711,7 @@ async function runPageTool(action){
 async function executeAiActions(actions){
   const results=[];
   for(const a of (Array.isArray(actions)?actions:[]).slice(0,4)){
+    if(['navigate','search','search_site','back','forward','home'].includes(a.type)&&activeTab()){const current=activeTab();aiUndoAction={tabId:current.id,url:current.url,title:current.title};$('#aiUndo').disabled=false;}
     let result={ok:true,action:aiActionLabel(a)};
     switch(a.type){
       case 'new_tab': createTab(); break;
@@ -1652,12 +1755,16 @@ async function executeAiActions(actions){
 }
 let aiSpeechToken=0, aiAudio=null, aiAudioUrl='';
 function cancelAiSpeech(){
-  aiSpeechToken++;
+  aiSpeechToken++;$('#aiSeek').disabled=true;$('#aiSeek').value='0';$('#aiPauseSpeech').textContent='Пауза';
   if(window.speechSynthesis) window.speechSynthesis.cancel();
   if(aiAudio){aiAudio.pause();aiAudio.src='';aiAudio.load();aiAudio=null;}
   if(aiAudioUrl){URL.revokeObjectURL(aiAudioUrl);aiAudioUrl='';}
 }
+$('#aiPauseSpeech').onclick=()=>{if(aiAudio){if(aiAudio.paused){aiAudio.play();$('#aiPauseSpeech').textContent='Пауза';}else{aiAudio.pause();$('#aiPauseSpeech').textContent='Продолжить';}}else if(window.speechSynthesis?.speaking){if(window.speechSynthesis.paused){window.speechSynthesis.resume();$('#aiPauseSpeech').textContent='Пауза';}else{window.speechSynthesis.pause();$('#aiPauseSpeech').textContent='Продолжить';}}};
+$('#aiStopSpeech').onclick=cancelAiSpeech;
+$('#aiSeek').oninput=()=>{if(aiAudio&&Number.isFinite(aiAudio.duration))aiAudio.currentTime=aiAudio.duration*(Number($('#aiSeek').value)/100);};
 async function speakAi(text){
+  $('#aiSeek').disabled=true;$('#aiSeek').value='0';
   if(!text)return;
   cancelAiSpeech(); const token=++aiSpeechToken;
   const voiceChoice=$('#aiVoice').value;
@@ -1671,8 +1778,10 @@ async function speakAi(text){
       const blob=await response.blob();
       if(token!==aiSpeechToken)return;
       aiAudioUrl=URL.createObjectURL(blob); aiAudio=new Audio(aiAudioUrl);
-      const audio=aiAudio, url=aiAudioUrl;
-      audio.onended=()=>{if(token===aiSpeechToken){aiAudio=null;URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Готово';}};
+      const audio=aiAudio, url=aiAudioUrl,seek=$('#aiSeek');seek.disabled=false;seek.value='0';
+      audio.onloadedmetadata=()=>{seek.disabled=!Number.isFinite(audio.duration);};
+      audio.ontimeupdate=()=>{if(!audio.duration||seek.matches(':active'))return;seek.value=String(Math.round(audio.currentTime/audio.duration*100));};
+      audio.onended=()=>{if(token===aiSpeechToken){aiAudio=null;seek.disabled=true;seek.value='0';URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Готово';}};
       audio.onerror=()=>{if(token===aiSpeechToken){aiAudio=null;URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Не удалось воспроизвести аудио';}};
       await audio.play(); $('#aiVoiceStatus').textContent='Говорю русским нейроголосом';
     }catch(e){if(token===aiSpeechToken){if(aiAudio){aiAudio.pause();aiAudio.src='';aiAudio.load();aiAudio=null;}if(aiAudioUrl){URL.revokeObjectURL(aiAudioUrl);aiAudioUrl='';}$('#aiVoiceStatus').textContent=e.message||'Проверьте интернет для русского нейроголоса';aiStatus('Не удалось озвучить ответ','err');}}
@@ -1690,18 +1799,29 @@ async function speakAi(text){
   utterance.onerror=e=>{ $('#aiVoiceStatus').textContent='Ошибка озвучивания: '+e.error; aiStatus('Не удалось озвучить ответ','err'); };
   window.speechSynthesis.resume(); window.speechSynthesis.speak(utterance);
 }
+$('#aiUndo').onclick=()=>{const snapshot=aiUndoAction,tab=snapshot&&tabs.find(t=>t.id===snapshot.tabId);if(!tab){toast('Нет последнего изменения адреса для отмены');$('#aiUndo').disabled=true;return;}aiUndoAction=null;$('#aiUndo').disabled=true;activateTab(tab.id);navigateTab(tab,snapshot.url,true);toast('Предыдущий адрес восстановлен');};
 $('#aiVoiceTest').onclick=()=>speakAi('Привет! Я голосовой помощник ByAzen. Выбери голос и настрой манеру речи.');
+$$('.ai-quick [data-ai-prompt]').forEach(button=>button.onclick=()=>{openAssistant();sendAiMessage(button.dataset.aiPrompt);});
+async function compareOpenPages(){
+  const pages=tabs.filter(t=>!isInternal(t.url)&&/^https?:\/\//i.test(t.url)).slice(0,2);
+  if(pages.length<2){toast('Откройте минимум две веб-страницы для сравнения');return;}
+  if(!nativeWebview){toast('Сравнение содержимого доступно в настольной версии');return;}
+  try{aiCompareContexts=(await Promise.all(pages.map(t=>window.byazenDesktop.getPageContext(t.id)))).filter(p=>p&&!p.error).map(p=>({title:p.title,url:p.url,text:String(p.text||'').slice(0,3500)}));if(aiCompareContexts.length<2)throw new Error('Не удалось прочитать две страницы');openAssistant();await sendAiMessage('Сравни открытые страницы по теме, основным фактам и различиям. Для каждого вывода укажи название страницы и её URL.');}
+  catch(e){aiCompareContexts=null;toast(e.message||'Не удалось сравнить страницы');}
+}
+$('#aiComparePages').onclick=compareOpenPages;
 async function sendAiMessage(text){
   text=(text||'').trim(); if(!text||aiBusy) return;
   aiBusy=true; $('#aiSend').disabled=true; $('#aiMic').disabled=true;
   $('#aiInput').value=''; addAiMessage('user',text); aiHistory.push({role:'user',content:text});
   const pending=addAiMessage('assistant pending','Думаю…');
-  const completed=[]; let finalReply=''; let responseModel=aiModel;
+  const completed=[]; let finalReply=''; let responseModel=aiModel;let citedSources=[];
   try{
     // Let Ollama plan against the live page, execute its browser tools, then feed results back.
     // This gives it a small observe → act → observe loop instead of fixed phrase-to-command rules.
     for(let turn=0;turn<5;turn++){
       const pageContext=await getAiPageContext();
+      citedSources=Array.isArray(pageContext.comparisonPages)?pageContext.comparisonPages.map(p=>({title:p.title,url:p.url})):pageContext.url&&!String(pageContext.url).startsWith('byazen://')?[{title:pageContext.title,url:pageContext.url}]:[];
       const r=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:aiModel||'qwen2.5:3b',messages:aiHistory.slice(-12),pageContext})});
       const data=await r.json();
       if(!r.ok) throw new Error(data.error||'Ошибка Ollama');
@@ -1709,6 +1829,7 @@ async function sendAiMessage(text){
       const actions=Array.isArray(data.actions)?data.actions:[];
       if(!actions.length){finalReply=String(data.reply||'Готово.');aiHistory.push({role:'assistant',content:finalReply});break;}
       if(turn===4){finalReply='Задача требует слишком много шагов. Я остановилась и не стала выполнять дополнительные действия автоматически.';aiHistory.push({role:'assistant',content:finalReply});break;}
+      if(turn===0)addAiMessage('system','План действий: '+actions.map(a=>aiActionLabel(a)).join(' → '));
       pending.textContent=turn===0?'Выполняю и проверяю результат…':'Продолжаю по результату страницы…';
       const results=await executeAiActions(actions);
       completed.push(...results);
@@ -1717,13 +1838,14 @@ async function sendAiMessage(text){
     }
     if(!finalReply) finalReply='Готово.';
     pending.remove(); addAiMessage('assistant',finalReply);
+    if(citedSources.length)addAiMessage('system','Источники контекста: '+citedSources.map(s=>`${s.title||'Страница'} — ${s.url}`).join(' · '));
     const done=completed.filter(r=>r.ok&&!['page_read'].includes(r.type)).map(r=>aiActionLabel({type:r.type,...r}));
     if(done.length) addAiMessage('system','Выполнено: '+done.join(' · '));
     if($('#aiSpeak').checked) speakAi(finalReply);
     aiStatus(`Ответила модель ${responseModel}`,'ok');
   }catch(e){
     pending.remove(); addAiMessage('system',e.message||'ИИ сейчас недоступен.'); aiStatus('Нет ответа от Ollama','err');
-  }finally{ aiBusy=false; $('#aiSend').disabled=false; $('#aiMic').disabled=false; $('#aiInput').focus(); }
+  }finally{ aiBusy=false;aiCompareContexts=null; $('#aiSend').disabled=false; $('#aiMic').disabled=false; $('#aiInput').focus(); }
 }
 $('#aiSend').onclick=()=>sendAiMessage($('#aiInput').value);
 $('#aiInput').addEventListener('keydown',e=>{

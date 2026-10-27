@@ -9,6 +9,9 @@ if (window.top === window.self) {
       setActiveSite: (id, bounds) => ipcRenderer.send('byazen:site-active', { id, bounds }),
       closeSite: id => ipcRenderer.send('byazen:site-close', id),
       getPageContext: id => ipcRenderer.invoke('byazen:page-context', id),
+      getPageSelection: id => ipcRenderer.invoke('byazen:page-selection', id),
+      setPageZoom: (id,factor) => ipcRenderer.invoke('byazen:page-zoom',{id,factor}),
+      printPage: id => ipcRenderer.invoke('byazen:page-print',id),
       performPageAction: (id, action) => ipcRenderer.invoke('byazen:page-action', { id, action }),
       onSiteEvent: callback => {
         const listener = (_event, data) => callback(data);
