@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "app": "electron .",
-    "dist:win": "electron-builder --win nsis portable --x64"
+    "dist:win": "electron-builder --win portable --x64"
   },
   "dependencies": {
     "express": "^4.19.2",
@@ -41,23 +41,18 @@
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/icon.ico",
       "signAndEditExecutable": false
     },
     "portable": {
       "artifactName": "ByAzen.exe"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": true,
-      "artifactName": "ByAzen-Setup-${version}.${ext}"
     }
   },
   "devDependencies": {

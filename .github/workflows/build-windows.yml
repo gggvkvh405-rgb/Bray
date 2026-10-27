@@ -1,4 +1,4 @@
-name: Build Windows app and installer
+name: Build Windows portable app
 
 on:
   push:
@@ -28,15 +28,13 @@ jobs:
         run: ./scripts/build-piper-runtime.ps1
       - name: Install dependencies
         run: npm ci
-      - name: Build installer and portable executable
+      - name: Build portable executable
         run: npm run dist:win
-      - name: Upload Windows executables
+      - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
           name: ByAzen-Windows-x64
-          path: |
-            release/ByAzen.exe
-            release/ByAzen-Setup-1.0.30.exe
+          path: release/ByAzen.exe
           if-no-files-found: error
           retention-days: 30
       - name: Publish direct download
@@ -46,11 +44,9 @@ jobs:
           tag_name: v1.0.30
           name: ByAzen 1.0.30 — Установка браузером Windows
           body: >-
-            Windows x64 build: adds a per-user installer and Windows HTTP/HTTPS browser registration. After installation, choose ByAzen in Windows Default apps to handle web links. The portable EXE remains available too.
+            Windows x64 portable build: registers ByAzen as an available HTTP/HTTPS browser when launched and forwards external links into ByAzen tabs. Choose ByAzen in Windows Default apps to handle web links.
           prerelease: true
-          files: |
-            release/ByAzen-Setup-1.0.30.exe
-            release/ByAzen.exe
+          files: release/ByAzen.exe
           fail_on_unmatched_files: true
           overwrite_files: false
         continue-on-error: true
