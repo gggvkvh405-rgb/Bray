@@ -1,5 +1,6 @@
 const { app, BrowserWindow, WebContentsView, shell, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { registerPiperHandlers } = require('./piper');
 const { startServer } = require('../server');
 
@@ -13,6 +14,7 @@ const configuredSiteSessions=new WeakSet();
 const downloadRecords=[];
 const downloadItems=new Map();
 let downloadSequence=0;
+let downloadSaveTimer=null;
 
 const PAGE_CONTEXT_SCRIPT = `(() => {
   const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'; };
@@ -81,39 +83,75 @@ function sendSiteEvent(id, type, data = {}) {
 function publishDownload(record){
   if(!record.privateOwnerId&&win&&!win.isDestroyed())win.webContents.send('byazen:download-event',{...record});
 }
-function patchDownload(record,changes){Object.assign(record,changes);publishDownload(record);}
+function persistDownloadHistory(immediate=false){
+  if(downloadSaveTimer){clearTimeout(downloadSaveTimer);downloadSaveTimer=null;}
+  if(!immediate){downloadSaveTimer=setTimeout(()=>persistDownloadHistory(true),300);downloadSaveTimer.unref?.();return;}
+  try{
+    const file=path.join(app.getPath('userData'),'download-history.json');
+    fs.mkdirSync(path.dirname(file),{recursive:true});
+    const records=downloadRecords.filter(x=>!x.privateOwnerId).slice(0,100).map(x=>({
+      id:x.id,fileName:x.fileName,source:x.source,total:x.total,received:x.received,
+      status:['awaiting','downloading','paused'].includes(x.status)?'interrupted':x.status,
+      createdAt:x.createdAt,path:x.path||'',error:x.error||'',canResume:false
+    }));
+    const temporary=`${file}.tmp`;
+    fs.writeFileSync(temporary,JSON.stringify(records));
+    fs.renameSync(temporary,file);
+  }catch{}
+}
+function loadDownloadHistory(){
+  try{
+    const file=path.join(app.getPath('userData'),'download-history.json');
+    const records=JSON.parse(fs.readFileSync(file,'utf8'));
+    if(!Array.isArray(records))return;
+    for(const item of records.slice(0,100).reverse()){
+      if(!item||!Number.isSafeInteger(item.id)||typeof item.fileName!=='string')continue;
+      const status=['completed','cancelled','failed','interrupted','blocked'].includes(item.status)?item.status:'interrupted';
+      const record={id:item.id,fileName:item.fileName.slice(0,160),source:typeof item.source==='string'?item.source.slice(0,512):'',total:Number(item.total)||0,received:Number(item.received)||0,status,createdAt:Number(item.createdAt)||Date.now(),path:typeof item.path==='string'?item.path:'',error:typeof item.error==='string'?item.error.slice(0,200):'',canResume:false};
+      if(record.status==='completed'&&record.path&&!fs.existsSync(record.path)){record.status='failed';record.error='Сохранённый файл не найден';record.path='';}
+      downloadRecords.unshift(record);downloadSequence=Math.max(downloadSequence,record.id);
+    }
+  }catch{}
+}
+function patchDownload(record,changes){Object.assign(record,changes);if(!record.privateOwnerId)persistDownloadHistory();publishDownload(record);}
+function safeDownloadFilename(value){
+  let name=String(value||'download').replace(/\\/g,'/').split('/').pop().replace(/[<>:"|?*\x00-\x1f]/g,'_').replace(/[. ]+$/g,'').replace(/^\.+/,'').slice(0,160);
+  if(!name||/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(name))name=`_${name||'download'}`;
+  return name;
+}
+function watchDownload(item,record){
+  item.on('updated',(_event,state)=>{
+    const received=item.getReceivedBytes(),canResume=state==='interrupted'&&typeof item.canResume==='function'&&item.canResume();
+    record.canResume=!!canResume;
+    patchDownload(record,{status:state==='interrupted'?'interrupted':item.isPaused()?'paused':'downloading',received,total:item.getTotalBytes()});
+  });
+  item.on('done',(_event,state)=>{
+    const received=item.getReceivedBytes(),canResume=state==='interrupted'&&typeof item.canResume==='function'&&item.canResume();
+    const status=state==='completed'?'completed':state==='cancelled'?'cancelled':state==='interrupted'?'interrupted':'failed';
+    patchDownload(record,{status,received,total:item.getTotalBytes(),canResume:!!canResume});
+    if(status!=='interrupted'||!canResume)downloadItems.delete(record.id);
+  });
+}
 function configureSiteSession(session,isPrivate=false,privateOwnerId=null){
   if(configuredSiteSessions.has(session))return;
   configuredSiteSessions.add(session);
   session.on('will-download',(event,item)=>{
-    const maxBytes=250*1024*1024;
     let source;
     try{source=new URL(item.getURL());}catch{item.cancel();return;}
     if(!['http:','https:'].includes(source.protocol)){item.cancel();return;}
-    const fileName=path.basename(String(item.getFilename()||'download').replace(/[<>:"|?*\x00-\x1f]/g,'_')).replace(/^\.+/,'').slice(0,120)||'download';
-    const record={id:++downloadSequence,fileName,source:source.origin,total:item.getTotalBytes(),received:item.getReceivedBytes(),status:'awaiting',createdAt:Date.now(),path:'',...(isPrivate?{privateOwnerId}: {})};
-    downloadRecords.unshift(record);while(downloadRecords.length>100){const index=downloadRecords.findIndex(x=>!['awaiting','downloading'].includes(x.status));if(index<0)break;const [removed]=downloadRecords.splice(index,1);downloadItems.delete(removed.id);}downloadItems.set(record.id,item);publishDownload(record);
-    if(item.getTotalBytes()>maxBytes){patchDownload(record,{status:'blocked',error:'Файл превышает лимит 250 МБ'});downloadItems.delete(record.id);item.cancel();if(win&&!win.isDestroyed())dialog.showMessageBox(win,{type:'warning',title:'Загрузка заблокирована',message:'Файл превышает лимит 250 МБ.'});return;}
+    const fileName=safeDownloadFilename(item.getFilename());
+    const record={id:++downloadSequence,fileName,source:source.origin,total:item.getTotalBytes(),received:item.getReceivedBytes(),status:'awaiting',createdAt:Date.now(),path:'',canResume:false,...(isPrivate?{privateOwnerId}: {})};
+    downloadRecords.unshift(record);if(!privateOwnerId)persistDownloadHistory();while(downloadRecords.length>100){const index=downloadRecords.findIndex(x=>!['awaiting','downloading'].includes(x.status));if(index<0)break;const [removed]=downloadRecords.splice(index,1);downloadItems.delete(removed.id);}downloadItems.set(record.id,item);publishDownload(record);
     if(!win||win.isDestroyed()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);item.cancel();return;}
     item.pause();
-    const dangerous=/\.(exe|msi|bat|cmd|com|scr|ps1|vbs|js|reg)$/i.test(fileName);
+    const dangerous=/\.(exe|msi|msix|appx|bat|cmd|com|scr|cpl|hta|ps1|vbs|js|reg)$/i.test(fileName);
     const approve=dangerous?dialog.showMessageBox(win,{type:'warning',buttons:['Продолжить','Отмена'],defaultId:1,cancelId:1,noLink:true,title:'Потенциально опасный файл',message:`Сайт предлагает загрузить «${fileName}».`,detail:'Исполняемые файлы могут повредить компьютер. Продолжайте только если доверяете источнику.'}).then(result=>result.response===0):Promise.resolve(true);
     approve.then(async allowed=>{
       if(!allowed||item.isCanceled()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
       if(!win||win.isDestroyed()||item.isCanceled()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
-      const choice=await dialog.showSaveDialog(win,{title:'Сохранить загрузку',defaultPath:fileName,buttonLabel:'Сохранить'});
+      const choice=await dialog.showSaveDialog(win,{title:'Сохранить загрузку',defaultPath:path.join(app.getPath('downloads'),fileName),buttonLabel:'Сохранить'});
       if(choice.canceled||!choice.filePath||item.isCanceled()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
-      item.setSavePath(choice.filePath);patchDownload(record,{status:'downloading',path:choice.filePath,total:item.getTotalBytes()});
-      item.on('updated',(_event,state)=>{
-        const received=item.getReceivedBytes();
-        if(received>maxBytes){patchDownload(record,{status:'blocked',received,error:'Превышен лимит 250 МБ'});item.cancel();return;}
-        patchDownload(record,{status:state==='interrupted'?'interrupted':'downloading',received,total:item.getTotalBytes()});
-      });
-      item.once('done',(_event,state)=>{
-        const status=state==='completed'?'completed':state==='cancelled'?'cancelled':'failed';
-        patchDownload(record,{status,received:item.getReceivedBytes(),total:item.getTotalBytes(),path:choice.filePath});downloadItems.delete(record.id);
-      });
-      item.resume();
+      item.setSavePath(choice.filePath);record.path=choice.filePath;watchDownload(item,record);patchDownload(record,{status:'downloading',path:choice.filePath,total:item.getTotalBytes()});item.resume();
     }).catch(error=>{patchDownload(record,{status:'failed',error:String(error.message||error).slice(0,160)});downloadItems.delete(record.id);item.cancel();});
   });
   session.setPermissionRequestHandler((requester,permission,callback,details)=>{
@@ -146,6 +184,7 @@ function createSiteView(id,isPrivate=false) {
     if(ctrl&&shift&&key==='r')shortcut='hard-reload';
     else if(ctrl&&shift&&key==='n')shortcut='private-tab';
     else if(ctrl&&shift&&key==='p')shortcut='feature-studio';
+    else if(ctrl&&shift&&key==='j')shortcut='downloads';
     else if(ctrl&&key==='f')shortcut='find';
     else if(ctrl&&key==='t')shortcut='new-tab';
     else if(ctrl&&key==='w')shortcut='close-tab';
@@ -225,8 +264,12 @@ ipcMain.handle('byazen:open-language-settings',event=>{
 ipcMain.handle('byazen:permission-log',event=>trustedUi(event)?websitePermissionLog.slice(0,100):[]);
 ipcMain.handle('byazen:permission-log-clear',event=>{if(!trustedUi(event))return false;websitePermissionLog.length=0;return true;});
 ipcMain.handle('byazen:downloads-list',event=>trustedUi(event)?downloadRecords.filter(x=>!x.privateOwnerId).map(x=>({...x})):[]);
+ipcMain.handle('byazen:download-link',(event,payload={})=>{if(!trustedUi(event))return {ok:false};const id=Number(payload.id),url=String(payload.url||'');const contents=pageView(id);if(!contents||url.length>4096||!/^https?:\/\//i.test(url))return {ok:false};try{contents.downloadURL(url);return {ok:true};}catch{return {ok:false};}});
+ipcMain.handle('byazen:downloads-pause',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||!record||record.status!=='downloading')return {ok:false};try{item.pause();patchDownload(record,{status:'paused'});return {ok:true};}catch{return {ok:false};}});
+ipcMain.handle('byazen:downloads-resume',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||!record||!['interrupted','paused'].includes(record.status))return {ok:false};if(record.status==='interrupted'&&(typeof item.canResume!=='function'||!item.canResume()))return {ok:false};try{record.canResume=false;patchDownload(record,{status:'downloading'});item.resume();return {ok:true};}catch{return {ok:false};}});
+ipcMain.handle('byazen:downloads-folder',async event=>{if(!trustedUi(event))return {ok:false};try{const error=await shell.openPath(app.getPath('downloads'));return {ok:!error,error:error||''};}catch{return {ok:false};}});
 ipcMain.handle('byazen:downloads-cancel',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||item.isCanceled())return {ok:false};item.cancel();if(record)patchDownload(record,{status:'cancelled'});downloadItems.delete(numeric);return {ok:true};});
-ipcMain.handle('byazen:downloads-clear',event=>{if(!trustedUi(event))return false;for(let i=downloadRecords.length-1;i>=0;i--)if(!['awaiting','downloading'].includes(downloadRecords[i].status))downloadRecords.splice(i,1);return true;});
+ipcMain.handle('byazen:downloads-clear',event=>{if(!trustedUi(event))return false;for(let i=downloadRecords.length-1;i>=0;i--){const item=downloadRecords[i];if(!['awaiting','downloading','paused'].includes(item.status)&&!(item.status==='interrupted'&&item.canResume))downloadRecords.splice(i,1);}persistDownloadHistory(true);return true;});
 ipcMain.handle('byazen:downloads-open',async(event,id)=>{if(!trustedUi(event))return {ok:false};const item=downloadRecords.find(x=>x.id===Number(id));if(!item||item.status!=='completed'||!item.path)return {ok:false};try{const error=await shell.openPath(item.path);return {ok:!error,error:error||''};}catch{return {ok:false,error:'Не удалось открыть файл'};}});
 ipcMain.handle('byazen:downloads-reveal',(event,id)=>{if(!trustedUi(event))return {ok:false};const item=downloadRecords.find(x=>x.id===Number(id));if(!item||item.status!=='completed'||!item.path)return {ok:false};try{shell.showItemInFolder(item.path);return {ok:true};}catch{return {ok:false};}});
 function pageView(id) {
@@ -334,7 +377,7 @@ ipcMain.on('byazen:site-close', (event, idValue) => {
   const view = siteViews.get(id);
   if (!view) return;
   const privateSession=view.byazenPrivate?view.webContents.session:null;
-  if(view.byazenPrivate)for(let i=downloadRecords.length-1;i>=0;i--)if(downloadRecords[i].privateOwnerId===id){const record=downloadRecords[i],item=downloadItems.get(record.id);if(item&&!item.isCanceled())item.cancel();downloadItems.delete(record.id);downloadRecords.splice(i,1);}
+  if(view.byazenPrivate)for(let i=downloadRecords.length-1;i>=0;i--)if(downloadRecords[i].privateOwnerId===id){const record=downloadRecords[i],item=downloadItems.get(record.id);if(item&&!item.isCanceled())item.cancel();downloadItems.delete(record.id);downloadRecords.splice(i,1);persistDownloadHistory();}
   win.contentView.removeChildView(view);
   view.webContents.close();
   siteViews.delete(id);
@@ -348,8 +391,10 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => {
     if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
   });
+  app.on('before-quit',()=>persistDownloadHistory(true));
 
   app.whenReady().then(async () => {
+    loadDownloadHistory();
     Menu.setApplicationMenu(null);
 
     // Локальный сервер ByAzen на свободном порту

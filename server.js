@@ -1,5 +1,8 @@
 const express = require('express');
 const path = require('path');
+const { Readable } = require('stream');
+const dns = require('dns').promises;
+const net = require('net');
 const { EdgeTTS } = require('node-edge-tts');
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -418,6 +421,89 @@ app.get('/api/search', async (req, res) => {
   }catch{res.json({results:[],answer:null,offset,error:true});}
 });
 
+function isPublicDownloadAddress(address){
+  const family=net.isIP(address);
+  if(family===4){
+    const parts=address.split('.').map(Number),a=parts[0],b=parts[1],c=parts[2];
+    return !(a===0||a===10||a===127||a>=224||a===169&&b===254||a===172&&b>=16&&b<=31||a===192&&b===168||a===100&&b>=64&&b<=127||a===198&&(b===18||b===19)||a===192&&b===0&&c===0);
+  }
+  if(family===6){
+    const value=address.toLowerCase();
+    if(value==='::'||value==='::1'||value.startsWith('fc')||value.startsWith('fd')||/^fe[89ab]/.test(value)||value.startsWith('ff'))return false;
+    const mapped=value.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+    return mapped?isPublicDownloadAddress(mapped[1]):true;
+  }
+  return false;
+}
+async function validateDownloadTarget(raw){
+  if(typeof raw!=='string'||raw.length>4096)throw new Error('Некорректная ссылка');
+  const url=new URL(raw);
+  if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw new Error('Разрешены только публичные HTTP(S)-ссылки');
+  const hostname=url.hostname.replace(/^\[|\]$/g,'');
+  const addresses=net.isIP(hostname)?[{address:hostname}]:await dns.lookup(hostname,{all:true,verbatim:true});
+  if(!addresses.length||addresses.some(entry=>!isPublicDownloadAddress(entry.address)))throw new Error('Загрузка с локального или закрытого адреса заблокирована');
+  return url;
+}
+function safeDownloadName(value){
+  let name=String(value||'download').replace(/\\/g,'/').split('/').pop().replace(/[<>:"|?*\x00-\x1f]/g,'_').replace(/[. ]+$/g,'').replace(/^\.+/,'').slice(0,180);
+  return name||'download';
+}
+function attachmentHeader(name){
+  const safe=safeDownloadName(name),fallback=safe.replace(/[^\x20-\x7e]/g,'_').replace(/["\\;]/g,'_');
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
+}
+async function fetchForDownload(initialUrl,controller,requestHeaders={}){
+  let target=initialUrl;
+  for(let redirects=0;redirects<=8;redirects++){
+    await validateDownloadTarget(target);
+    const headers={'User-Agent':UA,'Accept':'*/*','Accept-Language':'ru,en-US;q=0.8,en;q=0.6'};
+    if(requestHeaders.range)headers.Range=String(requestHeaders.range).slice(0,160);
+    if(requestHeaders.ifRange)headers['If-Range']=String(requestHeaders.ifRange).slice(0,200);
+    const response=await fetch(target,{redirect:'manual',headers,signal:controller.signal});
+    if(![301,302,303,307,308].includes(response.status))return response;
+    const location=response.headers.get('location');
+    if(!location||redirects===8)throw new Error('Слишком много перенаправлений при загрузке');
+    target=new URL(location,target).href;
+  }
+  throw new Error('Не удалось открыть ссылку загрузки');
+}
+app.get('/download',async(req,res)=>{
+  const controller=new AbortController();
+  res.on('close',()=>{if(!res.writableFinished)controller.abort();});
+  try{
+    const raw=String(req.query.url||'');
+    const upstream=await fetchForDownload(raw,controller,{range:req.get('range'),ifRange:req.get('if-range')});
+    const finalUrl=upstream.url||raw;
+    const contentType=upstream.headers.get('content-type')||'application/octet-stream';
+    if(!upstream.ok&&upstream.status!==206){
+      res.status(upstream.status).setHeader('Content-Type',contentType);
+      if(!upstream.body)return res.end();
+      const errorStream=Readable.fromWeb(upstream.body);
+      errorStream.on('error',error=>res.destroy(error));
+      return errorStream.pipe(res);
+    }
+    const requestedName=typeof req.query.filename==='string'&&req.query.filename?req.query.filename:'';
+    const upstreamDisposition=upstream.headers.get('content-disposition')||'';
+    const upstreamName=upstreamDisposition.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i)?.[1];
+    let decodedName='';try{decodedName=upstreamName?decodeURIComponent(upstreamName.replace(/^"|"$/g,'')):'';}catch{decodedName=upstreamName||'';}
+    const urlName=path.basename(new URL(finalUrl).pathname);
+    const filename=safeDownloadName(requestedName||decodedName||urlName||'download');
+    res.status(upstream.status);
+    res.setHeader('Content-Type',contentType);
+    res.setHeader('Content-Disposition',attachmentHeader(filename));
+    const length=upstream.headers.get('content-length');if(length&&/^\d+$/.test(length))res.setHeader('Content-Length',length);
+    for(const header of ['content-range','accept-ranges']){const value=upstream.headers.get(header);if(value)res.setHeader(header,value);}
+    if(!upstream.body)return res.end();
+    const stream=Readable.fromWeb(upstream.body);
+    stream.on('error',error=>{if(!res.headersSent)res.status(502);res.destroy(error);});
+    stream.pipe(res);
+  }catch(error){
+    if(controller.signal.aborted)return;
+    if(!res.headersSent)res.status(502).type('text/plain').send(`Не удалось скачать файл: ${String(error.message||error).slice(0,220)}`);
+    else res.destroy(error);
+  }
+});
+
 // ---------- Web proxy : lets real sites open inside ByAzen ----------
 function injectedScript(finalUrl) {
   return `<script>
@@ -430,7 +516,13 @@ function injectedScript(finalUrl) {
     if(!a) return;
     var href = a.href;
     if(!href || href.indexOf('http')!==0 || href.indexOf('#')===0 || a.target==='_blank' && e.ctrlKey) return;
-    if(a.hasAttribute('download')) return;
+    if(a.hasAttribute('download')){
+      e.preventDefault();
+      var download='/download?url='+encodeURIComponent(href);
+      var requestedName=a.getAttribute('download');
+      if(requestedName)download+='&filename='+encodeURIComponent(requestedName);
+      location.href=download;return;
+    }
     e.preventDefault();
     location.href = '/proxy?url=' + encodeURIComponent(href);
   }, true);
@@ -455,16 +547,21 @@ app.get('/proxy', async (req, res) => {
   if (!target) return res.status(400).send('No url');
   if (!/^https?:\/\//i.test(target)) target = 'https://' + target;
   try {
-    const upstream = await fetch(target, {
-      redirect: 'follow',
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'ru,en-US;q=0.8,en;q=0.6',
-        'Referer': new URL(target).origin + '/'
+    const controller=new AbortController();
+    const responseTimeout=setTimeout(()=>controller.abort(),12000);
+    let upstream;
+    try{upstream=await fetch(target,{
+      redirect:'follow',
+      headers:{
+        'User-Agent':UA,
+        'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language':'ru,en-US;q=0.8,en;q=0.6',
+        'Referer':new URL(target).origin+'/',
+        ...(req.get('range')?{Range:String(req.get('range')).slice(0,160)}:{}),
+        ...(req.get('if-range')?{'If-Range':String(req.get('if-range')).slice(0,200)}:{})
       },
-      signal: AbortSignal.timeout(12000)
-    });
+      signal:controller.signal
+    });}finally{clearTimeout(responseTimeout);}
     const finalUrl = upstream.url || target;
     const ct = upstream.headers.get('content-type') || '';
 
@@ -483,10 +580,16 @@ app.get('/proxy', async (req, res) => {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.send(html);
     }
-    // binary / other content passthrough
-    const buf = Buffer.from(await upstream.arrayBuffer());
-    if (ct) res.setHeader('Content-Type', ct);
-    return res.send(buf);
+    // Stream binary content to the browser without buffering entire files in memory.
+    res.status(upstream.status);
+    if(ct)res.setHeader('Content-Type',ct);
+    for(const header of ['content-disposition','content-length','content-range','accept-ranges']){
+      const value=upstream.headers.get(header);if(value)res.setHeader(header,value);
+    }
+    if(!upstream.body)return res.end();
+    const stream=Readable.fromWeb(upstream.body);
+    stream.on('error',error=>{if(!res.headersSent)res.status(502);res.destroy(error);});
+    return stream.pipe(res);
   } catch (e) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(`<!doctype html><meta charset="utf-8"><style>

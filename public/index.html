@@ -768,7 +768,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.24</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.25</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -808,9 +808,9 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 </div>
 <div class="modal-overlay" id="downloadsModal">
   <section class="modal downloads-modal" role="dialog" aria-modal="true" aria-labelledby="downloadsTitle">
-    <div class="modal-head"><div><h2 id="downloadsTitle">Загрузки</h2><div class="ai-status" id="downloadsSummary">Загрузки этого сеанса</div></div><button class="icon-btn" data-close="downloadsModal" title="Закрыть"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-head"><div><h2 id="downloadsTitle">Загрузки</h2><div class="ai-status" id="downloadsSummary">История сохраняется на этом устройстве</div></div><button class="icon-btn" data-close="downloadsModal" title="Закрыть"><svg><use href="#i-x"/></svg></button></div>
     <div id="downloadsList" class="panel-body"></div>
-    <div class="panel-foot"><button class="btn danger block" id="clearDownloads">Очистить завершённые</button></div>
+    <div class="panel-foot" style="display:flex;gap:8px"><button class="btn block" style="flex:1;width:auto" id="openDownloadsFolder">Открыть папку загрузок</button><button class="btn danger block" style="flex:1;width:auto" id="clearDownloads">Очистить историю</button></div>
   </section>
 </div>
 <div class="modal-overlay" id="aiChatsModal">
@@ -1041,7 +1041,7 @@ function createPrivateTab(url='byazen://newtab',opts={}){
 }
 function browserShortcutFromEvent(e){
   const key=String(e.key||'').toLowerCase(),ctrl=!!(e.ctrlKey||e.metaKey),shift=!!e.shiftKey,alt=!!e.altKey;
-  if(ctrl&&shift&&key==='r')return 'hard-reload';if(ctrl&&shift&&key==='n')return 'private-tab';if(ctrl&&shift&&key==='p')return 'feature-studio';
+  if(ctrl&&shift&&key==='r')return 'hard-reload';if(ctrl&&shift&&key==='n')return 'private-tab';if(ctrl&&shift&&key==='p')return 'feature-studio';if(ctrl&&shift&&key==='j')return 'downloads';
   if(ctrl&&key==='f')return 'find';if(ctrl&&key==='t')return 'new-tab';if(ctrl&&key==='w')return 'close-tab';if(ctrl&&key==='l')return 'focus-address';
   if(ctrl&&key==='tab')return shift?'previous-tab':'next-tab';if(ctrl&&key==='r')return 'reload';if(ctrl&&key==='0')return 'zoom-reset';
   if(ctrl&&(key==='+'||key==='='))return 'zoom-in';if(ctrl&&key==='-')return 'zoom-out';
@@ -1734,8 +1734,8 @@ function showPageContextMenu(data,tab){
   pageContextState={tabId:tab.id,private:!!tab.private,url:tab.url,link,image,selection,editable:!!data.isEditable};
   const items=[['reload','i-reload','Перезагрузить страницу']];
   if(data.isEditable)items.push(['edit-copy','i-copy','Копировать'],['edit-cut','i-copy','Вырезать'],['edit-paste','i-copy','Вставить']);
-  if(link){items.push([tab.private?'open-private':'open-link','i-ext',tab.private?'Открыть ссылку приватно':'Открыть ссылку в новой вкладке'],['copy-link','i-copy','Копировать адрес ссылки']);}
-  if(image){items.push([tab.private?'open-image-private':'open-image','i-globe','Открыть изображение в новой вкладке'],['copy-image','i-copy','Копировать адрес изображения']);}
+  if(link){items.push(['download-link','i-download','Скачать файл'],[tab.private?'open-private':'open-link','i-ext',tab.private?'Открыть ссылку приватно':'Открыть ссылку в новой вкладке'],['copy-link','i-copy','Копировать адрес ссылки']);}
+  if(image){items.push(['download-image','i-download','Скачать изображение'],[tab.private?'open-image-private':'open-image','i-globe','Открыть изображение в новой вкладке'],['copy-image','i-copy','Копировать адрес изображения']);}
   if(selection){items.push(['copy-selection','i-copy','Копировать выделение'],[tab.private?'search-private':'search-selection','i-search','Искать выделенный текст']);}
   items.push(['copy-page','i-copy','Копировать адрес страницы']);if(!isInternal(tab.url))items.push(['open-external','i-ext','Открыть в системном браузере']);
   menu.innerHTML=items.map(([action,icon,label])=>`<button role="menuitem" data-page-action="${action}"><svg><use href="#${icon}"/></svg>${label}</button>`).join('');
@@ -1756,6 +1756,12 @@ async function runPageContextAction(action){
   if(['edit-copy','edit-cut','edit-paste'].includes(action)){
     const command=action.slice(5);if(nativeWebview){const result=await window.byazenDesktop.editPageSelection(tab.id,command);if(!result?.ok)toast('Действие с текстом не выполнено');}
     else try{tab.frame.contentDocument.execCommand(command);}catch{toast('Действие недоступно в этой странице');}return;
+  }
+  if(action==='download-link'||action==='download-image'){
+    const url=action==='download-link'?state.link:state.image;if(!/^https?:\/\//i.test(url))return toast('Адрес файла недоступен');
+    if(nativeWebview){const result=await window.byazenDesktop.downloadLink(tab.id,url);if(!result?.ok)toast('Не удалось начать загрузку файла');}
+    else{const link=document.createElement('a');link.href='/download?url='+encodeURIComponent(url);document.body.append(link);link.click();link.remove();}
+    return;
   }
   if(action==='copy-link')return copyPlainText(state.link);
   if(action==='copy-image')return copyPlainText(state.image);
@@ -1838,21 +1844,24 @@ $('#findInput').addEventListener('input',()=>{clearTimeout(findDebounce);$('#fin
 $('#findInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();findOnPage(e.shiftKey?-1:1,true);}});
 $('#findPrev').onclick=()=>findOnPage(-1,true);$('#findNext').onclick=()=>findOnPage(1,true);$('#findClose').onclick=closeFindBar;
 function formatBytes(value){const n=Number(value)||0;if(n<1024)return `${n} Б`;const units=['КБ','МБ','ГБ'];let size=n/1024,index=0;while(size>=1024&&index<units.length-1){size/=1024;index++;}return `${size.toFixed(size>=100?0:1)} ${units[index]}`;}
-const DOWNLOAD_STATUS={awaiting:'Ожидает подтверждения',downloading:'Загружается',completed:'Готово',cancelled:'Отменено',failed:'Ошибка',interrupted:'Прервано',blocked:'Заблокировано'};
+const DOWNLOAD_STATUS={awaiting:'Ожидает выбора места',downloading:'Загружается',paused:'Приостановлено',completed:'Готово',cancelled:'Отменено',failed:'Ошибка',interrupted:'Прервано',blocked:'Заблокировано'};
 async function openDownloads(){
   openModal('downloadsModal');if(nativeWebview){try{downloadEntries=await window.byazenDesktop.getDownloads();}catch{downloadEntries=[];}}renderDownloads();
 }
 function renderDownloads(){
-  const list=$('#downloadsList');if(!nativeWebview){list.innerHTML='<div class="empty"><b>Менеджер загрузок доступен в настольной версии</b></div>';$('#downloadsSummary').textContent='';return;}
-  const active=downloadEntries.filter(x=>['awaiting','downloading'].includes(x.status)).length;
-  $('#downloadsSummary').textContent=active?`${active} активных · история этого сеанса`:'История загрузок этого сеанса';
-  if(!downloadEntries.length){list.innerHTML='<div class="empty"><svg><use href="#i-download"/></svg><b>Загрузок пока нет</b><p>Скачанные файлы появятся здесь.</p></div>';return;}
-  list.innerHTML=downloadEntries.map(item=>{const total=Number(item.total)||0,received=Number(item.received)||0,percent=total?Math.min(100,Math.floor(received/total*100)):0;const status=DOWNLOAD_STATUS[item.status]||'Состояние неизвестно';const detail=item.status==='downloading'?`${formatBytes(received)}${total?` из ${formatBytes(total)} · ${percent}%`:''}`:item.status==='completed'?`${formatBytes(received||total)} · ${new Date(item.createdAt).toLocaleString('ru-RU')}`:item.error||`${status} · ${new Date(item.createdAt).toLocaleString('ru-RU')}`;const actions=['awaiting','downloading'].includes(item.status)?`<button class="btn danger" data-cancel-download="${item.id}">Отменить</button>`:item.status==='completed'?`<button class="btn" data-open-download="${item.id}">Открыть</button><button class="btn" data-reveal-download="${item.id}" title="Показать в папке">Папка</button>`:'';return `<div class="download-item"><svg width="19" height="19" style="flex:none;color:var(--text-3)"><use href="#i-download"/></svg><div class="download-info"><div class="download-name" title="${escapeHtml(item.fileName)}">${escapeHtml(item.fileName)}</div><div class="download-meta">${escapeHtml(item.source||'')} · ${escapeHtml(detail)}</div>${item.status==='downloading'?`<progress max="100" value="${percent}" aria-label="Загрузка ${percent}%"></progress>`:''}</div><div class="download-actions">${actions}</div></div>`;}).join('');
+  const list=$('#downloadsList');if(!nativeWebview){$('#openDownloadsFolder').hidden=true;$('#clearDownloads').hidden=true;list.innerHTML='<div class="empty"><b>Полный менеджер загрузок доступен в настольной версии</b><p>Скачивание по ссылкам работает через загрузки вашего браузера.</p></div>';$('#downloadsSummary').textContent='';return;}$('#openDownloadsFolder').hidden=false;$('#clearDownloads').hidden=false;
+  const active=downloadEntries.filter(x=>['awaiting','downloading','paused'].includes(x.status)).length;
+  $('#downloadsSummary').textContent=active?`${active} активных · история сохраняется на этом устройстве`:'История сохраняется на этом устройстве';
+  if(!downloadEntries.length){list.innerHTML='<div class="empty"><svg><use href="#i-download"/></svg><b>Загрузок пока нет</b><p>Нажмите на ссылку для скачивания — файл сохранится в выбранную папку.</p></div>';return;}
+  list.innerHTML=downloadEntries.map(item=>{const total=Number(item.total)||0,received=Number(item.received)||0,percent=total?Math.min(100,Math.floor(received/total*100)):0;const status=DOWNLOAD_STATUS[item.status]||'Состояние неизвестно';const detail=['downloading','paused'].includes(item.status)?`${formatBytes(received)}${total?` из ${formatBytes(total)} · ${percent}%`:''}`:item.status==='completed'?`${formatBytes(received||total)} · ${new Date(item.createdAt).toLocaleString('ru-RU')}`:item.status==='interrupted'&&item.canResume?'Соединение прервано · можно продолжить':item.error||`${status} · ${new Date(item.createdAt).toLocaleString('ru-RU')}`;const actions=item.status==='downloading'?`<button class="btn" data-pause-download="${item.id}">Пауза</button><button class="btn danger" data-cancel-download="${item.id}">Отменить</button>`:item.status==='paused'||item.status==='interrupted'&&item.canResume?`<button class="btn primary" data-resume-download="${item.id}">Продолжить</button><button class="btn danger" data-cancel-download="${item.id}">Отменить</button>`:item.status==='completed'?`<button class="btn" data-open-download="${item.id}">Открыть</button><button class="btn" data-reveal-download="${item.id}" title="Показать в папке">Папка</button>`:'';return `<div class="download-item"><svg width="19" height="19" style="flex:none;color:var(--text-3)"><use href="#i-download"/></svg><div class="download-info"><div class="download-name" title="${escapeHtml(item.fileName)}">${escapeHtml(item.fileName)}</div><div class="download-meta">${escapeHtml(item.source||'')} · ${escapeHtml(detail)}</div>${['downloading','paused'].includes(item.status)?`<progress max="100" value="${percent}" aria-label="Загрузка ${percent}%"></progress>`:''}</div><div class="download-actions">${actions}</div></div>`;}).join('');
   $$('[data-cancel-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.cancelDownload(Number(button.dataset.cancelDownload));if(!result?.ok)toast('Не удалось отменить загрузку');});
-  $$('[data-open-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.openDownloadedFile(Number(button.dataset.openDownload));if(!result?.ok)toast('Не удалось открыть файл');});
+  $$('[data-pause-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.pauseDownload(Number(button.dataset.pauseDownload));if(!result?.ok)toast('Не удалось приостановить загрузку');});
+  $$('[data-resume-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.resumeDownload(Number(button.dataset.resumeDownload));if(!result?.ok)toast('Не удалось продолжить загрузку');});
+  $$('[data-open-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.openDownloadedFile(Number(button.dataset.openDownload));if(!result?.ok)toast(result?.error||'Не удалось открыть файл');});
   $$('[data-reveal-download]').forEach(button=>button.onclick=async()=>{const result=await window.byazenDesktop.revealDownloadedFile(Number(button.dataset.revealDownload));if(!result?.ok)toast('Не удалось открыть папку файла');});
 }
-$('#clearDownloads').onclick=async()=>{if(nativeWebview){await window.byazenDesktop.clearDownloads();downloadEntries=downloadEntries.filter(x=>['awaiting','downloading'].includes(x.status));renderDownloads();}};
+$('#openDownloadsFolder').onclick=async()=>{const result=await window.byazenDesktop?.openDownloadsFolder();if(!result?.ok)toast('Не удалось открыть папку загрузок');};
+$('#clearDownloads').onclick=async()=>{if(nativeWebview){await window.byazenDesktop.clearDownloads();downloadEntries=downloadEntries.filter(x=>['awaiting','downloading','paused'].includes(x.status)||(x.status==='interrupted'&&x.canResume));renderDownloads();}};
 $('#downloadsBtn').onclick=openDownloads;
 $('#privateTabBtn').onclick=()=>createPrivateTab();if(!nativeWebview){$('#privateTabBtn').disabled=true;$('#privateTabBtn').title='Доступно только в настольной версии';}
 $('#findInput').addEventListener('focus',()=>$('#findInput').select());
@@ -1863,7 +1872,7 @@ async function openDiagnostics(){
   let version='неизвестна';try{version=(await (await fetch('/api/version')).json()).version||version;}catch{}
   const lines=['Диагностика ByAzen',`Версия: ${version}`,`Окружение: ${nativeWebview?'настольное приложение Electron':'веб-режим'}`,`Вкладки открыты: ${tabs.length}`,`Страница: ${activeTab()?.url||'нет активной вкладки'}`];
   try{const response=await fetch('/api/ollama/models');const data=await response.json();lines.push(`Локальный ИИ: ${data.available?(data.models?.length?`подключён (${data.models.length} моделей)`:'подключён, моделей не найдено'):(data.error||'недоступен')}`);}catch{lines.push('Локальный ИИ: сервер диагностики недоступен');}
-  lines.push(`Журнал разрешений: ${nativeWebview?'доступен':'только в настольной версии'}`,'Загрузки: подтверждение пути, предупреждение об исполняемых файлах и лимит 250 МБ (в настольной версии)');
+  lines.push(`Журнал разрешений: ${nativeWebview?'доступен':'только в настольной версии'}`,'Загрузки: выбор папки, прогресс, отмена и продолжение после обрыва (в настольной версии)');
   alert(lines.join('\n'));
 }
 function compareVersionNumbers(a,b){const x=String(a).split('.').map(n=>parseInt(n,10)||0),y=String(b).split('.').map(n=>parseInt(n,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)>(y[i]||0)?1:-1;}return 0;}
@@ -2359,7 +2368,7 @@ function runBrowserShortcut(key){
   else if(key==='focus-address'){$('#sidebar').classList.remove('collapsed');urlInput.focus();}
   else if(key==='next-tab')switchNextTab();else if(key==='previous-tab')switchPreviousTab();
   else if(key==='reload')$('#reloadBtn').click();else if(key==='hard-reload')hardReloadActive();
-  else if(key==='zoom-reset')resetZoomActivePage();else if(key==='zoom-in')zoomActivePage(.1);else if(key==='zoom-out')zoomActivePage(-.1);else if(key==='feature-studio')window.ByAzenStudio?.open();
+  else if(key==='zoom-reset')resetZoomActivePage();else if(key==='zoom-in')zoomActivePage(.1);else if(key==='zoom-out')zoomActivePage(-.1);else if(key==='feature-studio')window.ByAzenStudio?.open();else if(key==='downloads')openDownloads();
   else if(key==='back'&&tab)goHist(tab,-1);else if(key==='forward'&&tab)goHist(tab,1);
 }
 function eventHotkey(e){
