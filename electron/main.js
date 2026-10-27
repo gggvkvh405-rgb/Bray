@@ -1,5 +1,6 @@
 const { app, BrowserWindow, WebContentsView, shell, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
+const { registerPiperHandlers } = require('./piper');
 const { startServer } = require('../server');
 
 app.setName('ByAzen');
@@ -212,6 +213,7 @@ ipcMain.on('byazen:site-open', (event, payload = {}) => {
 
 
 function trustedUi(event) { return !!(win && !win.isDestroyed() && event.sender === win.webContents); }
+registerPiperHandlers(ipcMain, { app, isTrusted: trustedUi, getWindow: () => win, resourcesPath: process.resourcesPath });
 ipcMain.handle('byazen:open-voice-settings',event=>{
   if(!trustedUi(event)||process.platform!=='win32')return {ok:false};
   try{shell.openExternal('ms-settings:speech').catch(()=>{});return {ok:true};}catch{return {ok:false};}

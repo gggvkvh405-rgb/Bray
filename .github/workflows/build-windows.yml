@@ -19,6 +19,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Set up Python for local Piper runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build local Piper runtime and include license notices
+        shell: pwsh
+        run: ./scripts/build-piper-runtime.ps1
       - name: Install dependencies
         run: npm ci
       - name: Build portable executable
@@ -36,12 +43,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.20 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.20 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.21 --repo gggkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.21 release/ByAzen.exe --clobber --repo gggkvh405-rgb/Bray
           else
-            gh release create v1.0.20 release/ByAzen.exe \
-              --title 'ByAzen 1.0.20 — Мастерская, модели ИИ и голоса' \
-              --notes 'Windows x64 build: research project snapshots with local AI handoff summaries, bookmark reminders, saved sourced snippets, collapsible workbench, optional playful UI effects and loading mini-game, curated local Ollama model downloads, Windows speech-pack settings, AI personas and source-based multi-page guides/debates.' \
+            gh release create v1.0.21 release/ByAzen.exe \
+              --title 'ByAzen 1.0.21 — Скачиваемые офлайн-голоса Piper' \
+              --notes 'Windows x64 build: includes a local Piper runtime and a curated catalog of downloadable Russian offline voice packs from Hugging Face. Voice model cards and licensing are surfaced before download; system and Edge voices remain available.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi

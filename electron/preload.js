@@ -7,6 +7,15 @@ if (window.top === window.self) {
       platform: process.platform,
       openVoiceSettings: () => ipcRenderer.invoke('byazen:open-voice-settings'),
       openLanguageSettings: () => ipcRenderer.invoke('byazen:open-language-settings'),
+      listPiperVoices: () => ipcRenderer.invoke('byazen:piper-catalog'),
+      downloadPiperVoice: id => ipcRenderer.invoke('byazen:piper-download', id),
+      deletePiperVoice: id => ipcRenderer.invoke('byazen:piper-delete', id),
+      synthesizePiper: (id, text, rate) => ipcRenderer.invoke('byazen:piper-synthesize', { id, text, rate }),
+      onPiperProgress: callback => {
+        const listener = (_event, data) => callback(data);
+        ipcRenderer.on('byazen:piper-progress', listener);
+        return () => ipcRenderer.removeListener('byazen:piper-progress', listener);
+      },
       openSite: (id, url, isPrivate=false) => ipcRenderer.send('byazen:site-open', { id, url, private:!!isPrivate }),
       setActiveSite: (id, bounds) => ipcRenderer.send('byazen:site-active', { id, bounds }),
       closeSite: id => ipcRenderer.send('byazen:site-close', id),

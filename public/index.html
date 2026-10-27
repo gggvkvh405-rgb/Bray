@@ -423,6 +423,8 @@ kbd{font-family:'Inter Variable','Inter',system-ui,sans-serif;font-size:10px;col
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 6px}
 .modal-head h2{font-size:17px;font-weight:650;letter-spacing:-.01em}
 .modal-body{padding:14px 22px 22px;display:flex;flex-direction:column;gap:22px}
+.modal-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 22px 18px;border-top:1px solid var(--border)}
+.modal-foot .ai-status{line-height:1.5}
 .set-group>h4{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
 .seg{display:flex;background:rgba(255,255,255,.045);border:1px solid var(--border);border-radius:11px;padding:3px;gap:2px;flex-wrap:wrap}
 .seg button{flex:1;padding:8px 6px;border-radius:8px;font-size:12.5px;font-weight:550;color:var(--text-2);transition:all .15s;white-space:nowrap}
@@ -475,7 +477,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 .ai-modelbar label{display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:11px;white-space:nowrap}
 .ai-modelbar select{min-width:170px;max-width:280px;height:30px;padding:0 9px;background:#1D1D22;color:var(--text);border:1px solid var(--border-2);border-radius:8px;font-size:11.5px}
 .ai-modelbar .spacer{flex:1}
-.ai-voicebar{display:flex;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.012)}
+.ai-voicebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 20px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.012)}
 .ai-voicebar label{font-size:10px;color:var(--text-3);white-space:nowrap}
 .ai-voicebar select{height:28px;max-width:190px;min-width:115px;padding:0 8px;background:#1D1D22;color:var(--text-2);border:1px solid var(--border-2);border-radius:7px;font-size:10.5px}
 .ai-voicebar .icon-btn{width:28px;height:28px;flex:none}
@@ -754,7 +756,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.20</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.21</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -815,6 +817,13 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 </div>
 
 <!-- ============ LOCAL OLLAMA ASSISTANT ============ -->
+<div class="modal-overlay" id="voiceDownloadModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="voiceDownloadTitle">
+    <div class="modal-head"><div><h2 id="voiceDownloadTitle">Офлайн-голоса</h2><div class="ai-status">Piper TTS · GPL-3.0-or-later · каталог Hugging Face</div></div><button class="icon-btn" data-close="voiceDownloadModal" title="Закрыть"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body" id="voiceDownloadList" style="display:grid;gap:10px"></div>
+    <div class="modal-foot"><span class="ai-status">Синтез работает офлайн. Модели загружаются только по вашему нажатию; прочитайте их карточки и условия лицензии. <a href="https://github.com/OHF-Voice/piper1-gpl/tree/v1.8.0" target="_blank" rel="noreferrer">Исходники и лицензия движка</a></span><button class="btn" data-close="voiceDownloadModal">Готово</button></div>
+  </div>
+</div>
 <div class="modal-overlay" id="assistantModal">
   <section class="modal ai-modal" role="dialog" aria-modal="true" aria-labelledby="assistantTitle">
     <div class="modal-head">
@@ -839,7 +848,9 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
           <option value="edge:ru-RU-DariyaNeural">Дарья · выразительный</option>
         </optgroup>
         <optgroup id="aiSystemVoices" label="Голоса Windows"></optgroup>
+        <optgroup id="aiPiperVoices" label="Скачанные голоса · офлайн" hidden></optgroup>
       </select>
+      <button class="btn" id="aiManageVoices" title="Скачать или удалить офлайн-голоса">Голоса…</button>
       <label for="aiVoiceStyle">Манера</label>
       <select id="aiVoiceStyle" aria-label="Манера речи">
         <option value="natural">Естественная</option><option value="lively">Бодрая</option><option value="calm">Спокойная</option><option value="cartoon">Мультяшная</option>
@@ -859,7 +870,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       <textarea id="aiInput" rows="2" placeholder="Напишите команду или задайте вопрос…"></textarea>
       <button class="btn primary" id="aiSend"><svg style="width:15px;height:15px"><use href="#i-send"/></svg> Отправить</button>
     </div>
-    <div class="ai-footnote">Чат и модель работают локально через Ollama. Русские нейроголоса Светлана, Дмитрий и Дарья работают через интернет: только текст ответа для синтеза отправляется Microsoft Edge TTS. Голоса Windows остаются на устройстве. Распознавание речи Chromium также может требовать интернет.</div>
+    <div class="ai-footnote">Чат и модель работают локально через Ollama. Скачанные голоса Piper и голоса Windows озвучивают текст на устройстве; русские голоса Edge TTS работают через интернет и отправляют Microsoft только текст ответа. Распознавание речи Chromium также может требовать интернет.</div>
   </section>
 </div>
 
@@ -1886,9 +1897,12 @@ $('#aiVoiceRate').value = store.get('assistantVoiceRate','1');
 function aiStatus(text,kind=''){ const el=$('#aiStatus'); el.textContent=text; el.className='ai-status'+(kind?' '+kind:''); }
 let aiVoices=[];
 const aiEdgeVoices=['edge:ru-RU-SvetlanaNeural','edge:ru-RU-DmitryNeural','edge:ru-RU-DariyaNeural'];
+let aiPiperInstalled=[];
 function updateAiVoiceStatus(){
-  const value=$('#aiVoice').value;
+  const value=$('#aiVoice').value,piper=value.startsWith('piper:');
+  $('#aiVoiceStyle').disabled=piper;$('#aiVoiceStyle').title=piper?'Для Piper доступна настройка скорости, но не манеры речи':'';
   if(value.startsWith('edge:')) $('#aiVoiceStatus').textContent='Русский нейроголос · онлайн, текст ответа отправляется Microsoft';
+  else if(piper){const voice=aiPiperInstalled.find(v=>v.id===value.slice(6));$('#aiVoiceStatus').textContent=voice?`Piper · офлайн · ${voice.name}`:'Скачанный голос недоступен';}
   else {
     const voice=aiVoices.find(v=>v.voiceURI===value);
     $('#aiVoiceStatus').textContent=voice?`На устройстве · ${voice.lang}`:'Системный голос недоступен';
@@ -1908,13 +1922,68 @@ function refreshAiVoices(){
   const savedEdge=aiEdgeVoices.includes(previous);
   const savedSystem=sorted.some(v=>v.voiceURI===previous);
   const savedRussian=sorted.some(v=>v.voiceURI===previous&&/^ru([_-]|$)/i.test(v.lang));
-  const chosen=savedEdge?previous:(savedSystem&&(explicit||savedRussian)?previous:aiEdgeVoices[0]);
+  const savedPiper=previous.startsWith('piper:');
+  const chosen=savedPiper?previous:(savedEdge?previous:(savedSystem&&(explicit||savedRussian)?previous:aiEdgeVoices[0]));
   select.value=chosen; store.set('assistantVoice',chosen); updateAiVoiceStatus();
 }
+async function refreshPiperVoices(){
+  if(!window.byazenDesktop?.listPiperVoices)return;
+  try{
+    const voices=await window.byazenDesktop.listPiperVoices();
+    aiPiperInstalled=Array.isArray(voices)?voices.filter(v=>v.installed):[];
+    const group=$('#aiPiperVoices'),select=$('#aiVoice'),previous=store.get('assistantVoice','');
+    group.innerHTML='';group.hidden=!aiPiperInstalled.length;
+    aiPiperInstalled.forEach(v=>{const o=document.createElement('option');o.value=`piper:${v.id}`;o.textContent=`${v.name} · Piper`;group.appendChild(o);});
+    if(aiPiperInstalled.some(v=>`piper:${v.id}`===previous))select.value=previous;
+    updateAiVoiceStatus();
+  }catch{}
+}
 if(window.speechSynthesis){ window.speechSynthesis.onvoiceschanged=refreshAiVoices; setTimeout(refreshAiVoices,300); }
+refreshPiperVoices();
 $('#aiVoice').onchange=()=>{store.set('assistantVoice',$('#aiVoice').value);store.set('assistantVoiceExplicit',true);updateAiVoiceStatus();};
 $('#aiVoiceStyle').onchange=()=>store.set('assistantVoiceStyle',$('#aiVoiceStyle').value);
 $('#aiVoiceRate').onchange=()=>store.set('assistantVoiceRate',$('#aiVoiceRate').value);
+const piperProgressById=new Map();
+function formatVoiceBytes(bytes){return bytes>=1024*1024?`${(bytes/1024/1024).toFixed(0)} МБ`:`${Math.max(1,Math.round(bytes/1024))} КБ`;}
+async function renderPiperVoiceCatalog(){
+  const list=$('#voiceDownloadList');list.replaceChildren();
+  if(!window.byazenDesktop?.listPiperVoices){list.textContent='Каталог скачиваемых голосов доступен в приложении ByAzen для Windows.';return;}
+  list.textContent='Загружаю каталог…';
+  let voices=[];try{voices=await window.byazenDesktop.listPiperVoices();}catch{}
+  list.replaceChildren();
+  if(!voices.length){list.textContent='Сейчас нет доступных голосов в каталоге.';return;}
+  for(const voice of voices){
+    const card=document.createElement('article');card.style.cssText='border:1px solid var(--border);border-radius:12px;padding:13px;background:rgba(255,255,255,.025)';
+    const heading=document.createElement('div');heading.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px';
+    const name=document.createElement('strong');name.textContent=`${voice.name} · русский`;
+    const quality=document.createElement('span');quality.className='ai-status';quality.textContent=`${voice.quality} · около ${formatVoiceBytes(voice.sizeBytes)}`;
+    heading.append(name,quality);
+    const details=document.createElement('div');details.className='ai-status';details.style.cssText='margin-top:6px;line-height:1.5';details.textContent=`Лицензия/датасет: ${voice.license}. Источник — официальный каталог Piper на Hugging Face. После загрузки синтез работает локально.`;
+    const actions=document.createElement('div');actions.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px';
+    const source=document.createElement('a');source.href=voice.modelCard;source.target='_blank';source.rel='noreferrer';source.textContent='Карточка и лицензия';source.className='ai-status';source.style.cssText='text-decoration:underline;margin-right:auto';
+    const action=document.createElement('button');action.className='btn';action.dataset.voiceAction=voice.id;
+    const currentProgress=piperProgressById.get(voice.id);
+    if(voice.installed){action.textContent='Удалить';action.onclick=async()=>{const result=await window.byazenDesktop.deletePiperVoice(voice.id);if(result?.ok){if($('#aiVoice').value===`piper:${voice.id}`){$('#aiVoice').value=aiEdgeVoices[0];store.set('assistantVoice',aiEdgeVoices[0]);}await refreshPiperVoices();renderPiperVoiceCatalog();toast(`Голос «${voice.name}» удалён`);}};}
+    else if(currentProgress?.status==='downloading'){const pct=currentProgress.total?Math.floor(currentProgress.received/currentProgress.total*100):0;action.textContent=`Загрузка ${Math.min(99,pct)}%`;action.disabled=true;}
+    else{action.textContent='Скачать';action.onclick=async()=>{
+      const accepted=confirm(`Скачать голос «${voice.name}»?\n\nРазмер модели — около ${formatVoiceBytes(voice.sizeBytes)} плюс конфигурация. Источник: Hugging Face. В карточке датасет указан как CC0; откройте карточку и проверьте условия использования перед применением.`);
+      if(!accepted)return;
+      piperProgressById.set(voice.id,{status:'downloading',received:0,total:voice.sizeBytes});renderPiperVoiceCatalog();
+      const result=await window.byazenDesktop.downloadPiperVoice(voice.id);
+      if(result?.ok){await refreshPiperVoices();renderPiperVoiceCatalog();toast(`Голос «${voice.name}» загружен и доступен офлайн`);}
+      else{piperProgressById.set(voice.id,{status:'error',error:result?.error||'Не удалось скачать'});renderPiperVoiceCatalog();toast(result?.error||'Не удалось скачать голос');}
+    };}
+    actions.append(source,action);card.append(heading,details,actions);list.appendChild(card);
+  }
+}
+$('#aiManageVoices').onclick=()=>{renderPiperVoiceCatalog();$('#voiceDownloadModal').classList.add('show');};
+if(window.byazenDesktop?.onPiperProgress)window.byazenDesktop.onPiperProgress(progress=>{
+  const finished=progress.status==='installed'||progress.status==='error';
+  if(finished)piperProgressById.delete(progress.id);else piperProgressById.set(progress.id,progress);
+  if(!$('#voiceDownloadModal')?.classList.contains('show'))return;
+  if(finished){refreshPiperVoices();renderPiperVoiceCatalog();}
+  else{const button=$(`#voiceDownloadList [data-voice-action="${progress.id}"]`);if(button){const pct=progress.total?Math.floor(progress.received/progress.total*100):0;button.textContent=`Загрузка ${Math.min(99,pct)}%`;button.disabled=true;}}
+});
 function addAiMessage(role,text){
   const el=document.createElement('div'); el.className='ai-msg '+role; el.textContent=text;
   $('#aiMessages').appendChild(el); $('#aiMessages').scrollTop=$('#aiMessages').scrollHeight; return el;
@@ -2096,6 +2165,23 @@ async function speakAi(text,highlightReader=false){
   const voiceChoice=$('#aiVoice').value;
   const styleName=$('#aiVoiceStyle').value;
   const speed=Number($('#aiVoiceRate').value)||1;
+  if(voiceChoice.startsWith('piper:')){
+    $('#aiVoiceStatus').textContent='Синтезирую локально…';
+    try{
+      if(!window.byazenDesktop?.synthesizePiper)throw new Error('Локальный Piper доступен только в приложении ByAzen для Windows');
+      const result=await window.byazenDesktop.synthesizePiper(voiceChoice.slice(6),text,speed);
+      if(!result?.ok)throw new Error(result?.error||'Не удалось синтезировать речь');
+      if(token!==aiSpeechToken)return;
+      aiAudioUrl=URL.createObjectURL(new Blob([result.audio],{type:'audio/wav'}));aiAudio=new Audio(aiAudioUrl);
+      const audio=aiAudio,url=aiAudioUrl,seek=$('#aiSeek');seek.disabled=false;seek.value='0';
+      audio.onloadedmetadata=()=>{seek.disabled=!Number.isFinite(audio.duration);};
+      audio.ontimeupdate=()=>{if(!audio.duration)return;if(!seek.matches(':active'))seek.value=String(Math.round(audio.currentTime/audio.duration*100));if(readerSpeechHighlight)updateReaderSpeechHighlight(Math.floor(text.length*audio.currentTime/audio.duration));};
+      audio.onended=()=>{if(token===aiSpeechToken){aiAudio=null;seek.disabled=true;seek.value='0';URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Готово · офлайн';readerSpeechHighlight=false;clearReaderSpeechHighlight();}};
+      audio.onerror=()=>{if(token===aiSpeechToken){aiAudio=null;URL.revokeObjectURL(url);aiAudioUrl='';$('#aiVoiceStatus').textContent='Не удалось воспроизвести WAV';readerSpeechHighlight=false;clearReaderSpeechHighlight();}};
+      await audio.play();$('#aiVoiceStatus').textContent='Говорю голосом Piper · офлайн';
+    }catch(e){if(token===aiSpeechToken){if(aiAudio){aiAudio.pause();aiAudio.src='';aiAudio.load();aiAudio=null;}if(aiAudioUrl){URL.revokeObjectURL(aiAudioUrl);aiAudioUrl='';}readerSpeechHighlight=false;clearReaderSpeechHighlight();$('#aiVoiceStatus').textContent=e.message||'Не удалось запустить Piper';aiStatus('Не удалось озвучить ответ','err');}}
+    return;
+  }
   if(voiceChoice.startsWith('edge:')){
     $('#aiVoiceStatus').textContent='Готовлю русский нейроголос…';
     try{
