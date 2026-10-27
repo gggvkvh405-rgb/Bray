@@ -43,12 +43,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.23 --repo gggkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.23 release/ByAzen.exe --clobber --repo gggkvh405-rgb/Bray
+          if gh release view v1.0.24 --repo gggkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.24 release/ByAzen.exe --clobber --repo gggkvh405-rgb/Bray
           else
-            gh release create v1.0.23 release/ByAzen.exe \
-              --title 'ByAzen 1.0.23 — Питомцы и игровая мастерская' \
-              --notes 'Windows x64 build: removes the native browser link-status strip and fills the viewport cleanly; refreshes the pet companion, fun controls, tab costumes, and snow globe. Both pet-selection controls work. Includes all features from v1.0.21.' \
+            gh release create v1.0.24 release/ByAzen.exe \
+              --title 'ByAzen 1.0.24 — Поиск и запуск' \
+              --notes 'Windows x64 build: improves engine-specific search suggestions, local query history, search result pagination and parsing; adds a polished animated startup icon. Includes the v1.0.22 visual refresh and v1.0.23 pet-control fix.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi

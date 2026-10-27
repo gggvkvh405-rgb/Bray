@@ -277,22 +277,48 @@ app.post('/api/assistant', async (req, res) => {
 });
 
 // ---------- Search suggestions ----------
+const suggestCache = new Map();
+const SUGGEST_PROVIDERS = {
+  duck: q => `https://duckduckgo.com/ac/?q=${encodeURIComponent(q)}&type=list&kl=ru-ru`,
+  google: q => `https://suggestqueries.google.com/complete/search?client=firefox&hl=ru&q=${encodeURIComponent(q)}`,
+  yandex: q => `https://suggest.yandex.net/suggest-ff.cgi?part=${encodeURIComponent(q)}&uil=ru&v=4`,
+  bing: q => `https://api.bing.com/osjson.aspx?query=${encodeURIComponent(q)}&mkt=ru-RU`
+};
+function normalizeSuggestions(data, engine) {
+  let list=[];
+  if (engine==='duck' && Array.isArray(data)) list=data.map(item=>typeof item==='string'?item:item?.phrase||item?.query||'');
+  else if (Array.isArray(data) && Array.isArray(data[1])) list=data[1].map(item=>Array.isArray(item)?item[0]:item);
+  return [...new Set(list.map(value=>String(value||'').trim()).filter(Boolean))].slice(0,7);
+}
 app.get('/api/suggest', async (req, res) => {
-  const q = (req.query.q || '').toString().trim();
-  if (!q) return res.json([]);
+  const q = (req.query.q || '').toString().trim().slice(0,120);
+  const engine = Object.hasOwn(SUGGEST_PROVIDERS,req.query.engine) ? req.query.engine : 'duck';
+  const privateMode=req.query.private==='1';if(privateMode)res.setHeader('Cache-Control','no-store');
+  if (!q || q.length < 2) return res.json([]);
+  const key=engine+'|'+q.toLocaleLowerCase('ru'),cached=privateMode?null:suggestCache.get(key);
+  if(cached&&cached.expires>Date.now())return res.json(cached.values);
   try {
-    const r = await fetch(`https://suggestqueries.google.com/complete/search?client=firefox&hl=ru&q=${encodeURIComponent(q)}`, {
-      headers: { 'User-Agent': UA, 'Accept-Language': 'ru,en;q=0.8' },
-      signal: AbortSignal.timeout(6000)
+    const response=await fetch(SUGGEST_PROVIDERS[engine](q),{
+      headers:{'User-Agent':UA,'Accept-Language':'ru,en;q=0.8','Accept':'application/json,text/plain,*/*'},
+      signal:AbortSignal.timeout(3500)
     });
-    const data = await r.json();
-    return res.json(Array.isArray(data[1]) ? data[1].slice(0, 7) : []);
-  } catch (e) {
-    try {
-      const r = await fetch(`https://duckduckgo.com/ac/?q=${encodeURIComponent(q)}&type=list`, { signal: AbortSignal.timeout(6000) });
-      const data = await r.json();
-      return res.json(Array.isArray(data[1]) ? data[1].slice(0, 7) : []);
-    } catch { return res.json([]); }
+    if(!response.ok)throw new Error(`Suggestion provider HTTP ${response.status}`);
+    let text=await response.text(),data;
+    try{data=JSON.parse(text);}catch{
+      // Yandex may return a JSONP wrapper depending on the serving edge.
+      text=text.replace(/^[^(]*\(/,'').replace(/\);?\s*$/,'');
+      data=JSON.parse(text);
+    }
+    const values=normalizeSuggestions(data,engine);
+    if(!privateMode){
+      suggestCache.set(key,{values,expires:Date.now()+(values.length?300000:15000)});
+      if(suggestCache.size>1200){for(const [k,v] of suggestCache)if(v.expires<Date.now())suggestCache.delete(k);while(suggestCache.size>1000)suggestCache.delete(suggestCache.keys().next().value);}
+      res.setHeader('Cache-Control','private, max-age=30');
+    }
+    return res.json(values);
+  } catch {
+    if(!privateMode)suggestCache.set(key,{values:[],expires:Date.now()+10000});
+    return res.json([]);
   }
 });
 
@@ -338,45 +364,58 @@ function decodeEntities(s){
   return (s||'')
     .replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#0?39;|&#x27;/g,"'")
     .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ')
-    .replace(/&#(\d+);/g,(m,n)=>String.fromCharCode(+n));
+    .replace(/&#x([\da-f]+);/gi,(m,n)=>{const cp=parseInt(n,16);return cp<=0x10ffff?String.fromCodePoint(cp):m;})
+    .replace(/&#(\d+);/g,(m,n)=>{const cp=Number(n);return cp<=0x10ffff?String.fromCodePoint(cp):m;});
+}
+const searchCache = new Map();
+function htmlAttr(tag,name){
+  const pattern=name==='class'?/\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i:/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i;
+  const match=tag.match(pattern);
+  return match?.[1]||match?.[2]||match?.[3]||'';
+}
+function hasHtmlClass(tag,name){return htmlAttr(tag,'class').split(/\s+/).includes(name);}
+function parseDuckResults(html){
+  const anchors=[...html.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/gi)],snippets=[];
+  const results=[];
+  for(const match of anchors){
+    const raw=match[0],tag=raw.slice(0,raw.indexOf('>')+1);
+    if(hasHtmlClass(tag,'result__snippet')){snippets.push(stripTags(raw.slice(tag.length,raw.lastIndexOf('</a>'))));continue;}
+    if(!hasHtmlClass(tag,'result__a'))continue;
+    let url=decodeEntities(htmlAttr(tag,'href'));
+    try{const parsed=new URL(url.startsWith('//')?'https:'+url:url,'https://duckduckgo.com');url=parsed.searchParams.get('uddg')||parsed.href;}catch{}
+    const title=decodeEntities(stripTags(raw.slice(tag.length,raw.lastIndexOf('</a>'))));
+    if(title&&/^https?:\/\//i.test(url))results.push({title,url,snippet:''});
+  }
+  for(let i=0;i<results.length;i++)results[i].snippet=decodeEntities(snippets[i]||'');
+  return results.slice(0,15);
 }
 app.get('/api/search', async (req, res) => {
-  const q = (req.query.q || '').toString().trim();
-  if (!q) return res.json({ results: [], answer: null });
+  const q=(req.query.q||'').toString().trim().slice(0,240);
+  const offset=Math.floor(Math.max(0,Math.min(75,Number.parseInt(req.query.offset,10)||0))/15)*15;
+  const privateSearch=req.query.private==='1';
+  if(privateSearch)res.setHeader('Cache-Control','no-store');
+  if(!q)return res.json({results:[],answer:null,offset:0});
+  const cacheKey=q.toLocaleLowerCase('ru')+'|'+offset,cached=privateSearch?null:searchCache.get(cacheKey);
+  if(cached&&cached.expires>Date.now()){res.setHeader('Cache-Control','private, max-age=30');return res.json(cached.data);}
   try {
     const [htmlResp, iaResp] = await Promise.allSettled([
-      fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(q) + '&kl=ru-ru', { headers: { 'User-Agent': UA, 'Accept-Language': 'ru,en;q=0.8' }, signal: AbortSignal.timeout(9000) }),
-      fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1&kl=ru-ru', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(9000) })
+      fetch('https://html.duckduckgo.com/html/?q='+encodeURIComponent(q)+'&kl=ru-ru&s='+offset,{headers:{'User-Agent':UA,'Accept-Language':'ru,en;q=0.8'},signal:AbortSignal.timeout(9000)}),
+      offset===0?fetch('https://api.duckduckgo.com/?q='+encodeURIComponent(q)+'&format=json&no_html=1&skip_disambig=1&kl=ru-ru',{headers:{'User-Agent':UA},signal:AbortSignal.timeout(9000)}):Promise.resolve(null)
     ]);
-    let results = [];
-    if (htmlResp.status === 'fulfilled') {
-      const html = await htmlResp.value.text();
-      const titles = [...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
-      const snippets = [...html.matchAll(/<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g)];
-      results = titles.map((m, i) => {
-        let url = decodeEntities(m[1]);
-        try {
-          const u = new URL(url.startsWith('//') ? 'https:' + url : url, 'https://duckduckgo.com');
-          url = u.searchParams.get('uddg') || u.href;
-        } catch {}
-        return {
-          title: decodeEntities(stripTags(m[2])),
-          url,
-          snippet: snippets[i] ? decodeEntities(stripTags(snippets[i][1])) : ''
-        };
-      }).filter(r => r.title && /^https?:/.test(r.url)).slice(0, 15);
+    let results=[];
+    if(htmlResp.status==='fulfilled'&&htmlResp.value.ok)results=parseDuckResults(await htmlResp.value.text());
+    let answer=null;
+    if(offset===0&&iaResp.status==='fulfilled'&&iaResp.value){
+      try{const ia=await iaResp.value.json();if(ia.AbstractText)answer={text:ia.AbstractText,source:ia.AbstractSource||'',url:ia.AbstractURL||'',heading:ia.Heading||''};}catch{}
     }
-    let answer = null;
-    if (iaResp.status === 'fulfilled') {
-      try {
-        const ia = await iaResp.value.json();
-        if (ia.AbstractText) answer = { text: ia.AbstractText, source: ia.AbstractSource || '', url: ia.AbstractURL || '', heading: ia.Heading || '' };
-      } catch {}
+    const data={results,answer,offset};
+    if(!privateSearch){
+      searchCache.set(cacheKey,{data,expires:Date.now()+90000});
+      if(searchCache.size>180){for(const [key,value] of searchCache)if(value.expires<Date.now())searchCache.delete(key);while(searchCache.size>150)searchCache.delete(searchCache.keys().next().value);}
     }
-    res.json({ results, answer });
-  } catch (e) {
-    res.json({ results: [], answer: null, error: true });
-  }
+    res.setHeader('Cache-Control',privateSearch?'no-store':'private, max-age=30');
+    res.json(data);
+  }catch{res.json({results:[],answer:null,offset,error:true});}
 });
 
 // ---------- Web proxy : lets real sites open inside ByAzen ----------

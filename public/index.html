@@ -86,14 +86,20 @@ body.ready #app{opacity:1;transform:none}
 #splash{position:fixed;inset:0;z-index:999;background:radial-gradient(720px 480px at 32% 16%,rgba(255,255,255,.055),transparent 60%),#060607;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;cursor:pointer;transition:opacity .5s var(--ease),visibility .5s}
 #splash.hide{opacity:0;visibility:hidden;pointer-events:none}
 .splash-stage{position:relative}
-.splash-stage::before{content:'';position:absolute;inset:-52px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 65%);opacity:0;animation:glowIn 1.15s ease .25s both;pointer-events:none}
-.splash-icon{position:relative;width:118px;height:118px;border-radius:28px;overflow:hidden;background:#0B0B0D;box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.07);animation:splashIn .85s cubic-bezier(.22,1,.36,1) both,splashFloat 3.4s ease-in-out .95s infinite}
+.splash-stage::before{content:'';position:absolute;inset:-58px;background:radial-gradient(circle,rgba(167,139,250,.22),rgba(56,189,248,.07) 34%,transparent 68%);opacity:0;animation:glowIn 1.15s ease .25s both,splashAura 2.6s ease-in-out 1s infinite;pointer-events:none}
+.splash-orbit{position:absolute;inset:-23px;border:1px solid rgba(196,181,253,.22);border-radius:50%;animation:splashOrbit 5.2s linear infinite;pointer-events:none}
+.splash-orbit::before,.splash-orbit::after{content:'';position:absolute;width:7px;height:7px;border-radius:50%;background:#c4b5fd;box-shadow:0 0 15px rgba(196,181,253,.9)}
+.splash-orbit::before{left:50%;top:-3px}.splash-orbit::after{right:8%;bottom:15%;width:4px;height:4px;background:#67e8f9;box-shadow:0 0 12px rgba(103,232,249,.95)}
+.splash-icon{position:relative;width:118px;height:118px;border-radius:28px;overflow:hidden;background:#0B0B0D;box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.07);animation:splashIn .85s cubic-bezier(.22,1,.36,1) both,splashFloat 3.4s ease-in-out .95s infinite,splashIconGlow 2.7s ease-in-out 1s infinite}
 .splash-icon img{width:100%;height:100%;display:block;object-fit:cover}
 .splash-icon::after{content:'';position:absolute;top:-25%;bottom:-25%;left:0;width:42%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(-240%) skewX(-18deg);animation:shineSweep 1.05s ease .8s both;mix-blend-mode:screen;pointer-events:none}
 @keyframes splashIn{from{opacity:0;transform:scale(.8) translateY(16px);filter:blur(10px)}55%{filter:blur(0)}to{opacity:1;transform:scale(1) translateY(0)}}
 @keyframes splashFloat{0%,100%{transform:scale(1) translateY(0)}50%{transform:scale(1) translateY(-4px)}}
 @keyframes shineSweep{to{transform:translateX(360%) skewX(-18deg)}}
 @keyframes glowIn{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}
+@keyframes splashOrbit{to{transform:rotate(360deg)}}
+@keyframes splashAura{0%,100%{opacity:.45;filter:blur(0)}50%{opacity:.9;filter:blur(3px)}}
+@keyframes splashIconGlow{0%,100%{box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.07),0 0 20px rgba(167,139,250,.08)}50%{box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 0 1px rgba(196,181,253,.45),0 0 42px rgba(139,92,246,.32),0 0 66px rgba(34,211,238,.12)}}
 .splash-text{text-align:center}
 .splash-name{display:flex;justify-content:center;font-size:22px;font-weight:680;letter-spacing:-.015em;color:#FAFAFA;line-height:1.15}
 .splash-name span{opacity:0;transform:translateY(10px);animation:letterIn .55s cubic-bezier(.22,1,.36,1) both}
@@ -103,7 +109,7 @@ body.ready #app{opacity:1;transform:none}
 .splash-line{width:134px;height:2px;border-radius:2px;background:rgba(255,255,255,.09);overflow:hidden}
 .splash-line i{display:block;height:100%;background:#FAFAFA;border-radius:2px;transform:scaleX(0);transform-origin:left;animation:loadLine 1.3s cubic-bezier(.65,0,.35,1) .4s both}
 @keyframes loadLine{to{transform:scaleX(1)}}
-@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important}}
+@media (prefers-reduced-motion:reduce){#splash *,#splash *::before,#splash *::after{animation-duration:.01s!important;animation-delay:0s!important}}
 
 /* Desktop (Electron) title bar */
 #titlebar{display:none}
@@ -366,6 +372,10 @@ body.electron #linkStatus{display:none!important}
 .sp-state{text-align:center;padding:64px 30px;color:var(--text-3)}
 .sp-state b{display:block;color:var(--text-2);font-size:15px;margin-bottom:6px}
 .sp-state p{font-size:13px;line-height:1.65}
+.sp-more{display:block;min-width:170px;margin:16px auto 0;padding:10px 18px;border:1px solid var(--border-2);border-radius:999px;background:rgba(255,255,255,.045);color:var(--text-2);font-size:12px;transition:all .16s}
+.sp-more:hover{background:rgba(255,255,255,.09);color:var(--text);border-color:rgba(255,255,255,.2)}
+.sp-more:disabled{opacity:.55;cursor:wait}
+.sp-more[hidden]{display:none}
 
 /* ================= PANEL ================= */
 #panelOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);z-index:90;opacity:0;pointer-events:none;transition:opacity .22s}
@@ -551,7 +561,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
 
 <!-- ============ SPLASH ============ -->
 <div id="splash" title="Пропустить">
-  <div class="splash-stage"><div class="splash-icon"><img src="icon.png" alt="ByAzen"></div></div>
+  <div class="splash-stage"><div class="splash-orbit" aria-hidden="true"></div><div class="splash-icon"><img src="icon.png" alt="ByAzen"></div></div>
   <div class="splash-text">
     <div class="splash-name"><span>B</span><span>y</span><span>A</span><span>z</span><span>e</span><span>n</span></div>
     <div class="splash-sub">Browser</div>
@@ -689,6 +699,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
           <div class="sp-meta" id="spMeta"></div>
           <div id="spAnswer"></div>
           <div id="spResults"></div>
+          <button class="btn sp-more" id="spMore" type="button" hidden>Показать ещё</button>
         </div>
       </section>
     </div>
@@ -757,7 +768,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.23</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.24</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -932,6 +943,7 @@ if(!bookmarkFolders.includes('Общие'))bookmarkFolders.unshift('Общие')
 let collections=asArray(store.get('collections',[]),[]).filter(x=>x&&typeof x.name==='string'&&Array.isArray(x.tabs));
 let editingBookmarkUrl=null;
 let historyLog= asArray(store.get('history', []), []).filter(x => x && typeof x.url === 'string');
+let searchHistory=asArray(store.get('searchHistory',[]),[]).filter(x=>typeof x==='string'&&x.trim()).slice(0,40);
 let shortcuts = asArray(store.get('shortcuts', DEFAULT_SHORTCUTS), DEFAULT_SHORTCUTS).filter(x => x && typeof x.url === 'string');
 let closedTabs = asArray(store.get('closedTabs', []), []).filter(x => x && typeof x.url === 'string');
 
@@ -1292,84 +1304,118 @@ window.addEventListener('message', e=>{
 /* ---------- suggestions ---------- */
 function localOmniSuggestions(query){
   const q=query.toLocaleLowerCase('ru'),matches=[];
-  const add=(value,label,kind,rank=0,id=null)=>{if(matches.some(x=>x.value===value&&x.kind===kind))return;if((label+' '+value).toLocaleLowerCase('ru').includes(q))matches.push({value,label,kind,rank,id});};
-  for(const tab of tabs)add(tab.url,tab.title+' · '+hostOf(tab.url),'tab',200,tab.id);
+  const add=(value,label,kind,rank=0,id=null)=>{if(!value||matches.some(x=>x.value===value&&x.kind===kind))return;if((label+' '+value).toLocaleLowerCase('ru').includes(q))matches.push({value,label,kind,rank,id});};
+  for(const tab of tabs)add(tab.url,tab.title+' · '+(hostOf(tab.url)||'ByAzen'),'tab',200,tab.id);
   for(const mark of bookmarks)add(mark.url,(mark.title||hostOf(mark.url))+' · закладка','bookmark',150);
-  if(!activeTab()?.private)for(const item of historyLog.slice(0,80))add(item.url,(item.title||hostOf(item.url))+' · '+hostOf(item.url),'history',100+Math.min(40,(Number(item.time)||0)/1e12));
+  if(!activeTab()?.private)for(const queryText of searchHistory)add(queryText,queryText+' · прошлый поиск','history',180);
+  if(!activeTab()?.private)for(const item of historyLog.slice(0,100)){
+    if(isSearch(item.url)){const queryText=searchQueryOf(item.url);add(queryText,queryText+' · прошлый поиск','history',140+Math.min(30,(Number(item.time)||0)/1e12));}
+    else add(item.url,(item.title||hostOf(item.url))+' · '+hostOf(item.url),'history',100+Math.min(40,(Number(item.time)||0)/1e12));
+  }
   return matches.sort((a,b)=>b.rank-a.rank).slice(0,5);
 }
+function localSearchSuggestions(query){
+  const q=query.toLocaleLowerCase('ru'),seen=new Set();if(activeTab()?.private)return [];
+  return searchHistory.filter(value=>{const normalized=value.toLocaleLowerCase('ru');if(!normalized.includes(q)||seen.has(normalized))return false;seen.add(normalized);return true;}).slice(0,5).map(value=>({value,label:value+' · прошлый поиск',kind:'history',rank:100}));
+}
+function rememberSearch(query){
+  const value=String(query||'').trim().slice(0,240);if(value.length<2||activeTab()?.private)return;
+  searchHistory=[value,...searchHistory.filter(item=>item.toLocaleLowerCase('ru')!==value.toLocaleLowerCase('ru'))].slice(0,40);store.set('searchHistory',searchHistory);
+}
 function attachSuggest(input, drop, onPick){
-  let timer, sel = -1, items = [];
-  function close(){ drop.classList.remove('show'); sel=-1; }
+  let timer,sel=-1,items=[],requestId=0,controller=null;
+  input.setAttribute('aria-autocomplete','list');if(drop.id)input.setAttribute('aria-controls',drop.id);
+  drop.setAttribute('role','listbox');
+  function close(){drop.classList.remove('show');sel=-1;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');}
   function render(){
-    if(!items.length){ close(); return; }
-    drop.innerHTML = items.map((item,i)=>`<button class="suggest-item ${i===sel?'sel':''}" data-i="${i}"><svg><use href="#${item.kind==='tab'?'i-globe':item.kind==='bookmark'?'i-bookmark':item.kind==='history'?'i-history':'i-search'}"/></svg><span>${escapeHtml(item.label)}</span>${item.kind!=='search'?`<small>${item.kind==='tab'?'Вкладка':item.kind==='bookmark'?'Закладка':'История'}</small>`:''}${i===sel?'<span class="hint">↵</span>':''}</button>`).join('');
-    drop.classList.add('show');
-    drop.querySelectorAll('.suggest-item').forEach(el=>el.onmousedown=ev=>{ev.preventDefault();const item=items[+el.dataset.i];close();onPick(item);});
+    if(!items.length){close();return;}
+    drop.innerHTML=items.map((item,i)=>`<button type="button" role="option" aria-selected="${i===sel}" id="${drop.id}-option-${i}" class="suggest-item ${i===sel?'sel':''}" data-i="${i}"><svg><use href="#${item.kind==='tab'?'i-globe':item.kind==='bookmark'?'i-bookmark':item.kind==='history'?'i-history':'i-search'}"/></svg><span>${escapeHtml(item.label)}</span>${item.kind!=='search'?`<small>${item.kind==='tab'?'Вкладка':item.kind==='bookmark'?'Закладка':'История'}</small>`:''}${i===sel?'<span class="hint">↵</span>':''}</button>`).join('');
+    drop.classList.add('show');input.setAttribute('aria-expanded','true');
+    if(sel>=0)input.setAttribute('aria-activedescendant',`${drop.id}-option-${sel}`);else input.removeAttribute('aria-activedescendant');
+    drop.querySelectorAll('.suggest-item').forEach(el=>el.onmousedown=ev=>{ev.preventDefault();const item=items[+el.dataset.i];clearTimeout(timer);controller?.abort();close();onPick(item);});
   }
   input.addEventListener('input',()=>{
-    clearTimeout(timer);const q=input.value.trim();if(!q){items=[];close();return;}
-    const local=input===urlInput?localOmniSuggestions(q):[];items=local;sel=-1;render();
-    if(q.length<2||/^https?:/i.test(q)||/^[^\s]+\.[a-z]{2,}([/?#].*)?$/i.test(q)){return;}
+    clearTimeout(timer);controller?.abort();controller=null;const id=++requestId,q=input.value.trim();
+    if(!q){items=[];close();return;}
+    const privateMode=!!activeTab()?.private,local=privateMode?[]:(input===urlInput?localOmniSuggestions(q):localSearchSuggestions(q));items=local;sel=-1;render();
+    if(privateMode||q.length<2||/^https?:/i.test(q)||/^[^\s]+\.[a-z]{2,}([/?#].*)?$/i.test(q))return;
     timer=setTimeout(async()=>{
-      try{const response=await fetch('/api/suggest?q='+encodeURIComponent(q));const remote=(await response.json()).map(value=>({value,label:value,kind:'search',rank:0}));const seen=new Set(local.map(x=>x.value));items=[...local,...remote.filter(x=>!seen.has(x.value))].slice(0,8);sel=-1;render();}catch{}
-    },160);
+      const requestController=new AbortController();controller=requestController;
+      try{
+        const suggestionEngine=input.id==='spSearch'?'duck':settings.engine;
+        const response=await fetch('/api/suggest?q='+encodeURIComponent(q)+'&engine='+encodeURIComponent(suggestionEngine)+(privateMode?'&private=1':''),{signal:requestController.signal});
+        if(!response.ok)throw new Error('Подсказки временно недоступны');
+        const values=await response.json();if(id!==requestId||input.value.trim()!==q||!Array.isArray(values))return;
+        const remote=values.map(value=>({value,label:value,kind:'search',rank:0})),seen=new Set(local.map(x=>x.value.toLocaleLowerCase('ru')));
+        items=[...local,...remote.filter(x=>!seen.has(x.value.toLocaleLowerCase('ru')))].slice(0,8);sel=-1;render();
+      }catch(error){if(error.name!=='AbortError'&&id===requestId)render();}
+    },180);
   });
   input.addEventListener('keydown',e=>{
-    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!items.length)return;sel=(sel+(e.key==='ArrowDown'?1:-1)+items.length)%items.length;render();}
-    else if(e.key==='Enter'){e.preventDefault();clearTimeout(timer);const item=sel>=0?items[sel]:{value:input.value,kind:'search'};items=[];close();onPick(item);}
-    else if(e.key==='Escape')close();
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      if(!items.length)return;e.preventDefault();
+      sel=e.key==='ArrowDown'?(sel+1)%items.length:(sel<=0?items.length-1:sel-1);render();
+    }else if(e.key==='Enter'){
+      e.preventDefault();clearTimeout(timer);controller?.abort();const item=sel>=0?items[sel]:{value:input.value,kind:'search'};requestId++;items=[];close();onPick(item);
+    }else if(e.key==='Escape'){clearTimeout(timer);controller?.abort();requestId++;items=[];close();}
   });
-  input.addEventListener('blur',()=>setTimeout(close,120));
+  input.addEventListener('blur',()=>setTimeout(()=>{controller?.abort();requestId++;close();},120));
 }
 attachSuggest(urlInput, $('#omniDrop'), item=>{if(item.kind==='tab')activateTab(item.id);else navigateActive(item.value);urlInput.blur();});
 attachSuggest($('#ntSearch'), $('#ntDrop'), item=> navigateActive(item.value));
 attachSuggest($('#spSearch'), $('#spDrop'), item=> navigateActive(item.value));
 
 /* ---------- ByAzen Search page ---------- */
-let lastSearchQ = '', searchToken = 0;
+let lastSearchQ='',searchToken=0,searchOffset=0,searchDurationLabel='';
+function renderSearchResults(results,append=false){
+  const html=results.map(r=>{
+    let path='';try{const u=new URL(r.url);path=u.pathname.length>1?decodeURI(u.pathname):'';}catch{}
+    return `<button class="sr" data-url="${escapeHtml(r.url)}"><span class="sr-head"><img src="${faviconOf(r.url)}" onerror="this.style.display='none'"><span class="dom">${escapeHtml(hostOf(r.url))}</span><span class="path">${escapeHtml(path)}</span></span><span class="sr-title">${escapeHtml(r.title)}</span>${r.snippet?`<span class="sr-snip" style="display:block">${escapeHtml(r.snippet)}</span>`:''}</button>`;
+  }).join('');
+  if(append)$('#spResults').insertAdjacentHTML('beforeend',html);else $('#spResults').innerHTML=html;
+  $$('#spResults .sr').forEach(el=>el.onclick=()=>navigateActive(el.dataset.url));
+}
+async function loadMoreSearch(){
+  const q=$('#spSearch').value.trim(),token=searchToken,button=$('#spMore');
+  if(!q||q!==lastSearchQ||button.disabled)return;
+  button.disabled=true;button.textContent='Загружаю…';
+  try{
+    const response=await fetch('/api/search?q='+encodeURIComponent(q)+'&offset='+searchOffset+(activeTab()?.private?'&private=1':''));
+    if(!response.ok)throw new Error('Search request failed');
+    const data=await response.json();if(token!==searchToken)return;
+    if(!data.results?.length){button.hidden=true;$('#spMeta').textContent=`${searchOffset} результатов · больше результатов нет`;return;}
+    renderSearchResults(data.results,true);searchOffset=(data.offset||searchOffset)+data.results.length;
+    $('#spMeta').textContent=`${searchOffset} результатов${searchDurationLabel?` · ${searchDurationLabel} сек`:''}`;
+    button.hidden=data.results.length<15;
+  }catch{if(token===searchToken)toast('Не удалось загрузить следующую страницу результатов');}
+  finally{if(token===searchToken){button.disabled=false;button.textContent='Показать ещё';}}
+}
+$('#spMore').onclick=loadMoreSearch;
+$('#spSearch').addEventListener('input',()=>{if($('#spSearch').value.trim()!==lastSearchQ)$('#spMore').hidden=true;});
 async function runSearch(q){
-  if (!q || q === lastSearchQ) return;
-  lastSearchQ = q;
-  const token = ++searchToken;
-  $('#spSearch').value = q;
-  $('#searchpage').scrollTop = 0;
-  $('#spChips').innerHTML = '<span class="lbl">Источник:</span><button class="chip on">ByAzen</button>' +
-    Object.entries(ENGINES).map(([k,e])=>`<button class="chip" data-eng="${k}">${e.name}</button>`).join('');
-  $$('#spChips [data-eng]').forEach(b=> b.onclick = ()=>{ const t=activeTab(); if(t) navigateTab(t, ENGINES[b.dataset.eng].url(q)); });
-  $('#spMeta').textContent = 'Выполняется поиск...';
-  $('#spAnswer').innerHTML = '';
-  $('#spResults').innerHTML = Array(5).fill('<div class="skl"><i style="width:34%"></i><i style="width:78%;height:16px"></i><i style="width:92%"></i><i style="width:64%"></i></div>').join('');
-  const t0 = performance.now();
-  try {
-    const data = await (await fetch('/api/search?q=' + encodeURIComponent(q))).json();
-    if (token !== searchToken) return;
-    const secs = ((performance.now() - t0) / 1000).toFixed(2).replace('.', ',');
-    if (!data.results || !data.results.length){
-      $('#spMeta').textContent = '';
-      $('#spResults').innerHTML = `<div class="sp-state"><b>Ничего не нашлось</b><p>По запросу «${escapeHtml(q)}» результатов нет.<br>Проверьте запрос или попробуйте другой источник выше.</p></div>`;
-      return;
+  if(!q||q===lastSearchQ)return;
+  lastSearchQ=q;rememberSearch(q);const token=++searchToken;searchOffset=0;searchDurationLabel='';
+  $('#spSearch').value=q;$('#searchpage').scrollTop=0;$('#spMore').hidden=true;$('#spMore').disabled=false;$('#spMore').textContent='Показать ещё';
+  $('#spChips').innerHTML='<span class="lbl">Источник:</span><button class="chip on">ByAzen</button>'+Object.entries(ENGINES).map(([k,e])=>`<button class="chip" data-eng="${k}">${e.name}</button>`).join('');
+  $$('#spChips [data-eng]').forEach(b=>b.onclick=()=>{const t=activeTab();if(t)navigateTab(t,ENGINES[b.dataset.eng].url(q));});
+  $('#spMeta').textContent='Ищу в DuckDuckGo…';$('#spAnswer').innerHTML='';
+  $('#spResults').innerHTML=Array(5).fill('<div class="skl"><i style="width:34%"></i><i style="width:78%;height:16px"></i><i style="width:92%"></i><i style="width:64%"></i></div>').join('');
+  const t0=performance.now();
+  try{
+    const response=await fetch('/api/search?q='+encodeURIComponent(q)+'&offset=0'+(activeTab()?.private?'&private=1':''));if(!response.ok)throw new Error('Search request failed');
+    const data=await response.json();if(token!==searchToken)return;
+    searchDurationLabel=((performance.now()-t0)/1000).toFixed(2).replace('.',',');
+    if(!data.results?.length){
+      $('#spMeta').textContent='';$('#spResults').innerHTML=`<div class="sp-state"><b>Ничего не нашлось</b><p>По запросу «${escapeHtml(q)}» результатов нет.<br>Проверьте запрос или выберите Google, Яндекс либо Bing выше.</p></div>`;return;
     }
-    $('#spMeta').textContent = `${data.results.length} результатов · ${secs} сек`;
-    if (data.answer){
-      $('#spAnswer').innerHTML = `<div class="answer"><div class="albl">Быстрый ответ${data.answer.source ? ' · ' + escapeHtml(data.answer.source) : ''}</div>
-        ${data.answer.heading ? `<h3>${escapeHtml(data.answer.heading)}</h3>` : ''}<p>${escapeHtml(data.answer.text)}</p>
-        ${data.answer.url ? `<a data-go="${escapeHtml(data.answer.url)}">Читать полностью →</a>` : ''}</div>`;
-      const a = $('#spAnswer a[data-go]'); if (a) a.onclick = ()=> navigateActive(a.dataset.go);
+    searchOffset=(data.offset||0)+data.results.length;$('#spMeta').textContent=`${data.results.length} результатов · ${searchDurationLabel} сек`;
+    if(data.answer){
+      $('#spAnswer').innerHTML=`<div class="answer"><div class="albl">Быстрый ответ${data.answer.source?' · '+escapeHtml(data.answer.source):''}</div>${data.answer.heading?`<h3>${escapeHtml(data.answer.heading)}</h3>`:''}<p>${escapeHtml(data.answer.text)}</p>${data.answer.url?`<a data-go="${escapeHtml(data.answer.url)}">Читать полностью →</a>`:''}</div>`;
+      const link=$('#spAnswer a[data-go]');if(link)link.onclick=()=>navigateActive(link.dataset.go);
     }
-    $('#spResults').innerHTML = data.results.map(r=>{
-      let path = ''; try{ const u = new URL(r.url); path = u.pathname.length > 1 ? decodeURI(u.pathname) : ''; }catch{}
-      return `<button class="sr" data-url="${escapeHtml(r.url)}">
-        <span class="sr-head"><img src="${faviconOf(r.url)}" onerror="this.style.display='none'"><span class="dom">${escapeHtml(hostOf(r.url))}</span><span class="path">${escapeHtml(path)}</span></span>
-        <span class="sr-title">${escapeHtml(r.title)}</span>
-        ${r.snippet ? `<span class="sr-snip" style="display:block">${escapeHtml(r.snippet)}</span>` : ''}
-      </button>`;
-    }).join('');
-    $$('#spResults .sr').forEach(el=> el.onclick = ()=> navigateActive(el.dataset.url));
-  } catch {
-    if (token !== searchToken) return;
-    $('#spMeta').textContent = '';
-    $('#spResults').innerHTML = `<div class="sp-state"><b>Поиск временно недоступен</b><p>Проверьте соединение и попробуйте ещё раз,<br>или выберите другой источник выше.</p></div>`;
+    renderSearchResults(data.results);$('#spMore').hidden=data.results.length<15;
+  }catch{
+    if(token!==searchToken)return;$('#spMeta').textContent='';$('#spResults').innerHTML=`<div class="sp-state"><b>Поиск временно недоступен</b><p>Проверьте соединение и попробуйте ещё раз,<br>или выберите другой источник выше.</p></div>`;
   }
 }
 urlInput.addEventListener('focus', ()=> urlInput.select());
@@ -1499,7 +1545,7 @@ function renderPanel(filter){
     });
   }
   $('#panelFoot').innerHTML=src.length?`<button class="btn danger block" id="panelClear">${panelMode==='closed'?'Очистить список':'Очистить всё'}</button>`:'';
-  const clear=$('#panelClear');if(clear)clear.onclick=()=>{if(panelMode==='bookmarks'){bookmarks=[];store.set('bookmarks',bookmarks);syncChrome();renderBookmarkBar();}else if(panelMode==='closed'){closedTabs=[];store.set('closedTabs',closedTabs);}else{historyLog=[];store.set('history',historyLog);renderRecent();}renderPanel('');toast('Очищено');};
+  const clear=$('#panelClear');if(clear)clear.onclick=()=>{if(panelMode==='bookmarks'){bookmarks=[];store.set('bookmarks',bookmarks);syncChrome();renderBookmarkBar();}else if(panelMode==='closed'){closedTabs=[];store.set('closedTabs',closedTabs);}else{historyLog=[];searchHistory=[];store.set('history',historyLog);store.set('searchHistory',searchHistory);renderRecent();}renderPanel('');toast('Очищено');};
 }
 $('#panelSearch').addEventListener('input',e=>renderPanel(e.target.value));
 $('#bookmarkFolderFilter').onchange=()=>{ $('#bookmarkFolderFilter').dataset.wanted=$('#bookmarkFolderFilter').value;renderPanel($('#panelSearch').value); };
@@ -1562,10 +1608,10 @@ $('#openPermissionLog').onclick=async()=>{openModal('permissionLogModal');const 
 $('#clearPermissionLog').onclick=async()=>{if(nativeWebview)await window.byazenDesktop.clearPermissionLog();$('#permissionLogList').innerHTML='<div class="empty"><b>Журнал очищен</b></div>';};
 $('#uiScale').onchange=()=>{store.set('uiScale',$('#uiScale').value);applyUiPreferences();};
 $('#sidebarSide').onchange=()=>{store.set('sidebarSide',$('#sidebarSide').value);applyUiPreferences();};
-window.__byazenPrepareToClose=()=>{if(store.get('clearHistoryOnExit',false)){historyLog=[];store.set('history',[]);renderRecent();}return true;};
-$('#clearHist').onclick = ()=>{ historyLog=[]; store.set('history',historyLog); renderRecent(); toast('История очищена'); };
+window.__byazenPrepareToClose=()=>{if(store.get('clearHistoryOnExit',false)){historyLog=[];searchHistory=[];store.set('history',[]);store.set('searchHistory',[]);renderRecent();}return true;};
+$('#clearHist').onclick = ()=>{ historyLog=[]; searchHistory=[]; store.set('history',historyLog); store.set('searchHistory',searchHistory); renderRecent(); toast('История очищена'); };
 $('#clearBm').onclick = ()=>{ bookmarks=[]; store.set('bookmarks',bookmarks); syncChrome(); renderBookmarkBar(); toast('Закладки очищены'); };
-const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantInputLang','assistantVoice','assistantWindow','aiPageActionsAllowed','assistantChats','contrastMode','compactMode','uiScale','sidebarSide','clearHistoryOnExit','warnHttp','siteZoomPreferences'];
+const BACKUP_KEYS=['settings','hotkeys','bookmarks','bookmarkFolders','bookmarkSort','collections','history','searchHistory','shortcuts','closedTabs','session','sessionActive','assistantModel','assistantSpeak','assistantVoiceStyle','assistantVoiceRate','assistantInputLang','assistantVoice','assistantWindow','aiPageActionsAllowed','assistantChats','contrastMode','compactMode','uiScale','sidebarSide','clearHistoryOnExit','warnHttp','siteZoomPreferences'];
 function downloadTextFile(name,text,type){
   const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');
   link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1593,7 +1639,7 @@ $('#bookmarkFile').onchange=async e=>{
 };
 $('#exportBackup').onclick=()=>{
   const restorableTabs=tabs.filter(t=>!t.private).slice(-20);
-  const defaults={settings,hotkeys,bookmarks,bookmarkFolders,bookmarkSort:$('#bookmarkSort').value||'newest',collections,history:historyLog,shortcuts,closedTabs,session:restorableTabs.map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})),sessionActive:Math.max(0,restorableTabs.findIndex(t=>t.id===activeId)),assistantModel:aiModel,assistantSpeak:$('#aiSpeak').checked,assistantVoiceStyle:$('#aiVoiceStyle').value,assistantVoiceRate:$('#aiVoiceRate').value,assistantInputLang:$('#aiInputLang').value,assistantVoice:$('#aiVoice').value,assistantWindow:store.get('assistantWindow',null),aiPageActionsAllowed:store.get('aiPageActionsAllowed',true),assistantChats:savedAiChats,contrastMode:store.get('contrastMode',false),compactMode:store.get('compactMode',false),uiScale:store.get('uiScale','1'),sidebarSide:store.get('sidebarSide','left'),clearHistoryOnExit:store.get('clearHistoryOnExit',false),warnHttp:store.get('warnHttp',true),siteZoomPreferences};
+  const defaults={settings,hotkeys,bookmarks,bookmarkFolders,bookmarkSort:$('#bookmarkSort').value||'newest',collections,history:historyLog,searchHistory,shortcuts,closedTabs,session:restorableTabs.map(t=>({url:t.url,title:t.title,pinned:t.pinned,group:t.group||''})),sessionActive:Math.max(0,restorableTabs.findIndex(t=>t.id===activeId)),assistantModel:aiModel,assistantSpeak:$('#aiSpeak').checked,assistantVoiceStyle:$('#aiVoiceStyle').value,assistantVoiceRate:$('#aiVoiceRate').value,assistantInputLang:$('#aiInputLang').value,assistantVoice:$('#aiVoice').value,assistantWindow:store.get('assistantWindow',null),aiPageActionsAllowed:store.get('aiPageActionsAllowed',true),assistantChats:savedAiChats,contrastMode:store.get('contrastMode',false),compactMode:store.get('compactMode',false),uiScale:store.get('uiScale','1'),sidebarSide:store.get('sidebarSide','left'),clearHistoryOnExit:store.get('clearHistoryOnExit',false),warnHttp:store.get('warnHttp',true),siteZoomPreferences};
   const data={};
   for(const key of BACKUP_KEYS){const raw=localStorage.getItem('byazen:'+key);if(raw!==null){try{data[key]=JSON.parse(raw);}catch{data[key]=defaults[key];}}else if(Object.hasOwn(defaults,key))data[key]=defaults[key];}
   downloadTextFile(`ByAzen-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({format:'byazen-backup',schemaVersion:1,createdAt:new Date().toISOString(),data},null,2),'application/json;charset=utf-8');
@@ -1610,6 +1656,7 @@ function validBackupValue(key,value){
   if(key==='siteZoomPreferences')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=200&&Object.entries(value).every(([host,scale])=>/^[a-z0-9.-]{1,253}$/i.test(host)&&[.5,.6,.7,.8,.9,1,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2].includes(Number(scale)));
   if(key==='assistantChats')return Array.isArray(value)&&value.length<=50&&value.every(c=>c&&typeof c.name==='string'&&c.name.length<=80&&Array.isArray(c.messages)&&c.messages.length<=100&&c.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'&&m.content.length<=12000));
   if(key==='collections')return Array.isArray(value)&&value.length<=100&&value.every(x=>x&&typeof x.name==='string'&&x.name.length<=80&&Array.isArray(x.tabs)&&x.tabs.length<=100&&x.tabs.every(t=>t&&typeof t.url==='string'&&/^https?:\/\//i.test(t.url)));
+  if(key==='searchHistory')return Array.isArray(value)&&value.length<=40&&value.every(x=>typeof x==='string'&&x.trim().length<=240);
   if(['bookmarks','history','shortcuts','closedTabs','session'].includes(key))return Array.isArray(value)&&value.length<=5000&&value.every(x=>x&&typeof x.url==='string'&&(/^(https?:\/\/|byazen:\/\/)/i.test(x.url)));
   if(key==='sessionActive')return Number.isInteger(value)&&value>=0&&value<5000;
   if(key==='assistantSpeak')return typeof value==='boolean';
