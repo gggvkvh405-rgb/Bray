@@ -5,6 +5,8 @@ if (window.top === window.self) {
     contextBridge.exposeInMainWorld('byazenDesktop', {
       electron: true,
       platform: process.platform,
+      openVoiceSettings: () => ipcRenderer.invoke('byazen:open-voice-settings'),
+      openLanguageSettings: () => ipcRenderer.invoke('byazen:open-language-settings'),
       openSite: (id, url, isPrivate=false) => ipcRenderer.send('byazen:site-open', { id, url, private:!!isPrivate }),
       setActiveSite: (id, bounds) => ipcRenderer.send('byazen:site-active', { id, bounds }),
       closeSite: id => ipcRenderer.send('byazen:site-close', id),

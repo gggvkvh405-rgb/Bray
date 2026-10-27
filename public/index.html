@@ -754,7 +754,7 @@ label.fl{font-size:11.5px;color:var(--text-2);font-weight:550;display:block;marg
       </div>
       <div class="about">
         <div class="logo"><img src="icon.png" alt="ByAzen"></div>
-        <div><b style="font-size:13.5px">ByAzen 1.0.18</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
+        <div><b style="font-size:13.5px">ByAzen 1.0.20</b><p>Минималистичный браузер. Все данные хранятся только на этом устройстве.</p></div>
       </div>
     </div>
   </div>
@@ -1018,7 +1018,7 @@ function createPrivateTab(url='byazen://newtab',opts={}){
 }
 function browserShortcutFromEvent(e){
   const key=String(e.key||'').toLowerCase(),ctrl=!!(e.ctrlKey||e.metaKey),shift=!!e.shiftKey,alt=!!e.altKey;
-  if(ctrl&&shift&&key==='r')return 'hard-reload';if(ctrl&&shift&&key==='n')return 'private-tab';
+  if(ctrl&&shift&&key==='r')return 'hard-reload';if(ctrl&&shift&&key==='n')return 'private-tab';if(ctrl&&shift&&key==='p')return 'feature-studio';
   if(ctrl&&key==='f')return 'find';if(ctrl&&key==='t')return 'new-tab';if(ctrl&&key==='w')return 'close-tab';if(ctrl&&key==='l')return 'focus-address';
   if(ctrl&&key==='tab')return shift?'previous-tab':'next-tab';if(ctrl&&key==='r')return 'reload';if(ctrl&&key==='0')return 'zoom-reset';
   if(ctrl&&(key==='+'||key==='='))return 'zoom-in';if(ctrl&&key==='-')return 'zoom-out';
@@ -2150,7 +2150,7 @@ async function sendAiMessage(text){
     for(let turn=0;turn<5;turn++){
       const pageContext=await getAiPageContext();
       citedSources=Array.isArray(pageContext.comparisonPages)?pageContext.comparisonPages.map(p=>({title:p.title,url:p.url})):pageContext.url&&!String(pageContext.url).startsWith('byazen://')?[{title:pageContext.title,url:pageContext.url}]:[];
-      const r=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:aiModel||'qwen2.5:3b',messages:aiHistory.slice(-12),pageContext})});
+      const r=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:aiModel||'qwen2.5:3b',persona:store.get('funConfig',{}).persona||'friendly',messages:aiHistory.slice(-12),pageContext})});
       const data=await r.json();
       if(!r.ok) throw new Error(data.error||'Ошибка Ollama');
       responseModel=data.model||aiModel;
@@ -2224,7 +2224,7 @@ function runBrowserShortcut(key){
   else if(key==='focus-address'){$('#sidebar').classList.remove('collapsed');urlInput.focus();}
   else if(key==='next-tab')switchNextTab();else if(key==='previous-tab')switchPreviousTab();
   else if(key==='reload')$('#reloadBtn').click();else if(key==='hard-reload')hardReloadActive();
-  else if(key==='zoom-reset')resetZoomActivePage();else if(key==='zoom-in')zoomActivePage(.1);else if(key==='zoom-out')zoomActivePage(-.1);
+  else if(key==='zoom-reset')resetZoomActivePage();else if(key==='zoom-in')zoomActivePage(.1);else if(key==='zoom-out')zoomActivePage(-.1);else if(key==='feature-studio')window.ByAzenStudio?.open();
   else if(key==='back'&&tab)goHist(tab,-1);else if(key==='forward'&&tab)goHist(tab,1);
 }
 function eventHotkey(e){
@@ -2288,5 +2288,6 @@ setTimeout(hideSplash, 1950);
 setTimeout(hideSplash, 4200); /* страховка */
 setTimeout(()=> toast('Добро пожаловать в ByAzen'), 2250);
 </script>
+<script src="features.js"></script>
 </body>
 </html>

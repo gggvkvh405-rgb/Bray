@@ -36,12 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.0.19 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
-            gh release upload v1.0.19 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
+          if gh release view v1.0.20 --repo gggvkvh405-rgb/Bray >/dev/null 2>&1; then
+            gh release upload v1.0.20 release/ByAzen.exe --clobber --repo gggvkvh405-rgb/Bray
           else
-            gh release create v1.0.19 release/ByAzen.exe \
-              --title 'ByAzen 1.0.19 — приватность, вкладки и контекстные действия' \
-              --notes 'Windows x64 build: private tabs with isolated in-memory site storage and no history/session restore, standard browser shortcuts, per-domain zoom preferences, richer omnibox suggestions, page/tab context actions and private-session safeguards.' \
+            gh release create v1.0.20 release/ByAzen.exe \
+              --title 'ByAzen 1.0.20 — Мастерская, модели ИИ и голоса' \
+              --notes 'Windows x64 build: research project snapshots with local AI handoff summaries, bookmark reminders, saved sourced snippets, collapsible workbench, optional playful UI effects and loading mini-game, curated local Ollama model downloads, Windows speech-pack settings, AI personas and source-based multi-page guides/debates.' \
               --prerelease \
               --repo gggvkvh405-rgb/Bray
           fi

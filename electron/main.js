@@ -144,6 +144,7 @@ function createSiteView(id,isPrivate=false) {
     let shortcut='';
     if(ctrl&&shift&&key==='r')shortcut='hard-reload';
     else if(ctrl&&shift&&key==='n')shortcut='private-tab';
+    else if(ctrl&&shift&&key==='p')shortcut='feature-studio';
     else if(ctrl&&key==='f')shortcut='find';
     else if(ctrl&&key==='t')shortcut='new-tab';
     else if(ctrl&&key==='w')shortcut='close-tab';
@@ -211,6 +212,14 @@ ipcMain.on('byazen:site-open', (event, payload = {}) => {
 
 
 function trustedUi(event) { return !!(win && !win.isDestroyed() && event.sender === win.webContents); }
+ipcMain.handle('byazen:open-voice-settings',event=>{
+  if(!trustedUi(event)||process.platform!=='win32')return {ok:false};
+  try{shell.openExternal('ms-settings:speech').catch(()=>{});return {ok:true};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:open-language-settings',event=>{
+  if(!trustedUi(event)||process.platform!=='win32')return {ok:false};
+  try{shell.openExternal('ms-settings:regionlanguage').catch(()=>{});return {ok:true};}catch{return {ok:false};}
+});
 ipcMain.handle('byazen:permission-log',event=>trustedUi(event)?websitePermissionLog.slice(0,100):[]);
 ipcMain.handle('byazen:permission-log-clear',event=>{if(!trustedUi(event))return false;websitePermissionLog.length=0;return true;});
 ipcMain.handle('byazen:downloads-list',event=>trustedUi(event)?downloadRecords.filter(x=>!x.privateOwnerId).map(x=>({...x})):[]);
