@@ -1,6 +1,6 @@
 {
   "name": "byazen",
-  "version": "1.0.0",
+  "version": "1.0.33",
   "description": "ByAzen — минималистичный тёмный браузер",
   "author": "ByAzen",
   "private": true,
@@ -11,7 +11,8 @@
     "dist:win": "electron-builder --win portable --x64"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "node-edge-tts": "^1.2.12"
   },
   "build": {
     "appId": "app.byazen.browser",
@@ -22,6 +23,22 @@
       "output": "release",
       "buildResources": "assets"
     },
+    "extraResources": [
+      {
+        "from": "resources/piper",
+        "to": "piper",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "resources/whisper",
+        "to": "whisper",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "files": [
       "electron/**",
       "public/**",

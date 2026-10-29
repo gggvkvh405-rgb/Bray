@@ -5,6 +5,8 @@ node_modules/
 release/
 dist/
 out/
+build/
+resources/whisper/
 *.exe
 
 # caches & logs

@@ -1,0 +1,58 @@
+name: Build Windows portable app
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Python for local Piper runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build local Piper runtime and include license notices
+        shell: pwsh
+        run: ./scripts/build-piper-runtime.ps1
+      - name: Build offline Whisper runtime from the pinned MIT source
+        shell: pwsh
+        run: ./scripts/build-whisper-runtime.ps1
+      - name: Install dependencies
+        run: npm ci
+      - name: Build portable executable
+        run: npm run dist:win
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ByAzen-Windows-x64
+          path: release/ByAzen.exe
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish direct download
+        if: github.event_name == 'push' && github.ref == 'refs/heads/arena/f944c286-bray'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.33
+          target_commitish: ${{ github.sha }}
+          name: ByAzen 1.0.33 — Browser search with image previews, visual AI and offline speech
+          body: >-
+            Windows x64 portable build: adds DuckDuckGo image previews to ByAzen Search, improves local Ollama context and model selection, adds opt-in visual page analysis with explicit confirmation, makes long-page reading paginated, and includes offline Whisper/Piper with guarded browser actions.
+          prerelease: true
+          files: release/ByAzen.exe
+          fail_on_unmatched_files: true
+          overwrite_files: true
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
