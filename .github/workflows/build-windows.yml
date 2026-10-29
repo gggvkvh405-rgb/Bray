@@ -44,15 +44,14 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/arena/f944c286-bray'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.33
+          tag_name: v1.0.34
           target_commitish: ${{ github.sha }}
-          name: ByAzen 1.0.33 — Browser search with image previews, visual AI and offline speech
+          name: ByAzen 1.0.34 — Download manager fix
           body: >-
-            Windows x64 portable build: adds DuckDuckGo image previews to ByAzen Search, improves local Ollama context and model selection, adds opt-in visual page analysis with explicit confirmation, makes long-page reading paginated, and includes offline Whisper/Piper with guarded browser actions.
+            Windows x64 portable build: fixes downloads failing in the desktop manager by checking Electron DownloadItem.getState() instead of a nonexistent isCanceled() method. Also includes ByAzen Search image previews, local AI improvements, and offline Whisper/Piper.
           prerelease: true
           files: release/ByAzen.exe
           fail_on_unmatched_files: true
           overwrite_files: true
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
