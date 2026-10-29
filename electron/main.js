@@ -1,21 +1,542 @@
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, WebContentsView, shell, Menu, ipcMain, dialog, nativeTheme } = require('electron');
+const { execFileSync } = require('node:child_process');
 const path = require('path');
+const fs = require('fs');
+const { registerPiperHandlers } = require('./piper');
+const { registerWhisperHandlers } = require('./whisper');
 const { startServer } = require('../server');
 
 app.setName('ByAzen');
 
 let win = null;
 let server = null;
+const siteViews = new Map();
+const websitePermissionLog=[];
+const configuredSiteSessions=new WeakSet();
+const downloadRecords=[];
+const downloadItems=new Map();
+let downloadSequence=0;
+let downloadSaveTimer=null;
+let siteDarkMode=true;
+const siteThemeCssKeys=new WeakMap();
+const SITE_DARK_CSS=':root{color-scheme:dark!important;scrollbar-color:#52525b #111114!important}*{scrollbar-color:#52525b #111114!important}::selection{background:rgba(139,92,246,.38)!important}';
+async function applySiteTheme(contents){
+  if(!contents||contents.isDestroyed())return;
+  const previous=siteThemeCssKeys.get(contents);
+  if(previous){siteThemeCssKeys.delete(contents);try{await contents.removeInsertedCSS(previous);}catch{}}
+  if(!siteDarkMode||contents.isDestroyed())return;
+  try{const key=await contents.insertCSS(SITE_DARK_CSS,{cssOrigin:'user'});if(siteDarkMode&&!contents.isDestroyed())siteThemeCssKeys.set(contents,key);else await contents.removeInsertedCSS(key);}catch{}
+}
+
+const PAGE_CONTEXT_SCRIPT = `(() => {
+  const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'; };
+  const label = el => {
+    const labels=el.labels?[...el.labels].map(x=>x.innerText).join(' '):'';
+    return String(el.innerText||el.getAttribute('aria-label')||el.getAttribute('placeholder')||el.getAttribute('title')||labels||el.name||'').replace(/\s+/g,' ').trim().slice(0,180);
+  };
+  const sensitive=el=>/password|credit|cardnumber|cc-number|cvc|cvv|one-time-code|current-password|new-password/i.test([el.type,el.name,el.id,el.autocomplete].join(' '));
+  const controls=[...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="link"],[contenteditable="true"]')]
+    .filter(el=>visible(el)&&!sensitive(el)&&el.type!=='hidden')
+    .slice(0,60).map(el=>({tag:el.tagName.toLowerCase(),type:el.type||'',label:label(el),placeholder:el.getAttribute('placeholder')||'',disabled:!!el.disabled,checked:['checkbox','radio'].includes(el.type)?!!el.checked:undefined}));
+  const headings=[...document.querySelectorAll('h1,h2,h3,[role="heading"]')].filter(visible).slice(0,16).map(el=>String(el.innerText||'').trim().slice(0,140)).filter(Boolean);
+  const links=[...document.querySelectorAll('a[href]')].filter(visible).slice(0,24).map(el=>({text:label(el).slice(0,100),url:el.href.slice(0,320)})).filter(link=>link.text&&/^https?:\/\//i.test(link.url));
+  return {title:document.title,url:location.href,text:(document.body?.innerText||'').replace(/\n{3,}/g,'\n\n').slice(0,7000),headings,links,controls,selection:String(window.getSelection()?.toString()||'').trim().slice(0,1200),scroll:{y:Math.round(window.scrollY),viewport:window.innerHeight,page:document.documentElement.scrollHeight}};
+})()`;
+
+const PAGE_ACTION_SCRIPT = `(() => {
+  const a=__BYAZEN_ACTION__;
+  const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'};
+  const label=el=>{const labels=el.labels?[...el.labels].map(x=>x.innerText).join(' '):'';return String(el.innerText||el.getAttribute('aria-label')||el.getAttribute('placeholder')||el.getAttribute('title')||labels||el.name||'').replace(/\s+/g,' ').trim().slice(0,180)};
+  const norm=s=>String(s||'').normalize('NFKC').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+  const match=(els,q)=>{const n=norm(q);if(!n)return null;let best=null,score=0;for(const el of els){if(!visible(el)||el.disabled)continue;const l=norm(label(el));let z=l===n?100:l.startsWith(n)?80:l.includes(n)?60:n.includes(l)&&l.length>2?40:0;if(z>score){best=el;score=z;}}return best;};
+  const sensitive=el=>/password|credit|cardnumber|cc-number|cvc|cvv|one-time-code|current-password|new-password/i.test([el.type,el.name,el.id,el.autocomplete].join(' '));
+  const dangerous=s=>/(купить|заказ|оплат|плат[её]ж|удалить|удаление|оформить|подтвердить покуп|отправить|публикац|зарегистр|войти|авторизац|подписат|подписк|publish|delete|purchase|buy now|checkout|pay now|place order|submit|send message|sign in|log in|register|subscribe|comment|post reply)/i.test(s||'');
+  const consentRisk=s=>/(agree|terms|privacy|policy|consent|subscribe|newsletter|marketing|updates|соглас|услови|политик|конфиденц|подпис|рассылк|уведомлен)/i.test(s||'');
+  const formRisk=el=>{const form=el?.closest?.('form');if(!form)return false;const details=[form.action||'',...form.querySelectorAll('input,textarea,select')].map(x=>typeof x==='string'?x:[x.type,x.name,x.id,x.autocomplete].join(' ')).join(' ');return /password|secret|token|otp|card|cvv|billing|payment|checkout|purchase|order|account|login|signin|register|message|comment|subscribe/i.test(details);};
+  if(a.type==='read') return {ok:true,tool:'read',snapshot:(()=>{const body=document.body?.innerText||'',offset=Math.max(0,Math.min(body.length,Number(a.offset)||0)),limit=Math.max(1000,Math.min(3000,Number(a.limit)||2500)),es=[...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="link"]')].filter(el=>visible(el)&&!sensitive(el)).slice(0,60);return {title:document.title,url:location.href,text:body.slice(offset,offset+limit),offset,textLength:body.length,hasMore:offset+limit<body.length,controls:es.map(el=>({tag:el.tagName.toLowerCase(),type:el.type||'',label:label(el),placeholder:el.getAttribute('placeholder')||'',disabled:!!el.disabled,checked:['checkbox','radio'].includes(el.type)?!!el.checked:undefined}))};})()};
+  if(a.type==='find'){
+    const query=String(a.query||'').trim().slice(0,200);if(!query)return {ok:false,error:'Введите текст для поиска.'};
+    const body=document.body?.innerText||'',lower=body.toLocaleLowerCase(),needle=query.toLocaleLowerCase();let count=0,pos=-1,from=0;
+    while((from=lower.indexOf(needle,from))!==-1){if(pos<0)pos=from;count++;from+=Math.max(1,needle.length);if(count>=100)break;}
+    const found=window.find(query,false,false,true,false,false,false);
+    const start=Math.max(0,(pos<0?0:pos)-100),excerpt=pos<0?'':body.slice(start,Math.min(body.length,pos+query.length+180)).split(String.fromCharCode(10)).join(' ').trim();
+    return {ok:true,action:'find',query,found:!!found||pos>=0,count,excerpt};
+  }
+  if(a.type==='download'){
+    const el=match([...document.querySelectorAll('a[href]')],a.target);if(!el)return {ok:false,error:'Не нашла ссылку для загрузки: '+a.target};
+    let url;try{url=new URL(el.href,location.href);}catch{return {ok:false,error:'Ссылка на файл некорректна.'};}
+    if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return {ok:false,error:'Разрешены только обычные HTTP(S)-ссылки без данных для входа.'};
+    const target=label(el)||url.hostname;
+    if(!a.confirmed)return {ok:false,confirmationRequired:true,target:target+' · '+url.href,message:'Начать загрузку файла? Убедитесь, что доверяете источнику.'};
+    return {ok:true,action:'download',target,url:url.href};
+  }
+  if(a.type==='click'){
+    const els=[...document.querySelectorAll('a,button,input[type="submit"],input[type="button"],[role="button"],[role="link"]')];const el=match(els,a.target);if(!el)return {ok:false,error:'Не нашла подходящую кнопку или ссылку: '+a.target};const name=label(el)||el.tagName;
+    if((dangerous(name)||formRisk(el))&&!a.confirmed)return {ok:false,confirmationRequired:true,target:name,message:'Это действие может отправить данные, опубликовать содержимое, изменить аккаунт, оформить покупку или подтвердить подписку.'};
+    el.click();return {ok:true,action:'click',target:name};
+  }
+  if(a.type==='fill'){
+    const els=[...document.querySelectorAll('input:not([type="password"]):not([type="hidden"]),textarea,[contenteditable="true"]')].filter(el=>!sensitive(el));const el=match(els,a.target);if(!el)return {ok:false,error:'Не нашла текстовое поле: '+a.target};
+    const value=String(a.value||'').slice(0,1200);el.focus();
+    if(el.isContentEditable)el.textContent=value;else{const proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;const setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;if(setter)setter.call(el,value);else el.value=value;}
+    el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));el.dispatchEvent(new Event('change',{bubbles:true}));return {ok:true,action:'fill',target:label(el)};
+  }
+  if(a.type==='check'){
+    const el=match([...document.querySelectorAll('input[type="checkbox"],input[type="radio"]')],a.target);if(!el)return {ok:false,error:'Не нашла флажок или переключатель: '+a.target};
+    const checked=!!a.checked,target=label(el)||el.type;if(el.checked===checked)return {ok:true,action:'check',target,checked,unchanged:true};
+    if(el.type==='radio'&&!checked)return {ok:false,error:'Выбранный radio-переключатель нельзя снять без выбора другого.'};
+    if((dangerous(target)||consentRisk(target)||formRisk(el))&&!a.confirmed)return {ok:false,confirmationRequired:true,target,message:'Этот флажок может принять условия, включить подписку или изменить параметры аккаунта.'};
+    el.click();return {ok:true,action:'check',target,checked:!!el.checked};
+  }
+  if(a.type==='select'){
+    const el=match([...document.querySelectorAll('select')],a.target);if(!el)return {ok:false,error:'Не нашла список: '+a.target};const wanted=norm(a.value);const option=[...el.options].find(o=>norm(o.textContent)===wanted)||[...el.options].find(o=>norm(o.textContent).includes(wanted));if(!option)return {ok:false,error:'В списке не найден вариант: '+a.value};el.value=option.value;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));return {ok:true,action:'select',target:label(el),value:option.textContent.trim()};
+  }
+  if(a.type==='press'){
+    const key=String(a.key||'');const allowed=['Enter','Escape','Tab','ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End','Backspace','Delete','Space'];if(!allowed.includes(key))return {ok:false,error:'Эта клавиша не разрешена'};
+    const el=document.activeElement||document.body;
+    if(key==='Enter'&&el.form){const submit=el.form.querySelector('button[type="submit"],input[type="submit"]'),name=submit?label(submit):'';if(submit&&(dangerous(name)||formRisk(submit))&&!a.confirmed)return {ok:false,confirmationRequired:true,target:name||'форма',message:'Enter может отправить данные, изменить аккаунт или оформить действие.'};if(submit){el.form.requestSubmit(submit);return {ok:true,action:'submit',target:name||'форма'};}}
+    const init={key:key==='Space'?' ':key,code:key==='Space'?'Space':key,bubbles:true,cancelable:true};el.dispatchEvent(new KeyboardEvent('keydown',init));el.dispatchEvent(new KeyboardEvent('keyup',init));return {ok:true,action:'press',key};
+  }
+  if(a.type==='scroll'){
+    const direction=a.direction==='up'?-1:1,amount=Math.max(100,Math.min(1200,Number(a.amount)||650));window.scrollBy({top:direction*amount,behavior:'smooth'});return {ok:true,action:'scroll',direction:direction<0?'up':'down',amount};
+  }
+  return {ok:false,error:'Неизвестное действие страницы'};
+})()`;
+
+function pageScript(script, payload) {
+  return script.replace('__BYAZEN_ACTION__', () => JSON.stringify(payload));
+}
+
+function waitForPageIdle(contents, timeout=7000) {
+  if (!contents.isLoading()) return Promise.resolve();
+  return new Promise(resolve => {
+    const finish=()=>{clearTimeout(timer);contents.removeListener('did-stop-loading',finish);resolve();};
+    const timer=setTimeout(finish,timeout);
+    contents.once('did-stop-loading',finish);
+  });
+}
+
+function sendSiteEvent(id, type, data = {}) {
+  if (win && !win.isDestroyed()) win.webContents.send('byazen:site-event', { id, type, ...data });
+}
+
+function publishDownload(record){
+  if(!record.privateOwnerId&&win&&!win.isDestroyed())win.webContents.send('byazen:download-event',{...record});
+}
+function persistDownloadHistory(immediate=false){
+  if(downloadSaveTimer){clearTimeout(downloadSaveTimer);downloadSaveTimer=null;}
+  if(!immediate){downloadSaveTimer=setTimeout(()=>persistDownloadHistory(true),300);downloadSaveTimer.unref?.();return;}
+  try{
+    const file=path.join(app.getPath('userData'),'download-history.json');
+    fs.mkdirSync(path.dirname(file),{recursive:true});
+    const records=downloadRecords.filter(x=>!x.privateOwnerId).slice(0,100).map(x=>({
+      id:x.id,fileName:x.fileName,source:x.source,total:x.total,received:x.received,
+      status:['awaiting','downloading','paused'].includes(x.status)?'interrupted':x.status,
+      createdAt:x.createdAt,path:x.path||'',error:x.error||'',canResume:false
+    }));
+    const temporary=`${file}.tmp`;
+    fs.writeFileSync(temporary,JSON.stringify(records));
+    fs.renameSync(temporary,file);
+  }catch{}
+}
+function loadDownloadHistory(){
+  try{
+    const file=path.join(app.getPath('userData'),'download-history.json');
+    const records=JSON.parse(fs.readFileSync(file,'utf8'));
+    if(!Array.isArray(records))return;
+    for(const item of records.slice(0,100).reverse()){
+      if(!item||!Number.isSafeInteger(item.id)||typeof item.fileName!=='string')continue;
+      const status=['completed','cancelled','failed','interrupted','blocked'].includes(item.status)?item.status:'interrupted';
+      const record={id:item.id,fileName:item.fileName.slice(0,160),source:typeof item.source==='string'?item.source.slice(0,512):'',total:Number(item.total)||0,received:Number(item.received)||0,status,createdAt:Number(item.createdAt)||Date.now(),path:typeof item.path==='string'?item.path:'',error:typeof item.error==='string'?item.error.slice(0,200):'',canResume:false};
+      if(record.status==='completed'&&record.path&&!fs.existsSync(record.path)){record.status='failed';record.error='Сохранённый файл не найден';record.path='';}
+      downloadRecords.unshift(record);downloadSequence=Math.max(downloadSequence,record.id);
+    }
+  }catch{}
+}
+function patchDownload(record,changes){Object.assign(record,changes);if(!record.privateOwnerId)persistDownloadHistory();publishDownload(record);}
+function safeDownloadFilename(value){
+  let name=String(value||'download').replace(/\\/g,'/').split('/').pop().replace(/[<>:"|?*\x00-\x1f]/g,'_').replace(/[. ]+$/g,'').replace(/^\.+/,'').slice(0,160);
+  if(!name||/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(name))name=`_${name||'download'}`;
+  return name;
+}
+function downloadWasCancelled(item){
+  try{return !item||typeof item.getState!=='function'||item.getState()==='cancelled';}catch{return true;}
+}
+function watchDownload(item,record){
+  item.on('updated',(_event,state)=>{
+    const received=item.getReceivedBytes(),canResume=state==='interrupted'&&typeof item.canResume==='function'&&item.canResume();
+    record.canResume=!!canResume;
+    patchDownload(record,{status:state==='interrupted'?'interrupted':item.isPaused()?'paused':'downloading',received,total:item.getTotalBytes()});
+  });
+  item.on('done',(_event,state)=>{
+    const received=item.getReceivedBytes(),canResume=state==='interrupted'&&typeof item.canResume==='function'&&item.canResume();
+    const status=state==='completed'?'completed':state==='cancelled'?'cancelled':state==='interrupted'?'interrupted':'failed';
+    patchDownload(record,{status,received,total:item.getTotalBytes(),canResume:!!canResume});
+    if(status!=='interrupted'||!canResume)downloadItems.delete(record.id);
+  });
+}
+function configureSiteSession(session,isPrivate=false,privateOwnerId=null){
+  if(configuredSiteSessions.has(session))return;
+  configuredSiteSessions.add(session);
+  session.on('will-download',(event,item)=>{
+    let source;
+    try{source=new URL(item.getURL());}catch{item.cancel();return;}
+    if(!['http:','https:'].includes(source.protocol)){item.cancel();return;}
+    const fileName=safeDownloadFilename(item.getFilename());
+    const record={id:++downloadSequence,fileName,source:source.origin,total:item.getTotalBytes(),received:item.getReceivedBytes(),status:'awaiting',createdAt:Date.now(),path:'',canResume:false,...(isPrivate?{privateOwnerId}: {})};
+    downloadRecords.unshift(record);if(!privateOwnerId)persistDownloadHistory();while(downloadRecords.length>100){const index=downloadRecords.findIndex(x=>!['awaiting','downloading'].includes(x.status));if(index<0)break;const [removed]=downloadRecords.splice(index,1);downloadItems.delete(removed.id);}downloadItems.set(record.id,item);publishDownload(record);
+    if(!win||win.isDestroyed()){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);item.cancel();return;}
+    item.pause();
+    const dangerous=/\.(exe|msi|msix|appx|bat|cmd|com|scr|cpl|hta|ps1|vbs|js|reg)$/i.test(fileName);
+    const approve=dangerous?dialog.showMessageBox(win,{type:'warning',buttons:['Продолжить','Отмена'],defaultId:1,cancelId:1,noLink:true,title:'Потенциально опасный файл',message:`Сайт предлагает загрузить «${fileName}».`,detail:'Исполняемые файлы могут повредить компьютер. Продолжайте только если доверяете источнику.'}).then(result=>result.response===0):Promise.resolve(true);
+    approve.then(async allowed=>{
+      if(!allowed||downloadWasCancelled(item)){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
+      if(!win||win.isDestroyed()||downloadWasCancelled(item)){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
+      const choice=await dialog.showSaveDialog(win,{title:'Сохранить загрузку',defaultPath:path.join(app.getPath('downloads'),fileName),buttonLabel:'Сохранить'});
+      if(choice.canceled||!choice.filePath||downloadWasCancelled(item)){patchDownload(record,{status:'cancelled'});downloadItems.delete(record.id);return item.cancel();}
+      item.setSavePath(choice.filePath);record.path=choice.filePath;watchDownload(item,record);patchDownload(record,{status:'downloading',path:choice.filePath,total:item.getTotalBytes()});item.resume();
+    }).catch(error=>{patchDownload(record,{status:'failed',error:String(error.message||error).slice(0,160)});downloadItems.delete(record.id);item.cancel();});
+  });
+  session.setPermissionRequestHandler((requester,permission,callback,details)=>{
+    let origin='unknown';try{origin=new URL(details?.requestingUrl||requester.getURL()).origin;}catch{}
+    websitePermissionLog.unshift({origin,permission,time:Date.now()});
+    if(websitePermissionLog.length>100)websitePermissionLog.length=100;
+    callback(false);
+  });
+  session.setPermissionCheckHandler(()=>false);
+}
+
+function createSiteView(id,isPrivate=false) {
+  const view = new WebContentsView({
+    webPreferences: {
+      partition: isPrivate?`byazen-private-${id}`:'persist:byazen-sites',
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+  win.contentView.addChildView(view);
+  view.byazenPrivate=!!isPrivate;
+  view.setVisible(false);
+  const guest = view.webContents;
+  configureSiteSession(guest.session,isPrivate,isPrivate?id:null);
+  guest.on('dom-ready',()=>applySiteTheme(guest));
+  guest.on('before-input-event',(event,input)=>{
+    if(input.type!=='keyDown')return;
+    const key=String(input.key||'').toLowerCase(),ctrl=!!(input.control||input.meta),shift=!!input.shift,alt=!!input.alt;
+    let shortcut='';
+    if(ctrl&&shift&&key==='r')shortcut='hard-reload';
+    else if(ctrl&&shift&&key==='n')shortcut='private-tab';
+    else if(ctrl&&shift&&key==='p')shortcut='feature-studio';
+    else if(ctrl&&shift&&key==='j')shortcut='downloads';
+    else if(ctrl&&key==='f')shortcut='find';
+    else if(ctrl&&key==='t')shortcut='new-tab';
+    else if(ctrl&&key==='w')shortcut='close-tab';
+    else if(ctrl&&key==='l')shortcut='focus-address';
+    else if(ctrl&&key==='tab')shortcut=shift?'previous-tab':'next-tab';
+    else if(ctrl&&key==='r')shortcut='reload';
+    else if(ctrl&&key==='0')shortcut='zoom-reset';
+    else if(ctrl&&(key==='+'||key==='='))shortcut='zoom-in';
+    else if(ctrl&&key==='-')shortcut='zoom-out';
+    else if(alt&&key==='arrowleft')shortcut='back';
+    else if(alt&&key==='arrowright')shortcut='forward';
+    if(shortcut){event.preventDefault();sendSiteEvent(id,'shortcut',{key:shortcut});}
+  });
+  guest.on('found-in-page',(_event,result)=>sendSiteEvent(id,'find-result',result));
+  guest.on('update-target-url',(_event,url)=>sendSiteEvent(id,'link-hover',{url:String(url||'').slice(0,2048)}));
+  guest.on('context-menu',(event,params)=>{
+    event.preventDefault();
+    sendSiteEvent(id,'page-context-menu',{x:Number(params.x)||0,y:Number(params.y)||0,linkURL:String(params.linkURL||'').slice(0,2048),srcURL:String(params.srcURL||'').slice(0,2048),mediaType:String(params.mediaType||''),selectionText:String(params.selectionText||'').slice(0,1000),isEditable:!!params.isEditable});
+  });
+
+  const openOutsidePrivateSession=url=>{
+    if(isPrivate){const insecure=/^http:\/\//i.test(url),choice=dialog.showMessageBoxSync(win,{type:'warning',buttons:['Отмена','Открыть в ByAzen'],defaultId:0,cancelId:0,title:insecure?'Незащищённое соединение':'Новая приватная вкладка',message:insecure?'Ссылка откроется в новой приватной вкладке ByAzen по незашифрованному HTTP-соединению. Продолжить?':'Ссылка откроется в новой приватной вкладке ByAzen; история и данные сайта останутся в приватной сессии. Продолжить?'});if(choice!==1)return;}
+    queueOpenUrl(url, isPrivate);
+  };
+  guest.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) openOutsidePrivateSession(url);
+    return { action: 'deny' };
+  });
+  guest.on('will-navigate', (event, url) => {
+    if (!/^https?:\/\//i.test(url) && url !== 'about:blank') {
+      event.preventDefault();
+      if (/^(mailto:|tel:)/i.test(url)) openOutsidePrivateSession(url);
+    }
+  });
+  guest.on('did-navigate', (_event, url) => sendSiteEvent(id, 'navigate', { url }));
+  guest.on('did-navigate-in-page', (_event, url, isMainFrame) => {
+    if (isMainFrame) sendSiteEvent(id, 'navigate', { url });
+  });
+  guest.on('page-title-updated', (_event, title) => sendSiteEvent(id, 'title', { title }));
+  guest.on('did-start-loading', () => sendSiteEvent(id, 'loading', { loading: true }));
+  guest.on('did-stop-loading', () => sendSiteEvent(id, 'loading', { loading: false }));
+  guest.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (isMainFrame && errorCode !== -3) {
+      sendSiteEvent(id, 'failure', { errorCode, errorDescription, url: validatedURL });
+    }
+  });
+
+  siteViews.set(id, view);
+  return view;
+}
+
+ipcMain.on('byazen:site-open', (event, payload = {}) => {
+  if (!win || event.sender !== win.webContents) return;
+  const id = Number(payload.id);
+  const url = String(payload.url || '');
+  if (!Number.isSafeInteger(id) || !/^https?:\/\//i.test(url)) return;
+  const privateMode=payload.private===true;
+  let view=siteViews.get(id);
+  if(view&&view.byazenPrivate!==privateMode){const oldSession=view.byazenPrivate?view.webContents.session:null;win.contentView.removeChildView(view);view.webContents.close();siteViews.delete(id);if(oldSession){oldSession.clearStorageData().catch(()=>{});oldSession.clearCache().catch(()=>{});}view=null;}
+  view=view||createSiteView(id,privateMode);
+  view.webContents.loadURL(url).catch(error => {
+    sendSiteEvent(id, 'failure', { errorDescription: error.message, url });
+  });
+});
+
+
+function trustedUi(event) { return !!(win && !win.isDestroyed() && event.sender === win.webContents); }
+ipcMain.handle('byazen:site-appearance',async(event,enabled)=>{
+  if(!trustedUi(event)||typeof enabled!=='boolean')return {ok:false};
+  siteDarkMode=enabled;nativeTheme.themeSource=enabled?'dark':'system';
+  await Promise.all([...siteViews.values()].map(view=>applySiteTheme(view.webContents)));
+  return {ok:true};
+});
+registerPiperHandlers(ipcMain, { app, isTrusted: trustedUi, getWindow: () => win, resourcesPath: process.resourcesPath });
+registerWhisperHandlers(ipcMain, { app, isTrusted: trustedUi, getWindow: () => win, resourcesPath: process.resourcesPath });
+ipcMain.handle('byazen:register-browser',event=>{
+  if(!trustedUi(event)||process.platform!=='win32')return {ok:false,error:'Доступно только в Windows.'};
+  const result=registerWindowsBrowser();
+  if(!result.ok)return result;
+  shell.openExternal('ms-settings:defaultapps').catch(()=>{});
+  return {ok:true};
+});
+ipcMain.handle('byazen:open-voice-settings',event=>{
+  if(!trustedUi(event)||process.platform!=='win32')return {ok:false};
+  try{shell.openExternal('ms-settings:speech').catch(()=>{});return {ok:true};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:open-language-settings',event=>{
+  if(!trustedUi(event)||process.platform!=='win32')return {ok:false};
+  try{shell.openExternal('ms-settings:regionlanguage').catch(()=>{});return {ok:true};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:permission-log',event=>trustedUi(event)?websitePermissionLog.slice(0,100):[]);
+ipcMain.handle('byazen:permission-log-clear',event=>{if(!trustedUi(event))return false;websitePermissionLog.length=0;return true;});
+ipcMain.handle('byazen:downloads-list',event=>trustedUi(event)?downloadRecords.filter(x=>!x.privateOwnerId).map(x=>({...x})):[]);
+ipcMain.handle('byazen:download-link',(event,payload={})=>{if(!trustedUi(event))return {ok:false};const id=Number(payload.id),raw=String(payload.url||'');const contents=pageView(id);if(!contents||raw.length>4096)return {ok:false};let url;try{url=new URL(raw);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return {ok:false};}catch{return {ok:false};}try{contents.downloadURL(url.href);return {ok:true};}catch{return {ok:false};}});
+ipcMain.handle('byazen:download-image',(event,payload={})=>{
+  if(!trustedUi(event))return {ok:false};const id=Number(payload.id),raw=String(payload.url||''),privateMode=payload.private===true;
+  if(!Number.isSafeInteger(id)||id<1||raw.length>4096)return {ok:false};
+  let url;try{url=new URL(raw);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return {ok:false};}catch{return {ok:false};}
+  let view=siteViews.get(id);if(view&&view.byazenPrivate!==privateMode)return {ok:false};
+  try{view=view||createSiteView(id,privateMode);view.webContents.downloadURL(url.href);return {ok:true};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:downloads-pause',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||!record||record.status!=='downloading')return {ok:false};try{item.pause();patchDownload(record,{status:'paused'});return {ok:true};}catch{return {ok:false};}});
+ipcMain.handle('byazen:downloads-resume',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||!record||!['interrupted','paused'].includes(record.status))return {ok:false};if(record.status==='interrupted'&&(typeof item.canResume!=='function'||!item.canResume()))return {ok:false};try{record.canResume=false;patchDownload(record,{status:'downloading'});item.resume();return {ok:true};}catch{return {ok:false};}});
+ipcMain.handle('byazen:downloads-folder',async event=>{if(!trustedUi(event))return {ok:false};try{const error=await shell.openPath(app.getPath('downloads'));return {ok:!error,error:error||''};}catch{return {ok:false};}});
+ipcMain.handle('byazen:downloads-cancel',(event,id)=>{if(!trustedUi(event))return {ok:false};const numeric=Number(id),item=downloadItems.get(numeric),record=downloadRecords.find(x=>x.id===numeric);if(!item||downloadWasCancelled(item))return {ok:false};item.cancel();if(record)patchDownload(record,{status:'cancelled'});downloadItems.delete(numeric);return {ok:true};});
+ipcMain.handle('byazen:downloads-clear',event=>{if(!trustedUi(event))return false;for(let i=downloadRecords.length-1;i>=0;i--){const item=downloadRecords[i];if(!['awaiting','downloading','paused'].includes(item.status)&&!(item.status==='interrupted'&&item.canResume))downloadRecords.splice(i,1);}persistDownloadHistory(true);return true;});
+ipcMain.handle('byazen:downloads-open',async(event,id)=>{if(!trustedUi(event))return {ok:false};const item=downloadRecords.find(x=>x.id===Number(id));if(!item||item.status!=='completed'||!item.path)return {ok:false};try{const error=await shell.openPath(item.path);return {ok:!error,error:error||''};}catch{return {ok:false,error:'Не удалось открыть файл'};}});
+ipcMain.handle('byazen:downloads-reveal',(event,id)=>{if(!trustedUi(event))return {ok:false};const item=downloadRecords.find(x=>x.id===Number(id));if(!item||item.status!=='completed'||!item.path)return {ok:false};try{shell.showItemInFolder(item.path);return {ok:true};}catch{return {ok:false};}});
+function pageView(id) {
+  const view=siteViews.get(Number(id));
+  if(!view||view.webContents.isDestroyed()) return null;
+  try { if(!/^https?:$/.test(new URL(view.webContents.getURL()).protocol)) return null; } catch { return null; }
+  return view.webContents;
+}
+
+ipcMain.handle('byazen:page-context', async (event, idValue) => {
+  if(!trustedUi(event)) return {error:'Недоверенный источник'};
+  const contents=pageView(idValue);
+  if(!contents) return {error:'Нет активной веб-страницы'};
+  try {
+    await waitForPageIdle(contents,5000);
+    const page=await contents.executeJavaScript(PAGE_CONTEXT_SCRIPT);
+    return {url:contents.getURL(),title:contents.getTitle(),...page};
+  } catch(error) { return {error:'Не удалось прочитать страницу: '+String(error.message||error).slice(0,180)}; }
+});
+
+ipcMain.handle('byazen:page-screenshot',async(event,idValue)=>{
+  if(!trustedUi(event))return {ok:false,error:'Недоверенный источник'};
+  const contents=pageView(idValue);if(!contents)return {ok:false,error:'Нет активной веб-страницы'};
+  try{
+    const captured=await contents.capturePage();if(captured.isEmpty())return {ok:false,error:'Пустой снимок страницы'};
+    const original=captured.getSize(),scale=Math.min(1,960/Math.max(1,original.width),720/Math.max(1,original.height));
+    const image=captured.resize({width:Math.max(1,Math.round(original.width*scale)),height:Math.max(1,Math.round(original.height*scale)),quality:'good'});
+    let jpeg=image.toJPEG(55);
+    if(jpeg.length>600*1024){const size=image.getSize(),down=Math.min(1,720/Math.max(1,size.width),540/Math.max(1,size.height));jpeg=image.resize({width:Math.max(1,Math.round(size.width*down)),height:Math.max(1,Math.round(size.height*down)),quality:'good'}).toJPEG(40);}
+    if(jpeg.length>600*1024)return {ok:false,error:'Снимок слишком велик для передачи локальной модели'};
+    return {ok:true,mime:'image/jpeg',data:jpeg.toString('base64'),title:contents.getTitle().slice(0,180),url:contents.getURL()};
+  }catch(error){return {ok:false,error:'Не удалось снять страницу: '+String(error.message||error).slice(0,180)};}
+});
+
+ipcMain.handle('byazen:page-selection', async (event,idValue)=>{
+  if(!trustedUi(event))return '';
+  const contents=pageView(idValue);if(!contents)return '';
+  try{return String(await contents.executeJavaScript('String(window.getSelection()?.toString()||"").trim()')).slice(0,3000);}catch{return '';}
+});
+ipcMain.handle('byazen:page-zoom', async (event,payload={})=>{
+  if(!trustedUi(event))return {ok:false};
+  const contents=pageView(payload.id);if(!contents)return {ok:false};
+  const factor=Math.max(.5,Math.min(2,Number(payload.factor)||1));
+  try{contents.setZoomFactor(factor);return {ok:true,factor};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:page-hard-reload',(event,idValue)=>{if(!trustedUi(event))return {ok:false};const contents=pageView(idValue);if(!contents)return {ok:false};try{contents.reloadIgnoringCache();return {ok:true};}catch{return {ok:false};}});
+ipcMain.handle('byazen:page-mute',async(event,idValue)=>{
+  if(!trustedUi(event))return {ok:false};const contents=pageView(idValue);if(!contents)return {ok:false};
+  try{const muted=!contents.isAudioMuted();contents.setAudioMuted(muted);return {ok:true,muted};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:page-find',async(event,payload={})=>{
+  if(!trustedUi(event))return {ok:false};const contents=pageView(payload.id);if(!contents)return {ok:false};
+  const text=String(payload.text||'').trim().slice(0,300);
+  if(!text){try{contents.stopFindInPage('clearSelection');}catch{}return {ok:true,requestId:0};}
+  try{return {ok:true,requestId:contents.findInPage(text,{forward:payload.forward!==false,findNext:payload.findNext===true,matchCase:false})};}catch{return {ok:false};}
+});
+ipcMain.handle('byazen:page-find-stop',(event,idValue)=>{if(!trustedUi(event))return false;const contents=pageView(idValue);if(!contents)return false;try{contents.stopFindInPage('clearSelection');return true;}catch{return false;}});
+ipcMain.handle('byazen:page-edit-command',(event,payload={})=>{if(!trustedUi(event)||!['copy','cut','paste'].includes(payload.command))return {ok:false};const contents=pageView(payload.id);if(!contents)return {ok:false};try{contents[payload.command]();return {ok:true};}catch{return {ok:false};}});
+
+ipcMain.handle('byazen:page-print', async (event,idValue)=>{
+  if(!trustedUi(event))return {ok:false,error:'Недоверенный источник'};
+  const contents=pageView(idValue);if(!contents)return {ok:false,error:'Нет веб-страницы для печати'};
+  return new Promise(resolve=>contents.print({},(success,failureReason)=>resolve({ok:success,error:failureReason||''})));
+});
+
+ipcMain.handle('byazen:page-action', async (event, payload = {}) => {
+  if(!trustedUi(event)) return {ok:false,error:'Недоверенный источник'};
+  const contents=pageView(payload.id);
+  if(!contents) return {ok:false,error:'Нет активной веб-страницы'};
+  const input=payload.action||{};
+  const allowed=new Set(['read','find','download','click','fill','select','check','press','scroll']);
+  if(!allowed.has(input.type)) return {ok:false,error:'Неизвестное действие страницы'};
+  const action={type:input.type,confirmed:input.confirmed===true};
+  if(['click','fill','select','check','download'].includes(action.type)) action.target=String(input.target||'').trim().slice(0,160);
+  if(action.type==='check'){if(typeof input.checked!=='boolean')return {ok:false,error:'Для флажка нужно указать true или false.'};action.checked=input.checked;}
+  if(action.type==='find') action.query=String(input.query||'').trim().slice(0,200);
+  if(action.type==='read') { action.offset=Math.max(0,Math.min(100000,Number(input.offset)||0)); action.limit=Math.max(1000,Math.min(3000,Number(input.limit)||2500)); }
+  if(action.type==='fill'||action.type==='select') action.value=String(input.value||'').slice(0,1200);
+  if(action.type==='press') {
+    action.key=String(input.key||'');
+    if(!['Enter','Escape','Tab','ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End','Backspace','Delete','Space'].includes(action.key)) return {ok:false,error:'Эта клавиша не разрешена'};
+  }
+  if(action.type==='scroll') {
+    action.direction=input.direction==='up'?'up':'down';
+    action.amount=Math.max(100,Math.min(1200,Number(input.amount)||650));
+  }
+  try {
+    if(action.type==='read') {
+      await waitForPageIdle(contents,5000);
+      return await contents.executeJavaScript(pageScript(PAGE_ACTION_SCRIPT,action));
+    }
+    if(['click','press'].includes(action.type)) await new Promise(resolve=>setTimeout(resolve,180));
+    const result=await contents.executeJavaScript(pageScript(PAGE_ACTION_SCRIPT,action));
+    if(result?.confirmationRequired||!result?.ok) return result;
+    if(['click','press'].includes(action.type)) await waitForPageIdle(contents,6500);
+    return result;
+  } catch(error) { return {ok:false,error:'Действие страницы не выполнено: '+String(error.message||error).slice(0,180)}; }
+});
+
+ipcMain.on('byazen:site-active', (event, payload = {}) => {
+  if (!win || event.sender !== win.webContents) return;
+  const activeId = payload.id == null ? null : Number(payload.id);
+  for (const [id, view] of siteViews) {
+    const active = id === activeId;
+    view.setVisible(active);
+    if (active) {
+      const b = payload.bounds || {};
+      const [contentWidth, contentHeight] = win.getContentSize();
+      const x = Math.max(0, Math.round(Number(b.x) || 0));
+      const y = Math.max(0, Math.round(Number(b.y) || 0));
+      const width = Math.max(1, Math.min(Math.round(Number(b.width) || 1), contentWidth - x));
+      const height = Math.max(1, Math.min(Math.round(Number(b.height) || 1), contentHeight - y));
+      view.setBounds({ x, y, width, height });
+    }
+  }
+});
+
+ipcMain.on('byazen:site-close', (event, idValue) => {
+  if (!win || event.sender !== win.webContents) return;
+  const id = Number(idValue);
+  const view = siteViews.get(id);
+  if (!view) return;
+  const privateSession=view.byazenPrivate?view.webContents.session:null;
+  if(view.byazenPrivate)for(let i=downloadRecords.length-1;i>=0;i--)if(downloadRecords[i].privateOwnerId===id){const record=downloadRecords[i],item=downloadItems.get(record.id);if(item&&!downloadWasCancelled(item))item.cancel();downloadItems.delete(record.id);downloadRecords.splice(i,1);persistDownloadHistory();}
+  win.contentView.removeChildView(view);
+  view.webContents.close();
+  siteViews.delete(id);
+  if(privateSession){privateSession.clearStorageData().catch(()=>{});privateSession.clearCache().catch(()=>{});}
+});
+
+const pendingOpenUrls = [];
+function validExternalUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch { return ''; }
+}
+function extractExternalUrl(args) {
+  for (const arg of args || []) {
+    const url = validExternalUrl(arg);
+    if (url) return url;
+  }
+  return '';
+}
+function queueOpenUrl(value, isPrivate = false) {
+  const url = validExternalUrl(value);
+  if (!url) return;
+  pendingOpenUrls.push({ url, private: !!isPrivate });
+  flushOpenUrls();
+}
+function flushOpenUrls() {
+  if (!win || win.isDestroyed() || win.webContents.isLoadingMainFrame()) return;
+  while (pendingOpenUrls.length) win.webContents.send('byazen:open-url', pendingOpenUrls.shift());
+}
+function registerWindowsBrowser() {
+  if (process.platform !== 'win32') return { ok: false, error: 'Доступно только в Windows.' };
+  try {
+    // Portable builds run from a temporary extraction directory; register the user's original EXE instead.
+    const exe = process.env.PORTABLE_EXECUTABLE_FILE || app.getPath('exe');
+    const openCommand = `"${exe}" "%1"`;
+    const add = (key, name, value) => execFileSync('reg.exe', [
+      'add', key, name ? '/v' : '/ve', ...(name ? [name] : []),
+      '/t', 'REG_SZ', '/d', value, '/f'
+    ], { windowsHide: true, stdio: 'ignore' });
+    const progId = 'ByAzenURL';
+    const clientKey = 'HKCU\\Software\\Clients\\StartMenuInternet\\ByAzen';
+    const capabilities = `${clientKey}\\Capabilities`;
+    add(`HKCU\\Software\\Classes\\${progId}`, '', 'URL:ByAzen URL');
+    add(`HKCU\\Software\\Classes\\${progId}`, 'URL Protocol', '');
+    add(`HKCU\\Software\\Classes\\${progId}\\DefaultIcon`, '', `"${exe}",0`);
+    add(`HKCU\\Software\\Classes\\${progId}\\shell\\open\\command`, '', openCommand);
+    add(clientKey, '', 'ByAzen');
+    add(`${clientKey}\\DefaultIcon`, '', `"${exe}",0`);
+    add(`${clientKey}\\shell\\open\\command`, '', `"${exe}"`);
+    add(capabilities, 'ApplicationName', 'ByAzen');
+    add(capabilities, 'ApplicationIcon', `"${exe}",0`);
+    add(capabilities, 'ApplicationDescription', 'Минималистичный браузер ByAzen');
+    add(`${capabilities}\\URLAssociations`, 'http', progId);
+    add(`${capabilities}\\URLAssociations`, 'https', progId);
+    add('HKCU\\Software\\RegisteredApplications', 'ByAzen', 'Software\\Clients\\StartMenuInternet\\ByAzen\\Capabilities');
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: String(error?.message || 'Не удалось зарегистрировать ByAzen в Windows.').slice(0, 300) };
+  }
+}
 
 // Один запущенный экземпляр
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, commandLine) => {
     if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+    queueOpenUrl(extractExternalUrl(commandLine));
   });
+  app.on('before-quit',()=>persistDownloadHistory(true));
+  const startupUrl = extractExternalUrl(process.argv);
+  if (startupUrl) pendingOpenUrls.push({ url: startupUrl, private: false });
 
   app.whenReady().then(async () => {
+    nativeTheme.themeSource=siteDarkMode?'dark':'system';
+    if (process.platform === 'win32') registerWindowsBrowser();
+    loadDownloadHistory();
     Menu.setApplicationMenu(null);
 
     // Локальный сервер ByAzen на свободном порту
@@ -44,9 +565,19 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
-    // Кнопка ↗ и target=_blank — в системный браузер, не в новое окно Electron
+    // Mic permission is granted only to the trusted app renderer, never to website tabs.
+    // The main renderer is locked to the local UI by the will-navigate handler below.
+    win.webContents.session.setPermissionRequestHandler((requester, permission, callback) => {
+      callback(requester === win.webContents && permission === 'media');
+    });
+    win.webContents.session.setPermissionCheckHandler((requester, permission) => {
+      return requester === win.webContents && permission === 'media';
+    });
+
+    // target=_blank открывается отдельной вкладкой внутри ByAzen.
+    win.webContents.on('did-finish-load', flushOpenUrls);
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+      if (/^https?:\/\//i.test(url)) queueOpenUrl(url);
       return { action: 'deny' };
     });
 
@@ -58,10 +589,33 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
+    let allowWindowClose=false,closeConfirmationPending=false;
+    win.on('close', event=>{
+      if(allowWindowClose)return;
+      event.preventDefault();
+      if(closeConfirmationPending)return;
+      closeConfirmationPending=true;
+      Promise.race([
+        win.webContents.executeJavaScript('typeof tabs !== "undefined" ? tabs.length : 2'),
+        new Promise(resolve=>setTimeout(()=>resolve(2),1200))
+      ]).then(async count=>{
+        if(count>1){
+          const answer=await dialog.showMessageBox(win,{type:'question',buttons:['Закрыть окно','Отмена'],defaultId:1,cancelId:1,noLink:true,title:'Закрыть ByAzen?',message:`Открыто вкладок: ${count}. Закрыть браузер?`,detail:'Сессия вкладок будет сохранена и восстановлена при следующем запуске.'});
+          if(answer.response!==0)return;
+        }
+        try{if(win&&!win.isDestroyed())await win.webContents.executeJavaScript('window.__byazenPrepareToClose?.()');}catch{}
+        allowWindowClose=true;
+        if(win&&!win.isDestroyed())win.close();
+      }).catch(async()=>{
+        if(!win||win.isDestroyed())return;
+        try{const answer=await dialog.showMessageBox(win,{type:'question',buttons:['Закрыть окно','Отмена'],defaultId:1,cancelId:1,title:'Закрыть ByAzen?',message:'Закрыть окно браузера?',detail:'Сессия будет сохранена.'});if(answer.response===0){allowWindowClose=true;win.close();}}catch{}
+      }).finally(()=>{closeConfirmationPending=false;});
+    });
     win.once('ready-to-show', () => win.show());
-    win.on('closed', () => { win = null; });
+    win.on('closed', () => { win = null; siteViews.clear(); });
 
     await win.loadURL(`http://127.0.0.1:${port}/`);
+    flushOpenUrls();
   });
 
   app.on('window-all-closed', () => {
